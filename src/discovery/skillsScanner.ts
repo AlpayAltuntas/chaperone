@@ -17,6 +17,13 @@ const FS_WRITE_PATTERNS = [
   /require\(['"]fs['"]\)/,
   /from\s+['"]fs['"]/,
 ];
+// Evidence that file access is scoped to a fixed base directory rather than
+// an arbitrary caller-supplied path — the proxy CHAP-AGY-002 uses for "has
+// path scoping".
+const FS_SCOPING_PATTERNS = [
+  /path\.(?:join|resolve)\(\s*__dirname/,
+  /const\s+\w*(?:WORKSPACE|SANDBOX|SCOPED)\w*\s*=/i,
+];
 const NETWORK_PATTERNS = [
   /\bfetch\(/,
   /\bhttps?\.request\(/,
@@ -72,6 +79,7 @@ function scanOneSkill(
   const capabilities = {
     shellExec: SHELL_EXEC_PATTERNS.some((re) => re.test(combinedSource)),
     fileSystemAccess: FS_WRITE_PATTERNS.some((re) => re.test(combinedSource)),
+    fileSystemScoped: FS_SCOPING_PATTERNS.some((re) => re.test(combinedSource)),
     networkAccess: NETWORK_PATTERNS.some((re) => re.test(combinedSource)),
     destructiveKeywords: DESTRUCTIVE_KEYWORDS.filter((kw) =>
       new RegExp(`\\b${kw}\\b`, 'i').test(combinedSource),
@@ -91,10 +99,67 @@ function scanOneSkill(
 
   const installScripts = scanInstallScripts(dir, manifest, inspected, skipped);
   const provenance = extractProvenance(manifest);
+  const confirmationRequired = extractManifestBoolean(manifest, 'confirmationRequired');
+  const domainAllowlist = extractManifestStringArray(manifest, 'domainAllowlist');
 
   const name = manifest && typeof manifest['name'] === 'string' ? manifest['name'] : dirName;
 
-  return { name, dir, manifestPath, capabilities, provenance, dependencies, installScripts };
+  return {
+    name,
+    dir,
+    manifestPath,
+    capabilities,
+    provenance,
+    dependencies,
+    installScripts,
+    confirmationRequired,
+    domainAllowlist,
+  };
+}
+
+/**
+ * Reads a boolean manifest field, checked both at the manifest's top level
+ * and nested under a `capabilities` sub-object — an invented-but-documented
+ * convention (see DECISIONS.md, Phase 3) since no real manifest schema
+ * exists for these fictional example agents.
+ */
+function extractManifestBoolean(
+  manifest: Record<string, unknown> | null,
+  field: string,
+): boolean | null {
+  if (!manifest) {
+    return null;
+  }
+  if (typeof manifest[field] === 'boolean') {
+    return manifest[field];
+  }
+  const capabilities = manifest['capabilities'];
+  if (isRecord(capabilities) && typeof capabilities[field] === 'boolean') {
+    return capabilities[field];
+  }
+  return null;
+}
+
+/** Same convention as extractManifestBoolean, for a string-array field. */
+function extractManifestStringArray(
+  manifest: Record<string, unknown> | null,
+  field: string,
+): string[] | null {
+  if (!manifest) {
+    return null;
+  }
+  const direct = manifest[field];
+  if (Array.isArray(direct) && direct.every((v) => typeof v === 'string')) {
+    return direct;
+  }
+  const capabilities = manifest['capabilities'];
+  if (isRecord(capabilities)) {
+    const nested = capabilities[field];
+    if (Array.isArray(nested) && nested.every((v) => typeof v === 'string')) {
+      return nested;
+    }
+  }
+  return null;
 }
 
 function readManifest(

@@ -1,0 +1,11 @@
+{
+  "name": "weather",
+  "version": "1.0.0",
+  "description": "DUMMY fixture skill: fetches a forecast, restricted to an explicit domain allowlist (fixture only).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example-org/weather-skill"
+  },
+  "author": "example-author",
+  "domainAllowlist": ["api.weather.example"]
+}

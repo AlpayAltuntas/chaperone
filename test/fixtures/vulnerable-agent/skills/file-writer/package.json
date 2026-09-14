@@ -1,0 +1,6 @@
+{
+  "name": "file-writer",
+  "version": "latest",
+  "description": "DUMMY fixture skill: writes and deletes files at any caller-supplied path, with no workspace scoping and no confirmation gate (fixture only).",
+  "author": "example-author"
+}

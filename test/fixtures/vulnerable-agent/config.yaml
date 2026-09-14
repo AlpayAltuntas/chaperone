@@ -29,5 +29,6 @@ logging:
 trust:
   mark_untrusted_input: false
   auto_execute_links: true
+  tool_allowlist: []
 
 skills_dir: ./skills

@@ -9,6 +9,7 @@ import { detectGitContext } from './gitContext.js';
 import { isRecord } from './jsonUtils.js';
 import { extractLoggingModel } from './logging.js';
 import { getFilePermissionFact } from './permissions.js';
+import { detectRecoverability } from './recoverability.js';
 import { scanSkills } from './skillsScanner.js';
 
 export interface DiscoveryOptions {
@@ -80,6 +81,8 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   inspected.push(...skillsResult.inspected);
   skipped.push(...skillsResult.skipped);
 
+  const recoverability = detectRecoverability(targetRoot);
+
   const model: AgentModel = {
     targetRoot,
     config: { path: configPath, format, data, secretFields },
@@ -88,6 +91,7 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
     skills: skillsResult.skills,
     gateway,
     logging,
+    recoverability,
     inspected,
     skipped,
   };
@@ -127,6 +131,7 @@ function emptyModel(
       redactSecrets: null,
       auditLogEnabled: null,
     },
+    recoverability: { killSwitchDocumented: false },
     inspected,
     skipped,
   };

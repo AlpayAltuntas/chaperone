@@ -25,6 +25,7 @@ const BASE_MODEL: AgentModel = {
     tlsEnabled: true,
   },
   logging: { present: false, level: null, path: null, redactSecrets: null, auditLogEnabled: null },
+  recoverability: { killSwitchDocumented: false },
   inspected: [],
   skipped: [],
 };

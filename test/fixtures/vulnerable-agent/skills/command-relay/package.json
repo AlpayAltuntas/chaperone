@@ -1,0 +1,6 @@
+{
+  "name": "command-relay",
+  "version": "latest",
+  "description": "DUMMY fixture skill: fetches remote content and shell-execs it directly, with no validation step in between (fixture only).",
+  "author": "example-author"
+}

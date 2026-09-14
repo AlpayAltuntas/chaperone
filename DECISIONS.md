@@ -183,3 +183,84 @@ Running log of non-obvious choices made while building Chaperone, per
   exist"; now that `chaperone scan` prints real findings via the console
   reporter, the old dump had no caller and no test — dead code, deleted
   rather than left unused.
+
+## Phase 3 — Full check set
+
+- **Extended the `Skill` model exactly where Phase 1 deferred it.** The
+  Phase 1 note said "extend `Skill`/`GatewayModel` once the actual
+  heuristic is known" rather than guess ahead of the consuming check.
+  Phase 3 is that moment for CHAP-AGY-002/003/004: added
+  `capabilities.fileSystemScoped` (computed in `skillsScanner.ts` from the
+  same source-regex pass as the other capabilities — evidence of
+  `path.join(__dirname, ...)`/`.resolve(__dirname, ...)` or a
+  `WORKSPACE`/`SANDBOX`/`SCOPED`-named constant), `confirmationRequired`,
+  and `domainAllowlist` (both read from the manifest, top-level or nested
+  under a `capabilities` sub-object — again an invented-but-documented
+  convention, no real schema exists for these example agents). Also added
+  `AgentModel.recoverability.killSwitchDocumented` for CHAP-OBS-003 (a
+  small new discovery module, `recoverability.ts`, checking for a
+  `KILL_SWITCH.md`/`STOP.md`/`kill-switch.sh`/`revoke.sh` at the target
+  root).
+- **`.gitignore` pattern matching (deferred from Phase 1) implemented as
+  pure logic in `checks/shared/gitignoreMatch.ts`**, consumed only by
+  CHAP-SEC-002. Deliberately a small subset of real gitignore semantics
+  (`*`/`?` wildcards, directory-only and root-anchored patterns, `!`
+  negation processed in order) — no `**`, no nested (non-root)
+  `.gitignore` files. Documented as a known gap rather than attempting a
+  full implementation for one check's heuristic.
+- **`channels`/`trust` config sections are read directly from
+  `model.config.data` by CHAP-INJ-001/003/004**, via small accessor
+  helpers in `checks/shared/configAccess.ts`, rather than becoming
+  dedicated `AgentModel` fields. This follows the Phase 1 decision
+  exactly: neither concept is one of instruction.md §8's six buckets, and
+  reading an already-parsed in-memory tree is pure data traversal, not
+  I/O, so it's legitimate to do straight in a check.
+- **`trust.tool_allowlist`** (CHAP-INJ-003) is a new invented config
+  field, same caveat as the manifest conventions above — added to both
+  fixtures (empty in vulnerable, populated in clean) since no check
+  previously needed it.
+- **CHAP-SUP-003's heuristic is deliberately weak, per instruction.md §7's
+  own text**, not a shortcut taken here: no outbound advisory-API calls
+  are allowed (§14), so v1 just surfaces every dependency manifest and
+  points at `npm audit`. It fires on the clean fixture's three skills too
+  (they all have a `package.json`) — this is the correct, spec-mandated
+  v1 behavior, not a bug. Documented prominently in `CHECKS.md` and in the
+  check's own test file so it isn't mistaken for one later.
+- **CHAP-INJ-002's heuristic is a static proxy, not real data-flow
+  analysis.** "A tool's output can trigger another tool with no
+  validation step" isn't something a static scanner can confirm without
+  tracing actual data flow. v1 flags the _shape_ of that risk instead: a
+  skill that both ingests external/tool data (network or filesystem
+  capability) and can execute shell commands. Documented as a proxy, not
+  a confirmed finding, in both `CHECKS.md` and the check's own doc
+  comment.
+- **Permission-dependent checks (CHAP-SEC-003, and CHAP-SEC-004's
+  world-readable-log branch) are NOT asserted against the named fixtures'
+  checked-out state**, continuing the Phase 1 policy: git only preserves
+  the executable bit, so 0600 vs 0644 isn't portable across machines/CI.
+  Each has its own isolated temp-dir test with explicit `chmod`
+  (`test/checks/chapSec003.test.ts`, `test/checks/chapSec004.test.ts`).
+- **The Phase 3 "runs on both fixtures" integration test
+  (`test/scan/fullCatalog.test.ts`) copies each fixture to a temp dir and
+  chmod's `config.yaml`/`logs/agent.log` explicitly (0644 for the
+  vulnerable copy, 0600 for the clean copy) rather than running against
+  the committed fixtures directly**, for the same permission-portability
+  reason, and to avoid ever mutating the real working tree during a test
+  run. The copy also has to fabricate a `.git` directory and a
+  `.gitignore`: CHAP-SEC-002 depends on the fixture sitting inside a real
+  git repo, which is true for the _committed_ fixtures (they live inside
+  Chaperone's own repo) but not for a bare temp-dir copy. A plain
+  `chaperone scan` against the committed fixtures will still show
+  CHAP-SEC-003/004 findings that depend on the machine's actual
+  checked-out permissions — expected and accurate, not a defect.
+- **Word-boundary gotcha in the destructive-keyword regex
+  (`\bdelete\b`, `\bsend\b`, ...): a camelCase identifier like
+  `deleteFile`/`sendMessage` does NOT match**, since there's no
+  non-word-character boundary between `delete`/`send` and the following
+  capital letter. The `file-writer` and `messenger` fixture skills
+  reference the standalone words in their code comments so
+  CHAP-AGY-003 has real true-positive/true-negative fixture coverage; a
+  real target agent's skill would need the keyword to appear as a
+  genuinely standalone word too (e.g. snake_case or a doc comment) to be
+  detected in v1 — a known heuristic limitation, not fixed here to avoid
+  scope creep into a smarter tokenizer for one check.

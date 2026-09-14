@@ -24,6 +24,7 @@ const EMPTY_MODEL: AgentModel = {
     tlsEnabled: null,
   },
   logging: { present: false, level: null, path: null, redactSecrets: null, auditLogEnabled: null },
+  recoverability: { killSwitchDocumented: false },
   inspected: [],
   skipped: [],
 };

@@ -31,8 +31,8 @@ export default [
       '@typescript-eslint': tseslint,
     },
     rules: {
-      ...tseslint.configs['recommended-type-checked'].rules,
-      ...tseslint.configs['strict-type-checked'].rules,
+      ...(tseslint.configs['recommended-type-checked']?.rules ?? {}),
+      ...(tseslint.configs['strict-type-checked']?.rules ?? {}),
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/restrict-template-expressions': [

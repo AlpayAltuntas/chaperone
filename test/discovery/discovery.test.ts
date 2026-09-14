@@ -32,8 +32,8 @@ describe('discoverAgent — vulnerable-agent fixture', () => {
     expect(model.gateway.tlsEnabled).toBe(false);
   });
 
-  it('discovers both skills with their capabilities', () => {
-    expect(model.skills).toHaveLength(2);
+  it('discovers all skills with their capabilities', () => {
+    expect(model.skills).toHaveLength(4);
 
     const shellRunner = model.skills.find((s) => s.name === 'shell-runner');
     expect(shellRunner?.capabilities.shellExec).toBe(true);
@@ -67,10 +67,11 @@ describe('discoverAgent — clean-agent fixture', () => {
   });
 
   it('discovers the notes skill with no shell/network capability', () => {
-    expect(model.skills).toHaveLength(1);
-    const notes = model.skills[0];
+    expect(model.skills).toHaveLength(3);
+    const notes = model.skills.find((s) => s.name === 'notes');
     expect(notes?.capabilities.shellExec).toBe(false);
     expect(notes?.capabilities.networkAccess).toBe(false);
+    expect(notes?.capabilities.fileSystemScoped).toBe(true);
     expect(notes?.dependencies.lockfilePath).not.toBeNull();
     expect(notes?.provenance.pinnedRef).toBe(true);
   });

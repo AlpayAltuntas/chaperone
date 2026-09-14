@@ -121,6 +121,10 @@ export type FilePermissionFact = z.infer<typeof FilePermissionFactSchema>;
 export const SkillCapabilitiesSchema = z.object({
   shellExec: z.boolean(),
   fileSystemAccess: z.boolean(),
+  // True when the source shows evidence of scoping file access to a fixed
+  // base directory (e.g. `path.join(__dirname, ...)`), the proxy CHAP-AGY-002
+  // uses for "no path scoping". Meaningless when fileSystemAccess is false.
+  fileSystemScoped: z.boolean(),
   networkAccess: z.boolean(),
   destructiveKeywords: z.array(z.string()),
 });
@@ -158,6 +162,11 @@ export const SkillSchema = z.object({
   provenance: SkillProvenanceSchema,
   dependencies: SkillDependencyInfoSchema,
   installScripts: SkillInstallScriptInfoSchema,
+  // Declared manifest conventions consumed by CHAP-AGY-003/004 (Phase 3).
+  // null means "not declared" — a check decides what that means, discovery
+  // just reports what it found.
+  confirmationRequired: z.boolean().nullable(),
+  domainAllowlist: z.array(z.string()).nullable(),
 });
 export type Skill = z.infer<typeof SkillSchema>;
 
@@ -189,6 +198,15 @@ export const LoggingModelSchema = z.object({
 export type LoggingModel = z.infer<typeof LoggingModelSchema>;
 
 // ---------------------------------------------------------------------------
+// Recoverability (feeds CHAP-OBS-003)
+// ---------------------------------------------------------------------------
+
+export const RecoverabilityModelSchema = z.object({
+  killSwitchDocumented: z.boolean(),
+});
+export type RecoverabilityModel = z.infer<typeof RecoverabilityModelSchema>;
+
+// ---------------------------------------------------------------------------
 // Top-level AgentModel
 // ---------------------------------------------------------------------------
 
@@ -200,6 +218,7 @@ export const AgentModelSchema = z.object({
   skills: z.array(SkillSchema),
   gateway: GatewayModelSchema,
   logging: LoggingModelSchema,
+  recoverability: RecoverabilityModelSchema,
   inspected: z.array(InspectedEntrySchema),
   skipped: z.array(SkippedEntrySchema),
 });

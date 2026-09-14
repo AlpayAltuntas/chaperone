@@ -28,5 +28,9 @@ logging:
 trust:
   mark_untrusted_input: true
   auto_execute_links: false
+  tool_allowlist:
+    - notes.writeNote
+    - messenger.sendMessage
+    - weather.fetchForecast
 
 skills_dir: ./skills

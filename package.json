@@ -20,7 +20,8 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit"
   },
   "license": "MIT",
   "dependencies": {

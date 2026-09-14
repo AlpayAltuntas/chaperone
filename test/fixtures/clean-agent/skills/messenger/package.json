@@ -1,0 +1,11 @@
+{
+  "name": "messenger",
+  "version": "2.0.0",
+  "description": "DUMMY fixture skill: sends messages, gated behind an explicit confirmation requirement (fixture only).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example-org/messenger-skill"
+  },
+  "author": "example-author",
+  "confirmationRequired": true
+}
