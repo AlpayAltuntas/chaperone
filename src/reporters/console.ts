@@ -11,30 +11,47 @@ const SEVERITY_LABEL: Record<Severity, string> = {
   info: 'INFO',
 };
 
-const SEVERITY_COLOR: Record<Severity, (text: string) => string> = {
-  critical: (text) => pc.bold(pc.red(text)),
-  high: (text) => pc.red(text),
-  medium: (text) => pc.yellow(text),
-  low: (text) => pc.cyan(text),
-  info: (text) => pc.gray(text),
-};
+const IDENTITY = (text: string): string => text;
+
+export interface ConsoleReportOptions {
+  /** Defaults to true, letting picocolors auto-detect TTY/NO_COLOR. Pass false to force plain text (e.g. when writing to a file via --output). */
+  color?: boolean;
+}
 
 /**
  * Renders findings + scan metadata as human-readable console text, grouped
- * by severity (critical first). Colors come from picocolors, which
- * auto-disables itself on a non-TTY stream or when NO_COLOR is set, so this
- * degrades to plain text without any extra flag handling here.
+ * by severity (critical first). By default colors come from picocolors,
+ * which auto-disables itself on a non-TTY stream or when NO_COLOR is set;
+ * pass `{ color: false }` to force plain text regardless (e.g. before
+ * writing to a file, where baked-in ANSI codes would be unwanted).
  */
-export function formatConsoleReport(findings: readonly Finding[], metadata: ScanMetadata): string {
+export function formatConsoleReport(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  options: ConsoleReportOptions = {},
+): string {
+  const colorEnabled = options.color ?? true;
+  const bold = colorEnabled ? pc.bold : IDENTITY;
+  const green = colorEnabled ? pc.green : IDENTITY;
+  const severityColor: Record<Severity, (text: string) => string> = colorEnabled
+    ? {
+        critical: (text) => pc.bold(pc.red(text)),
+        high: (text) => pc.red(text),
+        medium: (text) => pc.yellow(text),
+        low: (text) => pc.cyan(text),
+        info: (text) => pc.gray(text),
+      }
+    : { critical: IDENTITY, high: IDENTITY, medium: IDENTITY, low: IDENTITY, info: IDENTITY };
+
   const lines: string[] = [];
 
-  lines.push(pc.bold('Chaperone scan report'));
+  lines.push(bold('Chaperone scan report'));
   lines.push(`Target: ${metadata.target}${metadata.targetRootResolved ? '' : ' (not found)'}`);
   lines.push(`Scanned at ${metadata.timestamp} — chaperone v${metadata.toolVersion}`);
   lines.push('');
 
   if (findings.length === 0) {
-    lines.push(pc.green('No findings.'));
+    lines.push(green('No findings.'));
   } else {
     const grouped = groupBySeverity(findings);
     for (const severity of SEVERITY_ORDER) {
@@ -42,7 +59,7 @@ export function formatConsoleReport(findings: readonly Finding[], metadata: Scan
       if (group === undefined || group.length === 0) {
         continue;
       }
-      const color = SEVERITY_COLOR[severity];
+      const color = severityColor[severity];
       lines.push(color(`${SEVERITY_LABEL[severity]} (${group.length})`));
       lines.push('');
       for (const finding of group) {

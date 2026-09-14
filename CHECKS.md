@@ -5,7 +5,42 @@ This catalog lists every check Chaperone implements — the complete set from
 
 Run `chaperone scan <path>` to run every check below against an install.
 
-**Posture score:** not implemented yet — Phase 4, per §12.
+## Posture score
+
+Start at 100 and subtract a fixed weight for every finding, by severity,
+then floor at 0:
+
+| Severity | Weight |
+| -------- | -----: |
+| Critical |     25 |
+| High     |     15 |
+| Medium   |      7 |
+| Low      |      3 |
+| Info     |      0 |
+
+`info`-severity findings (currently only ever an internal check-error
+record — see `engine/index.ts`) never affect the score. The score maps to
+a letter band:
+
+| Score  | Band |
+| ------ | :--: |
+| 90–100 |  A   |
+| 75–89  |  B   |
+| 60–74  |  C   |
+| 40–59  |  D   |
+| 0–39   |  F   |
+
+Available in the JSON reporter's `summary.score`/`summary.band` (`--format
+json`); the console reporter doesn't print it yet — a per-severity count
+summary instead (score display there is a possible future enhancement, not
+required by the spec).
+
+**A caveat worth knowing:** CHAP-SUP-003's deliberately weak v1 heuristic
+(see below) is High severity and fires on essentially any skill with a
+`package.json`, so even a well-hardened install rarely scores a full 100 —
+see `test/scan/fullCatalog.test.ts` for the clean fixture's real score.
+This is a direct, documented consequence of §7's own heuristic design for
+that check, not a scoring-formula bug.
 
 ---
 

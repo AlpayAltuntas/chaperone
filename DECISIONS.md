@@ -264,3 +264,75 @@ Running log of non-obvious choices made while building Chaperone, per
   genuinely standalone word too (e.g. snake_case or a doc comment) to be
   detected in v1 — a known heuristic limitation, not fixed here to avoid
   scope creep into a smarter tokenizer for one check.
+
+## Phase 4 — Reporters + exit codes + score
+
+- **Posture score weights/bands (critical 25, high 15, medium 7, low 3,
+  info 0; A/B/C/D/F at 90/75/60/40/0) are an original, documented
+  formula** — §9 only specifies the shape ("start at 100, subtract
+  weighted points per finding by severity, floor at 0... show the score
+  and a letter/band"), not exact numbers. Chosen so a single critical
+  finding alone drops a full letter band (100 -> 75, A -> B) and a
+  handful of real issues meaningfully move the score, while `info`
+  findings (currently only an internal check-error record) never affect
+  it. Documented in `CHECKS.md` per the "keep the formula transparent"
+  instruction, and enforced (not just described) by the score assertions
+  in `test/scan/fullCatalog.test.ts` and `test/engine/severity.test.ts`.
+- **CHAP-SUP-003's known weak heuristic (Phase 3) now visibly taxes the
+  score too**: the clean fixture scores 55 (band D), not 100, purely from
+  three High findings that only ever say "run npm audit yourself."
+  Surfaced explicitly as a caveat in `CHECKS.md` rather than adjusting
+  the check's severity to make the score look better — severity is
+  spec-assigned per check ID, not tunable to flatter a demo score.
+- **JSON report schema lives in `reporters/schema.ts`, separate from
+  `model/types.ts`.** It's the _reporter output_ shape (tool info +
+  summary/score + findings + counts), not part of the `AgentModel`/
+  `Finding` data model those schemas describe — same reasoning as
+  `ScanMetadata` living in `reporters/types.ts` since Phase 2.
+  `formatJsonReport` calls `ScanReportSchema.parse()` on every report
+  before emitting it, so "schema-stable" (§9) is a runtime guarantee, not
+  just a documented shape.
+- **SARIF reporter derives its `rules` array from the findings it's
+  given, not from the full `ALL_CHECKS` registry.** Every field a SARIF
+  rule needs (title, category, OWASP mapping, severity) is already on
+  each `Finding`, so `sarif.ts` stays a pure function of `Finding[]` +
+  `ScanMetadata` — consistent with "reporters are pure formatters" (§5) —
+  rather than taking the check registry as an extra input. The trade-off:
+  a check that produced zero findings in this run won't appear in
+  `rules`, which is acceptable (and arguably more useful) for a
+  per-scan SARIF upload.
+- **SARIF reporter tests are structural assertions against the 2.1.0
+  shape, not full JSON-Schema validation.** Pulling in a JSON-Schema
+  validator (or vendoring the ~1500-line official SARIF schema) to
+  validate a hand-built, dependency-free reporter would work against the
+  "minimal dependencies" instruction (§4) for one reporter's tests. The
+  structural checks (`$schema`, `version`, `runs[0].tool.driver.{name,
+version,rules}`, `results[].{ruleId,level,message}`, correct
+  severity->level mapping) cover the shape GitHub code scanning actually
+  needs.
+- **`formatConsoleReport` takes an optional `{ color: boolean }`, default
+  true (picocolors auto-detection).** Needed for `--output`: baking ANSI
+  codes into a saved report file is almost never wanted, so the CLI
+  passes `{ color: false }` whenever `--output` is set, regardless of
+  format. Implemented as an explicit option rather than relying on
+  picocolors' own env-var detection timing, which is unclear once the
+  module has already been imported.
+- **`--fail-on`/`--format` values are validated via commander's
+  `InvalidArgumentError`**, which (by commander's own default behavior,
+  unchanged here) prints a clear error and calls `process.exit(1)` on a
+  bad value. That path is intentionally **not** covered by an in-process
+  test (`test/cli.exitcode.test.ts`): calling `run()` with a bad value in
+  the same process as the test runner would really call `process.exit()`
+  and kill the vitest worker mid-suite. Verified manually instead (`node
+dist/cli.js scan ... --format xml` / `--fail-on extreme`, both exit 1
+  with a "must be one of: ..." message) — see the runnable-check output
+  captured during this phase's development.
+- **Exit code uses `process.exitCode = 1`, not `process.exit(1)`,** for
+  the `--fail-on` threshold match. This lets `console.log`/`writeFileSync`
+  finish flushing before Node exits naturally, and is what makes the
+  in-process exit-code tests safe to run at all (setting `.exitCode` is
+  just a value assignment, not an immediate process termination).
+- **`--only`/`--skip`/`--no-color`/the `checks` subcommand are still not
+  wired into the CLI**, even though the engine has supported `only`/`skip`
+  filtering since Phase 2. Per §12, those are explicitly Phase 5
+  ("Hardening & UX") deliverables, not Phase 4's.

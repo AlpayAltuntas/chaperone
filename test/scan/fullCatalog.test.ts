@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ALL_CHECKS } from '../../src/checks/index.js';
 import { discoverAgent } from '../../src/discovery/index.js';
 import { runChecks } from '../../src/engine/index.js';
+import { computeScore } from '../../src/engine/severity.js';
 
 /**
  * The Phase 3 "runnable check" from instruction.md §12: the full check
@@ -83,6 +84,8 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-OBS-003': 1,
     });
     expect(findings).toHaveLength(35);
+    // 3*25 (critical) + 17*15 (high) + 14*7 (medium) + 1*3 (low) = 431 -> floored at 0.
+    expect(computeScore(findings)).toEqual({ score: 0, band: 'F' });
   });
 });
 
@@ -100,5 +103,9 @@ describe('full check catalog — clean-agent (chmod 600: locked down)', () => {
 
     expect(internalErrors).toEqual([]);
     expect(countByCheckId(findings)).toEqual({ 'CHAP-SUP-003': 3 });
+    // Illustrates the CHECKS.md caveat: even a hardened install doesn't
+    // score a full 100, purely because of CHAP-SUP-003's deliberately weak
+    // v1 heuristic (3 High findings = 3*15 = 45 deducted).
+    expect(computeScore(findings)).toEqual({ score: 55, band: 'D' });
   });
 });

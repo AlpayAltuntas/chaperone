@@ -1,11 +1,34 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { writeFileSync } from 'node:fs';
+import { Command, InvalidArgumentError } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
 import { discoverAgent } from './discovery/index.js';
 import { runChecks } from './engine/index.js';
-import { formatConsoleReport } from './reporters/console.js';
+import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
+import type { Severity } from './model/types.js';
+import { REPORT_FORMATS, renderReport, type ReportFormat } from './reporters/index.js';
 import type { ScanMetadata } from './reporters/types.js';
 import { VERSION } from './version.js';
+
+interface ScanCommandOptions {
+  format: ReportFormat;
+  failOn: Severity;
+  output?: string;
+}
+
+function parseFormat(value: string): ReportFormat {
+  if (!(REPORT_FORMATS as readonly string[]).includes(value)) {
+    throw new InvalidArgumentError(`must be one of: ${REPORT_FORMATS.join(', ')}`);
+  }
+  return value as ReportFormat;
+}
+
+function parseSeverity(value: string): Severity {
+  if (!(SEVERITY_ORDER as readonly string[]).includes(value)) {
+    throw new InvalidArgumentError(`must be one of: ${SEVERITY_ORDER.join(', ')}`);
+  }
+  return value as Severity;
+}
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -24,7 +47,20 @@ export function buildProgram(): Command {
       'agent root/config directory to scan (probes known default locations if omitted)',
     )
     .description('Scan an agent installation and report security findings')
-    .action((targetPath: string | undefined) => {
+    .option(
+      '--format <format>',
+      `output format (${REPORT_FORMATS.join('|')})`,
+      parseFormat,
+      'console',
+    )
+    .option(
+      '--fail-on <severity>',
+      'minimum severity for a non-zero exit code',
+      parseSeverity,
+      'high',
+    )
+    .option('--output <file>', 'write the report to a file instead of stdout')
+    .action((targetPath: string | undefined, options: ScanCommandOptions) => {
       const { model, targetRootResolved } = discoverAgent(
         targetPath === undefined ? {} : { targetPath },
       );
@@ -39,7 +75,22 @@ export function buildProgram(): Command {
         skippedCount: model.skipped.length,
       };
 
-      console.log(formatConsoleReport(findings, metadata));
+      const { output } = options;
+      // Colors are meant for an interactive terminal; force plain text
+      // before writing a saved report file so it isn't full of ANSI codes.
+      const report = renderReport(options.format, findings, metadata, {
+        console: output !== undefined ? { color: false } : {},
+      });
+
+      if (output !== undefined) {
+        writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
+      } else {
+        console.log(report);
+      }
+
+      if (findings.some((finding) => severityMeetsThreshold(finding.severity, options.failOn))) {
+        process.exitCode = 1;
+      }
     });
 
   return program;
