@@ -6,7 +6,11 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'test/fixtures/**/*.md'],
+    // Fixtures under test/fixtures/** simulate a *target* agent's own
+    // (deliberately insecure, or deliberately plain-JS) code — they are
+    // data Chaperone scans, not project source, so our lint rules don't
+    // apply to them.
+    ignores: ['dist/**', 'node_modules/**', 'test/fixtures/**'],
   },
   eslint.configs.recommended,
   {
@@ -31,6 +35,10 @@ export default [
       ...tseslint.configs['strict-type-checked'].rules,
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        { allowNumber: true, allowBoolean: true, allowNullish: false },
+      ],
       // TypeScript's own checker already flags undefined identifiers, and
       // no-undef false-positives on ambient/global types (e.g. NodeJS.*).
       'no-undef': 'off',

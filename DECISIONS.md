@@ -47,3 +47,83 @@ Running log of non-obvious choices made while building Chaperone, per
 (reading 'edgesOut')`) unrelated to any real peer conflict. Forcing
   legacy peer-dep resolution avoids the crash; revisit if a newer npm fixes
   it upstream.
+
+## Phase 1 — Discovery + model
+
+- **Config parser: `yaml` (eemeli/yaml).** Actively maintained, zero
+  transitive dependencies, handles both `.yaml`/`.yml`; native `JSON.parse`
+  handles `.json` directly rather than routing it through the YAML parser.
+- **No canonical Clawdbot/Moltbot/OpenClaw config schema exists** (they are
+  illustrative example agents per `instruction.md` §1). The config shape
+  discovery expects (`llm.api_key`, `channels.*`,
+  `gateway.{host,port,auth,tls}`, `logging.{level,path,redact_secrets,audit}`,
+  `skills_dir`) and the skill manifest conventions
+  (`package.json`/`skill.json` with `repository`, `author`, `version`/`ref`)
+  are therefore a documented, invented-but-plausible convention informed by
+  real Node-based agent frameworks, not a verified spec. Both fixtures and
+  all discovery parsing follow it; a real install with a different shape
+  degrades gracefully (config parses to whatever shape it has, unrecognized
+  fields are simply absent from the normalized model) rather than crashing.
+- **Default install-root probing list** (`~/.clawd`, `~/clawd`,
+  `~/.config/clawdbot`, `~/.moltbot`, `~/.config/moltbot`, `~/.openclaw`,
+  `~/.config/openclaw`) is similarly an illustrative guess, used only when
+  `chaperone scan` is invoked with no path. Explicit `chaperone scan <path>`
+  is the primary, reliable interface.
+- **Secret masking happens in discovery, not in checks.** `configParser.ts`
+  walks the parsed config tree and replaces any literal value under a
+  secret-shaped key (`api_key`, `token`, `secret`, `password`, `credential`,
+  case-insensitive) with a masked display form (`sk-…wxyz`, or `***` for
+  short values), before the value ever reaches the `AgentModel` that checks
+  and reporters operate on. Values that already look like an indirect
+  reference (`${VAR}`, `$VAR`, `env:VAR`) are left visible since they carry
+  no sensitive material. This gives "secrets are masked in all output"
+  (§14) as a structural property of the model itself, independent of which
+  checks run — defense in depth, not reliant on every check remembering to
+  mask.
+- **Gateway/logging fact extraction runs on the RAW (pre-mask) parsed
+  config, not the masked `AgentModel.config.data`.** An empty or default
+  (`"changeme"`, `"admin"`, ...) gateway auth token is exactly the kind of
+  literal value the masking pass would otherwise obscure — but only the
+  derived boolean (`authTokenIsDefaultOrEmpty`) is ever stored in the
+  model; the raw token string itself is discarded after `gateway.ts` reads
+  it once inside `discovery/index.ts`.
+- **`AgentModel` covers exactly the six buckets instruction.md §8 lists**
+  (masked config, skills+capabilities, file-permission facts,
+  gateway/network, logging, inspected/skipped) plus `git` context (needed
+  for CHAP-SEC-002, called out explicitly in §7/§8) and `Finding`/`Severity`
+  types (explicitly documented as living in `model/types.ts` per the
+  project-structure comment in §6). Deliberately **not** included yet:
+  per-skill `confirmationRequired`/command-or-domain-allowlist fields for
+  CHAP-AGY-002/003/004 — those checks aren't implemented until Phase 3, and
+  guessing their manifest schema now would be inventing scope ahead of the
+  check that consumes it. Extend `Skill`/`GatewayModel` then, once the
+  actual heuristic is known.
+- **`.gitignore` pattern matching is check logic, not discovery.** Per the
+  read boundary in §8 ("even then only read directory existence and
+  `.gitignore`, nothing else"), `discovery/gitContext.ts` only detects an
+  ancestor `.git` directory and reads the root-level `.gitignore`'s raw
+  lines into `GitContext.gitignorePatterns` (I/O). Deciding whether the
+  config path matches one of those patterns is pure logic with no I/O, so
+  it's deferred to CHAP-SEC-002 in Phase 3 rather than implemented (and
+  potentially over-engineered with real gitignore glob semantics) now,
+  before any check needs it. Only a repo-root `.gitignore` is read — nested
+  `.gitignore` files in intermediate directories are a known, documented
+  limitation.
+- **File-permission fixtures are set via `chmod` at test time, not via
+  committed file mode.** Git only preserves the executable bit; a file
+  committed as `0600` can check out as `0644` on another machine/CI runner
+  depending on umask. `test/discovery/permissions.test.ts` creates its own
+  temp files with explicit modes instead of relying on fixture file
+  permissions as checked out from git.
+- **`discovery/gateway.ts` and `discovery/logging.ts` are peers**, both
+  projecting normalized facts out of the raw parsed config; `logging.ts`
+  wasn't in the original §6 skeleton but follows the same pattern as
+  `gateway.ts`, which was.
+- **Skill capability/install-script detection is static regex/keyword
+  matching over source text** (`child_process`/`exec(`/`spawn(` for shell,
+  `fetch(`/`http(s).request(` for network, `fs.writeFile`/`unlink`/etc. for
+  filesystem, `curl | bash`/`sudo`/`apt-get install`/`brew install` for
+  dangerous installs), not AST parsing. Cheap, dependency-free, and
+  sufficient for the "detects a capability is present" heuristics in §7 —
+  it can false-negative on heavily obfuscated code, which is an accepted
+  v1 limitation for a static linter, not a security boundary.

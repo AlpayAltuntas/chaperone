@@ -1,5 +1,6 @@
 node_modules/
 dist/
 *.log
+!test/fixtures/**/*.log
 .DS_Store
 .env

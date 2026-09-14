@@ -1,0 +1,32 @@
+# DUMMY fixture config for Chaperone's own test suite — hardened equivalent
+# of vulnerable-agent. Every credential-shaped value is an indirect
+# environment-variable reference, never a literal.
+
+llm:
+  provider: anthropic
+  api_key: ${ANTHROPIC_API_KEY}
+
+channels:
+  telegram:
+    enabled: true
+    bot_token: env:TELEGRAM_BOT_TOKEN
+
+gateway:
+  host: 127.0.0.1
+  port: 18789
+  auth:
+    token: env:GATEWAY_AUTH_TOKEN
+  tls: true
+
+logging:
+  level: info
+  path: ./logs/agent.log
+  redact_secrets: true
+  audit:
+    enabled: true
+
+trust:
+  mark_untrusted_input: true
+  auto_execute_links: false
+
+skills_dir: ./skills

@@ -1,0 +1,6 @@
+{
+  "name": "web-fetcher",
+  "version": "latest",
+  "description": "DUMMY fixture skill: fetches arbitrary URLs with no domain allowlist (fixture only).",
+  "author": "example-author"
+}

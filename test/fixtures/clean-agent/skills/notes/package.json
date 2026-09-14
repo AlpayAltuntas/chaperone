@@ -1,0 +1,10 @@
+{
+  "name": "notes",
+  "version": "1.2.0",
+  "description": "DUMMY fixture skill: reads/writes notes inside its own scoped workspace directory (fixture only).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example-org/notes-skill"
+  },
+  "author": "example-author"
+}
