@@ -127,3 +127,59 @@ Running log of non-obvious choices made while building Chaperone, per
   sufficient for the "detects a capability is present" heuristics in §7 —
   it can false-negative on heavily obfuscated code, which is an accepted
   v1 limitation for a static linter, not a security boundary.
+
+## Phase 2 — Engine + 3 flagship checks
+
+- **The `Check` contract lives in `engine/types.ts`, not `engine/index.ts`.**
+  Every check module imports `Check`; if it were defined in
+  `engine/index.ts` (which imports `checks/index.ts` to build the default
+  registry), that would create an import cycle. `engine/types.ts` is a leaf
+  module both sides can depend on.
+- **`engine/index.ts` stays pure — no I/O, no `checks/index.ts` import,
+  no default registry.** `runChecks(model, checks, options)` just takes
+  whatever `Check[]` it's given. Wiring discovery → the `ALL_CHECKS`
+  registry → a reporter happens in `cli.ts`, matching the "cli.ts: entry
+  point, arg parsing, **wiring**" comment in the §6 project-structure
+  listing and keeping the engine trivially testable with fake checks (see
+  `test/engine/runChecks.test.ts`).
+- **CHAP-AGY-001's "no allowlist" half of the heuristic is simplified to
+  "shell capability detected".** Per the Phase 1 decision above, the
+  `Skill` model doesn't track a command allowlist/confirmation gate yet
+  (deferred until a check needs it, to avoid guessing an unused manifest
+  schema). Since it's now Phase 2 and this check is the one that would
+  consume that field, the honest v1 behavior is documented here rather
+  than silently assumed: any detected `shellExec` capability fires,
+  because "no allowlist" can't yet be distinguished from "has an
+  allowlist". Revisit if/when a real allowlist convention is added to the
+  Skill model.
+- **Finding `location.line` is always `null` in v1.** `configParser.ts`
+  parses YAML/JSON into a plain value tree without retaining source
+  position info, so checks can only report a file path + a semantic
+  `detail` (the config key path, e.g. `llm.api_key`, or a skill name)
+  rather than a line number. This matches the "file + path/line **where
+  possible**" wording in §9; tracking real line numbers (e.g. via
+  `YAML.parseDocument`'s node ranges) is a possible future enhancement,
+  not required for v1.
+- **`picocolors` for console color**, per the §4 suggestion. It
+  auto-detects a non-TTY stream and `NO_COLOR`/`FORCE_COLOR` and disables
+  itself accordingly, so "must degrade gracefully on a plain terminal"
+  (§9) is satisfied without any extra flag-handling code; the explicit
+  `--no-color` CLI flag itself is still Phase 5 work (an override for
+  users who want it even on a color-capable TTY).
+- **`ScanMetadata` (target/timestamp/tool version/inspected+skipped counts)
+  lives in `reporters/types.ts`, not `model/types.ts`.** It describes the
+  scan run/report, not discovered agent data, so it isn't part of the
+  `AgentModel`/`Finding` zod schemas — but it's still one shared type so
+  the JSON/SARIF reporters added in Phase 4 reuse the exact same shape
+  instead of redefining it.
+- **Posture score is intentionally not implemented yet.** §9 mentions a
+  score as part of the console reporter's output, but §12 explicitly
+  assigns "posture score" to Phase 4 alongside the JSON/SARIF reporters
+  and `--fail-on`. Building the scoring formula now, before Phase 4 needs
+  it, would jump ahead of the phase plan; the Phase 2 console reporter
+  prints a per-severity count summary instead.
+- **Removed `discovery/inventory.ts` (the Phase 1 raw-inventory dump).**
+  It was explicitly a stand-in "before the check engine and real reporters
+  exist"; now that `chaperone scan` prints real findings via the console
+  reporter, the old dump had no caller and no test — dead code, deleted
+  rather than left unused.
