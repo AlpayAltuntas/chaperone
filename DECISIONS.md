@@ -405,3 +405,43 @@ dist/cli.js scan ... --format xml` / `--fail-on extreme`, both exit 1
   `discovery/index.ts` can build the "no installation found" message
   dynamically (listing the actual paths tried) instead of a static,
   unhelpful string — the two were silently allowed to drift apart before.
+
+## Phase 6 — Docs
+
+- **Added a `LICENSE` file (MIT)** — `package.json` had already declared
+  `"license": "MIT"` since Phase 0, but no actual license file existed
+  for a public repo claiming one. Low-risk, standard-practice gap-fill,
+  not a new decision so much as completing an existing one.
+- **README's "Example output" is real, captured CLI output**, trimmed for
+  length and with the local absolute path (`/Users/.../vulnerable-agent`)
+  swapped for the generic `~/clawd` used throughout the rest of the
+  README — not hand-written/invented sample output, so it can't drift
+  from what the tool actually prints.
+- **README documents known limitations explicitly** (the invented config
+  schema, `CHAP-SUP-003`'s weak heuristic, `CHAP-INJ-002`'s proxy
+  heuristic, the `.gitignore`-matching subset, no console-visible posture
+  score) rather than only the DECISIONS.md log — a reader shouldn't have
+  to reconstruct "what does this tool NOT actually do well" by reading
+  every phase's rationale.
+- **Verified "the repo builds from a clean checkout" (§17) empirically**,
+  not just assumed: cloned the pushed `main` branch into a scratch
+  directory, ran `npm install`/`lint`/`format`/`typecheck`/
+  `typecheck:tests`/`build`/`test` from there, and confirmed `chaperone
+scan` works end to end — all before writing the install instructions
+  that claim this works, so the README's Install section is exercised,
+  not aspirational.
+- **§17's "the clean fixture yields none" is not literally true for
+  this build, by design** — `clean-agent` yields 3 `CHAP-SUP-003`
+  findings, a direct, unavoidable consequence of that check's own
+  spec-mandated weak v1 heuristic (§7: no live advisory-API calls
+  allowed, so it surfaces every manifest it finds regardless of how
+  hardened the install is). This has been documented since Phase 3/4
+  (`CHECKS.md`, `test/scan/fullCatalog.test.ts`,
+  `test/checks/chapSup003.test.ts`) and is now called out in the README
+  too, rather than treated as a discrepancy to silently paper over.
+
+This is v1. Every phase in §12 is complete: scaffold, discovery model,
+engine + flagship checks, the full 22-check catalog, all three reporters
+with posture score and CI-friendly exit codes, CLI hardening/UX, and this
+documentation pass. §17's definition of done holds, with the one
+consequence of `CHAP-SUP-003`'s spec-mandated heuristic noted above.

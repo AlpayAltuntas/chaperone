@@ -1,0 +1,241 @@
+# Chaperone
+
+[![CI](https://github.com/AlpayAltuntas/chaperone/actions/workflows/ci.yml/badge.svg)](https://github.com/AlpayAltuntas/chaperone/actions/workflows/ci.yml)
+
+Chaperone is a command-line security scanner for self-hosted personal AI
+agents. It audits an agent's local install — its config, its skills/plugins,
+its gateway — and produces a prioritized, OWASP-mapped report of what's
+dangerous, why it matters, and how to fix it. Think of it as a linter for
+the security posture of your personal AI agent.
+
+## The problem
+
+Self-hosted personal AI agents (Clawdbot/Moltbot/OpenClaw-style assistants,
+and similar) have exploded in popularity. They run locally, connect to your
+messaging apps, hold persistent memory, and — crucially — **execute real
+actions** through a skills/plugin system: running shell commands, reading
+and writing files, calling external APIs.
+
+That combination — an LLM, broad local access, and untrusted inbound
+messages — is a serious security exposure that almost nobody audits
+systematically. Secrets sit in plaintext configs, skills come from
+unverified sources, gateways get exposed beyond localhost, and inbound
+messages can drive tool execution (prompt injection). Chaperone scans your
+own install and tells you what to fix.
+
+**Chaperone is a defensive tool.** It audits the setup you point it at, on
+your own machine, read-only. It is not an exploitation tool. See
+[Security & ethics](#security--ethics) below.
+
+## Install
+
+Chaperone isn't published to npm yet — run it from a clone:
+
+```bash
+git clone https://github.com/AlpayAltuntas/chaperone.git
+cd chaperone
+npm install
+npm run build
+```
+
+Run it directly:
+
+```bash
+node dist/cli.js scan ~/clawd
+```
+
+Or link it so `chaperone` is available as a regular command:
+
+```bash
+npm link
+chaperone scan ~/clawd
+```
+
+Requires Node.js ≥ 20.
+
+## Quickstart
+
+```bash
+chaperone scan <path-to-agent-install>
+```
+
+`<path>` is the agent's root/config directory — wherever its `config.yaml`
+(or `.yml`/`.json`) lives. If you omit it, Chaperone probes a short list of
+illustrative default locations (`~/.clawd`, `~/clawd`, `~/.config/clawdbot`,
+and similar — see `CHECKS.md`/`DECISIONS.md`) and tells you which one it
+used, or that none were found.
+
+```bash
+chaperone checks          # list every check Chaperone runs (id, title, severity)
+chaperone version         # print the installed version
+chaperone scan --help     # full flag reference
+```
+
+## Example output
+
+Running against a deliberately-insecure sample install
+(`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
+the real run reports 35 findings across all 22 checks):
+
+```
+Chaperone scan report
+Target: ~/clawd
+Scanned at 2026-09-15T16:30:35.304Z — chaperone v0.1.0
+
+CRITICAL (3)
+
+  [CHAP-AGY-001] Unrestricted shell execution
+    Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+    Location: ~/clawd/skills/command-relay/package.json (command-relay)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
+
+  [CHAP-NET-001] Gateway bound beyond localhost
+    The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network.
+    Location: ~/clawd/config.yaml (gateway.host)
+    OWASP: LLM06 / general
+    Remediation: Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.
+
+HIGH (17)
+
+  [CHAP-SEC-001] Plaintext secrets in config
+    Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
+    Location: ~/clawd/config.yaml (llm.api_key)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).
+
+  ... 15 more high-severity findings ...
+
+MEDIUM (14)  LOW (1)  ...
+
+Summary: 35 findings (3 critical, 17 high, 14 medium, 1 low, 0 info)
+Inspected 12 paths, skipped 0.
+```
+
+Notice the secret value is masked (`sk-…wxyz`) — the real value is never
+printed, anywhere, in any format.
+
+Try it yourself against this repo's own fixtures:
+
+```bash
+chaperone scan test/fixtures/vulnerable-agent   # deliberately insecure sample
+chaperone scan test/fixtures/clean-agent        # hardened sample
+```
+
+## Formats & CI usage
+
+```bash
+chaperone scan <path> --format console   # human-readable, colored (default)
+chaperone scan <path> --format json      # schema-stable, for automation
+chaperone scan <path> --format sarif     # SARIF 2.1.0, for GitHub code scanning
+```
+
+Other flags:
+
+| Flag                   | Effect                                                      |
+| ---------------------- | ----------------------------------------------------------- |
+| `--fail-on <severity>` | Minimum severity for a non-zero exit code (default: `high`) |
+| `--output <file>`      | Write the report to a file instead of stdout                |
+| `--only <ids>`         | Run only the listed check IDs (comma-separated)             |
+| `--skip <ids>`         | Skip the listed check IDs (comma-separated)                 |
+| `--no-color`           | Disable colored console output                              |
+
+Exit code is `0` when no finding meets the `--fail-on` threshold (and an
+installation was actually found), `1` otherwise — including when Chaperone
+couldn't locate an installation to scan at all, so a CI pipeline never
+mistakes "nothing was scanned" for "nothing was found."
+
+A minimal CI job that fails the build on high+ findings and uploads results
+to GitHub code scanning:
+
+```yaml
+- name: Chaperone security scan
+  run: |
+    chaperone scan ~/clawd --format sarif --output chaperone.sarif --fail-on high
+
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: chaperone.sarif
+```
+
+## Checks
+
+Chaperone runs 22 checks across six categories — secrets & credential
+hygiene, excessive agency & permissions, supply chain & skill provenance,
+prompt-injection surface, exposure & network posture, and observability &
+recoverability. Every check maps to an OWASP LLM Top 10 category and ships
+remediation guidance.
+
+See **[CHECKS.md](CHECKS.md)** for the full catalog (what each check
+detects, its exact heuristic, and its severity) and the posture-score
+formula, or run `chaperone checks` for a quick id/title/severity listing.
+
+## Known limitations
+
+Chaperone is a static, offline, v1 linter — not a substitute for a real
+audit. Worth knowing before you trust its output:
+
+- **No canonical config/manifest schema exists** for the fictional example
+  agents this targets (Clawdbot/Moltbot/OpenClaw-style). The config and
+  skill-manifest shape Chaperone expects is a documented, plausible
+  convention, not a verified standard — see `DECISIONS.md`.
+- **`CHAP-SUP-003`'s heuristic is deliberately weak.** Chaperone makes no
+  outbound network calls (see below), so it can't check dependencies
+  against a live vulnerability database. It surfaces every dependency
+  manifest it finds and points you at `npm audit` — meaning it fires on a
+  well-hardened install exactly as readily as an insecure one. This is a
+  known, spec-mandated limitation, not a bug.
+- **A few heuristics are static proxies, not confirmed findings** — most
+  notably `CHAP-INJ-002` ("tool output treated as trusted"), which flags
+  the _shape_ of a risky pattern (a skill that both ingests external data
+  and can run shell commands) rather than tracing real data flow.
+- **`.gitignore` matching (`CHAP-SEC-002`) covers a small subset** of real
+  gitignore semantics — no `**`, no nested `.gitignore` files.
+- **The posture score isn't shown in console output yet** — only in the
+  JSON report's `summary.score`/`summary.band`. See `CHECKS.md`.
+
+## Security & ethics
+
+These are hard requirements Chaperone holds itself to, not suggestions:
+
+1. **Read-only.** Chaperone never writes to, modifies, moves, or deletes
+   any file in the target installation.
+2. **No network.** Chaperone makes no outbound network connections during
+   a scan. (This is also why `CHAP-SUP-003` defers to `npm audit` rather
+   than calling an advisory API.)
+3. **No exfiltration.** Anything Chaperone reads stays local. Reports are
+   written only where you direct them. Secrets are masked in all output.
+4. **Defensive framing only.** Chaperone identifies weaknesses in your own
+   setup so you can fix them. It has no exploitation, attack, or
+   message-sending capabilities, and won't grow any — an active
+   prompt-injection test harness is intentionally a separate,
+   clearly-scoped project, not this one.
+5. **Clear provenance in output.** Every report states what was and
+   wasn't inspected, so you don't over-trust an incomplete scan.
+
+## Contributing
+
+```bash
+npm run lint          # ESLint
+npm run format         # Prettier --check
+npm run typecheck      # tsc over src/
+npm run typecheck:tests # tsc over src/ + test/ (catches test-only type errors ESLint misses)
+npm run build           # compile to dist/
+npm test                # vitest
+```
+
+**Adding a new check** means adding one module under `src/checks/<category>/`
+and registering it in `src/checks/index.ts` — the engine itself never
+changes. Every check needs a true-positive fixture (fires) and a
+true-negative fixture (stays silent); see `test/checks/` for the existing
+pattern and `test/fixtures/{vulnerable,clean}-agent/` for the sample
+installs. Update `CHECKS.md` to match.
+
+See **[DECISIONS.md](DECISIONS.md)** for the design rationale behind every
+non-obvious choice made while building this.
+
+## License
+
+MIT
