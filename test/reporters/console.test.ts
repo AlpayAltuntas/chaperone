@@ -8,8 +8,16 @@ const METADATA: ScanMetadata = {
   targetRootResolved: true,
   timestamp: '2026-01-01T00:00:00.000Z',
   toolVersion: '0.1.0',
-  inspectedCount: 5,
-  skippedCount: 1,
+  inspected: [
+    { path: '/fake/config.yaml', kind: 'config' },
+    { path: '/fake/skills/a/index.js', kind: 'skill-source' },
+    { path: '/fake/skills/a/package.json', kind: 'skill-manifest' },
+    { path: '/fake/skills/b/index.js', kind: 'skill-source' },
+    { path: '/fake/.gitignore', kind: 'gitignore' },
+  ],
+  skipped: [
+    { path: '/fake/skills/c/package.json', reason: 'unparseable manifest: Unexpected token' },
+  ],
 };
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
@@ -77,5 +85,25 @@ describe('formatConsoleReport', () => {
     const output = formatConsoleReport([], { ...METADATA, targetRootResolved: false });
 
     expect(output).toContain('/fake/target (not found)');
+  });
+
+  it('shows a distinct message (not "No findings.") when nothing was even scanned', () => {
+    const output = formatConsoleReport([], { ...METADATA, targetRootResolved: false });
+
+    expect(output).toContain('Could not locate an installation to scan.');
+    expect(output).not.toContain('No findings.');
+  });
+
+  it('lists each skipped path and reason', () => {
+    const output = formatConsoleReport([], METADATA);
+
+    expect(output).toContain('Skipped (1):');
+    expect(output).toContain('/fake/skills/c/package.json: unparseable manifest: Unexpected token');
+  });
+
+  it('omits the Skipped section entirely when nothing was skipped', () => {
+    const output = formatConsoleReport([], { ...METADATA, skipped: [] });
+
+    expect(output).not.toContain('Skipped');
   });
 });

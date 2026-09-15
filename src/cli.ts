@@ -2,10 +2,12 @@
 import { writeFileSync } from 'node:fs';
 import { Command, InvalidArgumentError } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
+import { errorMessage } from './discovery/errors.js';
 import { discoverAgent } from './discovery/index.js';
-import { runChecks } from './engine/index.js';
+import { runChecks, type RunChecksResult } from './engine/index.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
-import type { Severity } from './model/types.js';
+import type { Check } from './engine/types.js';
+import type { AgentModel, Severity } from './model/types.js';
 import { REPORT_FORMATS, renderReport, type ReportFormat } from './reporters/index.js';
 import type { ScanMetadata } from './reporters/types.js';
 import { VERSION } from './version.js';
@@ -14,6 +16,9 @@ interface ScanCommandOptions {
   format: ReportFormat;
   failOn: Severity;
   output?: string;
+  color: boolean;
+  only?: string[];
+  skip?: string[];
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -28,6 +33,43 @@ function parseSeverity(value: string): Severity {
     throw new InvalidArgumentError(`must be one of: ${SEVERITY_ORDER.join(', ')}`);
   }
   return value as Severity;
+}
+
+function parseCheckIdList(value: string): string[] {
+  return value
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+}
+
+/** Renders the `checks` subcommand's catalog listing (id, title, severity). */
+export function formatChecksList(checks: readonly Check[]): string {
+  const lines = [`Chaperone check catalog (${String(checks.length)} checks)`, ''];
+  for (const check of checks) {
+    lines.push(`${check.id.padEnd(14)} ${check.severity.toUpperCase().padEnd(9)} ${check.title}`);
+  }
+  return lines.join('\n');
+}
+
+/** Applies --only/--skip and runs the check suite, erroring out (via `command`) if the filters leave nothing to run. */
+function runCheckSuite(
+  model: AgentModel,
+  options: ScanCommandOptions,
+  command: Command,
+): RunChecksResult {
+  const runOptions = {
+    ...(options.only ? { only: options.only } : {}),
+    ...(options.skip ? { skip: options.skip } : {}),
+  };
+  const result = runChecks(model, ALL_CHECKS, runOptions);
+
+  if (result.checksRun.length === 0) {
+    command.error(
+      '--only/--skip left no checks to run. Run `chaperone checks` to see available check IDs.',
+    );
+  }
+
+  return result;
 }
 
 export function buildProgram(): Command {
@@ -60,37 +102,81 @@ export function buildProgram(): Command {
       'high',
     )
     .option('--output <file>', 'write the report to a file instead of stdout')
-    .action((targetPath: string | undefined, options: ScanCommandOptions) => {
+    .option('--no-color', 'disable colored console output')
+    .option('--only <ids>', 'run only the listed check IDs (comma-separated)', parseCheckIdList)
+    .option('--skip <ids>', 'skip the listed check IDs (comma-separated)', parseCheckIdList)
+    .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
+      const knownIds = new Set(ALL_CHECKS.map((check) => check.id));
+      for (const id of [...(options.only ?? []), ...(options.skip ?? [])]) {
+        if (!knownIds.has(id)) {
+          command.error(
+            `Unknown check ID: ${id}. Run \`chaperone checks\` to see available check IDs.`,
+          );
+        }
+      }
+
       const { model, targetRootResolved } = discoverAgent(
         targetPath === undefined ? {} : { targetPath },
       );
-      const { findings } = runChecks(model, ALL_CHECKS);
+
+      // No point evaluating checks against an empty/placeholder model when
+      // no installation was even located — every "finding" would be about
+      // a target that doesn't exist, which is confusing, not helpful.
+      const findings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
 
       const metadata: ScanMetadata = {
         target: model.targetRoot,
         targetRootResolved,
         timestamp: new Date().toISOString(),
         toolVersion: VERSION,
-        inspectedCount: model.inspected.length,
-        skippedCount: model.skipped.length,
+        inspected: model.inspected,
+        skipped: model.skipped,
       };
 
       const { output } = options;
       // Colors are meant for an interactive terminal; force plain text
-      // before writing a saved report file so it isn't full of ANSI codes.
+      // before writing a saved report file (or when --no-color is passed)
+      // so a saved file isn't full of ANSI codes.
+      const colorEnabled = output !== undefined ? false : options.color;
       const report = renderReport(options.format, findings, metadata, {
-        console: output !== undefined ? { color: false } : {},
+        console: { color: colorEnabled },
       });
 
       if (output !== undefined) {
-        writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
+        try {
+          writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
+        } catch (err) {
+          command.error(`Could not write report to '${output}': ${errorMessage(err)}`);
+        }
       } else {
         console.log(report);
       }
 
-      if (findings.some((finding) => severityMeetsThreshold(finding.severity, options.failOn))) {
+      // A scan that never located an installation is treated the same as
+      // hitting the fail-on threshold — automation should never read a
+      // "nothing was scanned" run as a silent pass.
+      const failed =
+        !targetRootResolved ||
+        findings.some((finding) => severityMeetsThreshold(finding.severity, options.failOn));
+      if (failed) {
         process.exitCode = 1;
       }
+    });
+
+  program
+    .command('checks')
+    .description('List all available checks (id, title, severity)')
+    .action(() => {
+      console.log(formatChecksList(ALL_CHECKS));
+    });
+
+  // Alongside the built-in -V/--version flag (from .version() above) — §10
+  // lists `chaperone version` as its own subcommand too.
+  program
+    .command('version')
+    .description('Print version')
+    .action(() => {
+      console.log(VERSION);
     });
 
   return program;
@@ -99,7 +185,6 @@ export function buildProgram(): Command {
 export function run(argv: readonly string[]): void {
   const program = buildProgram();
 
-  // The `checks` subcommand lands in Phase 5 alongside other CLI UX work.
   // Bare invocation shows usage rather than doing nothing silently.
   if (argv.length === 2) {
     program.outputHelp();

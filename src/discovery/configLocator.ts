@@ -10,7 +10,7 @@ const CONFIG_FILENAMES = ['config.yaml', 'config.yml', 'config.json'];
 // a documented assumption (see DECISIONS.md) rather than a verified
 // standard — `chaperone scan <path>` with an explicit path is the
 // primary, reliable way to point Chaperone at a real install.
-const DEFAULT_ROOTS = [
+export const DEFAULT_ROOTS: readonly string[] = [
   '.clawd',
   'clawd',
   path.join('.config', 'clawdbot'),

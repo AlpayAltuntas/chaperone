@@ -17,8 +17,8 @@ export function buildScanReport(findings: readonly Finding[], metadata: ScanMeta
     timestamp: metadata.timestamp,
     summary: { totalFindings: findings.length, bySeverity, score, band },
     findings: [...findings],
-    inspectedCount: metadata.inspectedCount,
-    skippedCount: metadata.skippedCount,
+    inspected: [...metadata.inspected],
+    skipped: [...metadata.skipped],
   };
 }
 

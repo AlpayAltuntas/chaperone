@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { AgentModel, InspectedEntry, SkippedEntry } from '../model/types.js';
-import { locateConfigFile, resolveTargetRoot } from './configLocator.js';
+import { DEFAULT_ROOTS, locateConfigFile, resolveTargetRoot } from './configLocator.js';
 import { maskConfig, parseConfigSource } from './configParser.js';
 import { errorMessage } from './errors.js';
 import { extractGatewayModel } from './gateway.js';
@@ -28,10 +29,17 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
 
   const targetRoot = resolveTargetRoot(options.targetPath);
   if (targetRoot === null) {
-    const label = options.targetPath ?? '(no default install location found)';
+    // resolveTargetRoot only returns null in the no-explicit-path case (an
+    // explicit path always resolves to *some* absolute path, even a
+    // nonexistent one) — so this is specifically "no default install
+    // location exists", and the message says so concretely rather than
+    // just "not found".
+    const home = os.homedir();
+    const triedRoots = DEFAULT_ROOTS.map((rel) => path.join(home, rel)).join(', ');
+    const label = '(no default install location found)';
     skipped.push({
       path: label,
-      reason: 'target root does not exist and no default install location was found',
+      reason: `no agent installation found at any default location (tried: ${triedRoots}). Pass an explicit path: chaperone scan <path>`,
     });
     return { targetRootResolved: false, model: emptyModel(label, inspected, skipped) };
   }

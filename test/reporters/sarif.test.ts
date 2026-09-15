@@ -8,8 +8,10 @@ const METADATA: ScanMetadata = {
   targetRootResolved: true,
   timestamp: '2026-01-01T00:00:00.000Z',
   toolVersion: '0.1.0',
-  inspectedCount: 5,
-  skippedCount: 1,
+  inspected: [{ path: '/fake/config.yaml', kind: 'config' }],
+  skipped: [
+    { path: '/fake/skills/c/package.json', reason: 'unparseable manifest: Unexpected token' },
+  ],
 };
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {

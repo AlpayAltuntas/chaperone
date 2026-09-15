@@ -336,3 +336,72 @@ dist/cli.js scan ... --format xml` / `--fail-on extreme`, both exit 1
   wired into the CLI**, even though the engine has supported `only`/`skip`
   filtering since Phase 2. Per §12, those are explicitly Phase 5
   ("Hardening & UX") deliverables, not Phase 4's.
+
+## Phase 5 — Hardening & UX
+
+- **`ScanMetadata` now carries the full `inspected`/`skipped` arrays, not
+  just counts.** §9 describes reporter metadata as "(target, timestamp,
+  **inspected/skipped inventory**, tool version)" — Phase 2 had
+  under-implemented this as bare counts, which meant _why_ nothing was
+  found (the actual skip reasons) was silently discarded before it ever
+  reached a reporter. Fixed now because it's squarely what "helpful
+  messages when nothing is found" (§12) needs: the console reporter lists
+  every skipped path + reason, and the JSON schema carries the full
+  arrays for automation. This changed `ScanReportSchema` and every
+  reporter's `METADATA` test fixture; not a breaking concern since the
+  JSON reporter has no external consumers yet.
+- **Console reporter distinguishes "could not locate an installation to
+  scan" from "scanned and found nothing."** Printing "No findings." when
+  `targetRootResolved` is false would read as a clean bill of health for
+  a scan that never actually ran — actively misleading for a security
+  tool. The distinct message plus the (now-visible) skipped-reason entry
+  explains why.
+- **`chaperone scan` skips running checks entirely when the target root
+  was never resolved**, rather than running the full suite against an
+  empty/placeholder `AgentModel`. Caught this via manual testing: a couple
+  of checks that don't depend on config (CHAP-OBS-001 "no audit log",
+  CHAP-OBS-003 "no kill switch") still fired against a target that
+  doesn't exist, producing "findings" about a nonexistent install right
+  next to a report saying nothing was found — confusing and wrong. Note
+  this guard is specifically for the _no-path-given-and-no-default-found_
+  case (`targetRootResolved: false`); an explicit nonexistent path still
+  "resolves" structurally (see `resolveTargetRoot`/discovery's
+  graceful-degradation tests from Phase 1) and still runs the full suite
+  against its empty model — that's existing, correct, tested behavior
+  and out of scope here.
+- **A scan that never located an install now sets a non-zero exit code**,
+  same as hitting `--fail-on`. §9 only defines exit codes in terms of
+  findings meeting a threshold, but a CI pipeline reading "0 findings, no
+  install found" as exit 0 would silently treat "we scanned nothing" as
+  "scan passed" — risky for a security tool, so this path is folded into
+  the existing pass/fail exit code rather than inventing a third exit
+  code the spec never asked for.
+- **`--only`/`--skip` check IDs are validated against the registry up
+  front** (`command.error()` on an unknown ID, or when the filters leave
+  zero checks to run), rather than silently no-op'ing on a typo. Uses the
+  same `command.error()` mechanism (commander's own error formatting +
+  `process.exit(1)`) already established for `--format`/`--fail-on` in
+  Phase 4, for one consistent "bad usage" convention rather than a second
+  exit-code scheme.
+- **`--output` write failures are caught and reported cleanly**
+  (`command.error()` with the underlying error message) instead of
+  crashing with a raw Node stack trace — e.g. writing to a directory that
+  doesn't exist. Verified manually (`--output
+/nonexistent-dir/report.json` → a clean one-line error, exit 1).
+- **None of the above four `command.error()` paths (unknown check ID,
+  empty --only/--skip result, --output write failure) have an in-process
+  test**, continuing the Phase 4 precedent: `command.error()` calls
+  `process.exit()` by commander's own default, and calling that in the
+  same process as the test runner would kill the vitest worker mid-suite.
+  All four were verified manually during this phase's development
+  (captured in the session transcript); `test/cli.options.test.ts` and
+  `test/cli.exitcode.test.ts` cover every non-throwing path in-process.
+- **Added the `chaperone version` subcommand** (alongside the existing
+  `-V`/`--version` flag from `.version()`), closing a gap against §10's
+  CLI design table that had been present since Phase 0 — the table lists
+  `version` as its own subcommand, not just a flag, and no earlier phase
+  had called that out explicitly to catch it.
+- **`configLocator.ts`'s `DEFAULT_ROOTS` is now exported** so
+  `discovery/index.ts` can build the "no installation found" message
+  dynamically (listing the actual paths tried) instead of a static,
+  unhelpful string — the two were silently allowed to drift apart before.

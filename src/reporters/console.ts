@@ -43,6 +43,7 @@ export function formatConsoleReport(
       }
     : { critical: IDENTITY, high: IDENTITY, medium: IDENTITY, low: IDENTITY, info: IDENTITY };
 
+  const yellow = colorEnabled ? pc.yellow : IDENTITY;
   const lines: string[] = [];
 
   lines.push(bold('Chaperone scan report'));
@@ -50,7 +51,12 @@ export function formatConsoleReport(
   lines.push(`Scanned at ${metadata.timestamp} — chaperone v${metadata.toolVersion}`);
   lines.push('');
 
-  if (findings.length === 0) {
+  if (!metadata.targetRootResolved) {
+    // Distinct from "ran a clean scan and found nothing" — nothing was
+    // scanned at all. The skipped-inventory section below (always shown
+    // when non-empty) carries the specific reason/default locations tried.
+    lines.push(yellow('Could not locate an installation to scan.'));
+  } else if (findings.length === 0) {
     lines.push(green('No findings.'));
   } else {
     const grouped = groupBySeverity(findings);
@@ -68,6 +74,15 @@ export function formatConsoleReport(
     }
   }
 
+  if (metadata.skipped.length > 0) {
+    lines.push('');
+    lines.push(yellow(`Skipped (${String(metadata.skipped.length)}):`));
+    for (const entry of metadata.skipped) {
+      lines.push(`  - ${entry.path}: ${entry.reason}`);
+    }
+  }
+
+  lines.push('');
   lines.push(formatSummary(findings, metadata));
 
   return lines.join('\n');
@@ -118,6 +133,8 @@ function formatSummary(findings: readonly Finding[], metadata: ScanMetadata): st
     `Summary: ${String(findings.length)} finding${findings.length === 1 ? '' : 's'} ` +
     `(${String(counts.critical)} critical, ${String(counts.high)} high, ${String(counts.medium)} medium, ` +
     `${String(counts.low)} low, ${String(counts.info)} info)`;
-  const inspectedLine = `Inspected ${String(metadata.inspectedCount)} path${metadata.inspectedCount === 1 ? '' : 's'}, skipped ${String(metadata.skippedCount)}.`;
+  const inspectedCount = metadata.inspected.length;
+  const skippedCount = metadata.skipped.length;
+  const inspectedLine = `Inspected ${String(inspectedCount)} path${inspectedCount === 1 ? '' : 's'}, skipped ${String(skippedCount)}.`;
   return `${countLine}\n${inspectedLine}`;
 }

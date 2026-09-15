@@ -9,8 +9,16 @@ const METADATA: ScanMetadata = {
   targetRootResolved: true,
   timestamp: '2026-01-01T00:00:00.000Z',
   toolVersion: '0.1.0',
-  inspectedCount: 5,
-  skippedCount: 1,
+  inspected: [
+    { path: '/fake/config.yaml', kind: 'config' },
+    { path: '/fake/skills/a/index.js', kind: 'skill-source' },
+    { path: '/fake/skills/a/package.json', kind: 'skill-manifest' },
+    { path: '/fake/skills/b/index.js', kind: 'skill-source' },
+    { path: '/fake/.gitignore', kind: 'gitignore' },
+  ],
+  skipped: [
+    { path: '/fake/skills/c/package.json', reason: 'unparseable manifest: Unexpected token' },
+  ],
 };
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
@@ -40,8 +48,10 @@ describe('buildScanReport / formatJsonReport', () => {
     expect(report.tool).toEqual({ name: 'chaperone', version: '0.1.0' });
     expect(report.target).toBe('/fake/target');
     expect(report.timestamp).toBe('2026-01-01T00:00:00.000Z');
-    expect(report.inspectedCount).toBe(5);
-    expect(report.skippedCount).toBe(1);
+    expect(report.inspected).toHaveLength(5);
+    expect(report.skipped).toEqual([
+      { path: '/fake/skills/c/package.json', reason: 'unparseable manifest: Unexpected token' },
+    ]);
   });
 
   it('computes a full bySeverity breakdown, including zero counts', () => {

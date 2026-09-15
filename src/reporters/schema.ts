@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { FindingSchema, SeveritySchema } from '../model/types.js';
+import {
+  FindingSchema,
+  InspectedEntrySchema,
+  SeveritySchema,
+  SkippedEntrySchema,
+} from '../model/types.js';
 
 /**
  * The JSON reporter's output shape, per instruction.md §9 ("schema-stable,
@@ -22,7 +27,7 @@ export const ScanReportSchema = z.object({
     band: z.enum(['A', 'B', 'C', 'D', 'F']),
   }),
   findings: z.array(FindingSchema),
-  inspectedCount: z.number(),
-  skippedCount: z.number(),
+  inspected: z.array(InspectedEntrySchema),
+  skipped: z.array(SkippedEntrySchema),
 });
 export type ScanReport = z.infer<typeof ScanReportSchema>;

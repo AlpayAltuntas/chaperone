@@ -92,4 +92,15 @@ describe('discoverAgent — graceful degradation', () => {
   it('does not throw when no default install location exists and no path is given', () => {
     expect(() => discoverAgent({})).not.toThrow();
   });
+
+  it('explains which default locations it tried and how to pass an explicit path', () => {
+    const { model, targetRootResolved } = discoverAgent({});
+
+    expect(targetRootResolved).toBe(false);
+    expect(model.skipped).toHaveLength(1);
+    const reason = model.skipped[0]?.reason ?? '';
+    expect(reason).toContain('no agent installation found at any default location');
+    expect(reason).toContain('.clawd');
+    expect(reason).toContain('chaperone scan <path>');
+  });
 });
