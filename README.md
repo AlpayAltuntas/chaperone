@@ -29,26 +29,19 @@ your own machine, read-only. It is not an exploitation tool. See
 
 ## Install
 
-Chaperone isn't published to npm yet — run it from a clone:
+```bash
+npm install -g @alpay_altuntas/chaperone
+chaperone scan ~/clawd
+```
+
+Or run it from a clone instead:
 
 ```bash
 git clone https://github.com/AlpayAltuntas/chaperone.git
 cd chaperone
 npm install
 npm run build
-```
-
-Run it directly:
-
-```bash
-node dist/cli.js scan ~/clawd
-```
-
-Or link it so `chaperone` is available as a regular command:
-
-```bash
-npm link
-chaperone scan ~/clawd
+node dist/cli.js scan ~/clawd   # or: npm link, then use `chaperone` directly
 ```
 
 Requires Node.js ≥ 20.

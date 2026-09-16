@@ -489,3 +489,23 @@ dist/cli.js` directly (every manual test throughout this build) — never
   expected `moduleUrl` through `realpathSync` too, for the same reason
   (macOS resolves `/tmp` → `/private/tmp`) — the same class of bug, one
   level up, caught while writing the regression test for the first one.
+- **Package renamed a second time, to `@alpay_altuntas/chaperone`** (with
+  the underscore). `@alpayaltuntas/chaperone` — assumed by analogy with
+  the GitHub username `AlpayAltuntas` — turned out wrong: an npm user's
+  personal scope must exactly match their actual npm username, which is
+  `alpay_altuntas` (confirmed via `npm whoami`), not their GitHub handle.
+  The mismatch wasn't caught by any local check (`npm pack`/tarball-install
+  verification doesn't touch the real registry) — only surfaced as a 404
+  on the real `npm publish` PUT once actual registry auth was in play.
+  Fixed by correcting `package.json`'s `name`, regenerating
+  `package-lock.json`, and re-verifying the full suite before retrying.
+- **Published `@alpay_altuntas/chaperone@0.1.0`** to the public npm
+  registry. Authenticated via a granular access token (publish
+  permission, all packages, no organization access, 2FA bypass enabled)
+  rather than interactive OTP entry, since this session can't respond to
+  an interactive `Enter OTP:` prompt mid-command — the token was set in
+  the user-level `~/.npmrc` (never the project's committed one) and
+  removed again immediately after a successful publish. Verified with the
+  most rigorous check available: installed the package fresh from the
+  live public registry into an isolated scratch directory and ran the
+  installed binary (`--version`, `scan`) before calling it done.

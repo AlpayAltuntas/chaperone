@@ -1,5 +1,5 @@
 {
-  "name": "@alpayaltuntas/chaperone",
+  "name": "@alpay_altuntas/chaperone",
   "version": "0.1.0",
   "description": "Security scanner that audits self-hosted personal AI agents for OWASP-LLM-mapped security weaknesses.",
   "type": "module",
