@@ -288,6 +288,20 @@ true-negative fixture (stays silent); see `test/checks/` for the existing
 pattern and `test/fixtures/{vulnerable,clean}-agent/` for the sample
 installs. Update `CHECKS.md` to match.
 
+**Before publishing** (or after any change to `src/cli.ts`), verify the
+actual packaged binary, not just `npm test` — a real bug (the CLI silently
+doing nothing once installed) only ever showed up this way, never in the
+test suite:
+
+```bash
+npm run build
+npm pack                                  # produces a real .tgz
+mkdir -p /tmp/chaperone-pack-check && cd /tmp/chaperone-pack-check
+npm init -y && npm install /path/to/chaperone/*.tgz
+node node_modules/.bin/chaperone --version
+node node_modules/.bin/chaperone scan /path/to/some/fixture
+```
+
 See **[DECISIONS.md](DECISIONS.md)** for the design rationale behind every
 non-obvious choice made while building this.
 

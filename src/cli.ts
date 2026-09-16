@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { writeFileSync } from 'node:fs';
+import { realpathSync, writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { Command, InvalidArgumentError } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
 import { errorMessage } from './discovery/errors.js';
@@ -194,8 +195,31 @@ export function run(argv: readonly string[]): void {
   program.parse(argv);
 }
 
-const entryPoint = process.argv[1];
-const isMainModule = entryPoint !== undefined && import.meta.url === `file://${entryPoint}`;
-if (isMainModule) {
+/**
+ * True when this module was invoked directly as the entry script (vs.
+ * imported for its exports, as every test in this repo does).
+ *
+ * `entryPoint` (process.argv[1]) is the literal path Node was invoked
+ * with — when installed via npm, that's the symlink in
+ * `node_modules/.bin/`, not the real file. `moduleUrl` (import.meta.url)
+ * resolves through the symlink, so a naive string comparison never
+ * matches once this ships as a real package (caught by installing a
+ * packed tarball before publishing — see DECISIONS.md). Resolve both
+ * sides through the real path first. Takes both as parameters, rather
+ * than reading `process.argv`/`import.meta.url` directly, so this exact
+ * symlink-resolution logic is unit-testable without a subprocess.
+ */
+export function isMainModule(entryPoint: string | undefined, moduleUrl: string): boolean {
+  if (entryPoint === undefined) {
+    return false;
+  }
+  try {
+    return moduleUrl === pathToFileURL(realpathSync(entryPoint)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule(process.argv[1], import.meta.url)) {
   run(process.argv);
 }

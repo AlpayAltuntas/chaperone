@@ -445,3 +445,47 @@ engine + flagship checks, the full 22-check catalog, all three reporters
 with posture score and CI-friendly exit codes, CLI hardening/UX, and this
 documentation pass. §17's definition of done holds, with the one
 consequence of `CHAP-SUP-003`'s spec-mandated heuristic noted above.
+
+## Post-v1 — npm publish prep
+
+- **Package renamed to the scoped `@alpayaltuntas/chaperone`.** The
+  unscoped `chaperone` name is already taken on the public npm registry
+  by an unrelated package. `publishConfig.access: "public"` added since
+  scoped packages default to requiring a paid account otherwise.
+- **Removed the dangling `"main": "./dist/index.js"` field** — a Phase 0
+  leftover pointing at a file that was never created (`src/index.ts` was
+  never written; this is a CLI-only tool, no library entry point exists).
+  Anyone `require()`/`import`-ing the package as a library would have hit
+  `MODULE_NOT_FOUND`. Not needed for a `bin`-only package — removed
+  rather than stubbed, since there's no actual library surface to expose.
+- **Added `repository`/`homepage`/`bugs`/`keywords`** — standard npm
+  registry metadata, populated with the real GitHub repo URL now that one
+  exists.
+- **Caught a real, publish-blocking bug via the actual packaging
+  pipeline, not just `npm run build`/tests: `chaperone` silently did
+  nothing (no output, exit 0) when installed as a real package.**
+  `npm install` creates a symlink at `node_modules/.bin/chaperone` →
+  `dist/cli.js`. `process.argv[1]` is that literal symlink path; Node's
+  ESM loader resolves `import.meta.url` through the symlink to the real
+  file. The original `isMainModule` check compared the two with a naive
+  string equality, which only ever matched when invoking `node
+dist/cli.js` directly (every manual test throughout this build) — never
+  through the symlink npm actually creates. No unit test caught this
+  either: every existing CLI test calls `run()` directly, bypassing
+  entrypoint detection entirely.
+  Only surfaced by the most rigorous check available short of actually
+  publishing: `npm pack` → install the real tarball into an isolated
+  temp project → run the installed binary. That's now a standing
+  pre-publish step, not a one-off — see the README's contributing notes
+  for how to redo it after any CLI change (`npm pack`, install the tgz
+  into a scratch dir, run the `node_modules/.bin/chaperone` binary).
+  Fixed by resolving both sides through `realpathSync` before comparing,
+  and refactored `isMainModule` to take `(entryPoint, moduleUrl)` as
+  parameters — dependency-injected rather than reading
+  `process.argv`/`import.meta.url` directly — specifically so this exact
+  symlink-resolution logic is unit-testable
+  (`test/cli.mainModule.test.ts`) without needing a subprocess or a real
+  npm install every time. That test's own fixtures had to build their
+  expected `moduleUrl` through `realpathSync` too, for the same reason
+  (macOS resolves `/tmp` → `/private/tmp`) — the same class of bug, one
+  level up, caught while writing the regression test for the first one.

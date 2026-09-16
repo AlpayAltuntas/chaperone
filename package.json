@@ -1,5 +1,5 @@
 {
-  "name": "chaperone",
+  "name": "@alpayaltuntas/chaperone",
   "version": "0.1.0",
   "description": "Security scanner that audits self-hosted personal AI agents for OWASP-LLM-mapped security weaknesses.",
   "type": "module",
@@ -9,9 +9,28 @@
   "bin": {
     "chaperone": "./dist/cli.js"
   },
-  "main": "./dist/index.js",
   "files": [
     "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlpayAltuntas/chaperone.git"
+  },
+  "homepage": "https://github.com/AlpayAltuntas/chaperone#readme",
+  "bugs": {
+    "url": "https://github.com/AlpayAltuntas/chaperone/issues"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "cli",
+    "ai-agent",
+    "owasp",
+    "llm",
+    "static-analysis"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
