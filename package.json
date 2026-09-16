@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "bin": {
-    "chaperone": "./dist/cli.js"
+    "chaperone": "dist/cli.js"
   },
   "files": [
     "dist"
