@@ -71,6 +71,65 @@ chaperone version         # print the installed version
 chaperone scan --help     # full flag reference
 ```
 
+## How to use
+
+**1. Point it at an install.**
+
+```bash
+chaperone scan ~/clawd
+```
+
+Pass the agent's root/config directory explicitly — this is the reliable
+way to use Chaperone. Omit the path and it probes a short list of
+illustrative default locations instead (see Quickstart above).
+
+**2. Read the report.** Findings are grouped by severity, critical first.
+Each one gives you everything you need to act without opening the code:
+a check ID (`[CHAP-SEC-001]`), what's wrong, exactly where (file + a
+config-key or skill-name detail, never a raw secret), the OWASP LLM
+mapping, and concrete remediation. The summary line at the bottom counts
+findings per severity and how many paths were inspected vs. skipped (and
+why — see the "Skipped" section in the output if anything couldn't be
+read).
+
+**3. Narrow it down**, once you know what you're looking at:
+
+```bash
+chaperone scan ~/clawd --only CHAP-SEC-001,CHAP-NET-001   # just these checks
+chaperone scan ~/clawd --skip CHAP-SUP-003                # everything except these
+chaperone checks                                          # see every check ID first
+```
+
+**4. Pick an output format** depending on who's consuming it:
+
+```bash
+chaperone scan ~/clawd --format console   # for a human, in a terminal (default)
+chaperone scan ~/clawd --format json      # for scripts/automation
+chaperone scan ~/clawd --format sarif     # for GitHub code scanning
+```
+
+**5. Save it instead of printing it:**
+
+```bash
+chaperone scan ~/clawd --format json --output report.json
+```
+
+`--output` also strips color from `--format console` reports automatically,
+so a saved file never ends up full of ANSI codes. Use `--no-color` to do
+the same for anything printed to a terminal that doesn't render color well.
+
+**6. Gate a build on it.** `chaperone scan` exits non-zero whenever a
+finding meets (or exceeds) `--fail-on` (default `high`) — or when it
+couldn't locate an installation to scan at all, so "nothing was scanned"
+is never mistaken for "nothing was found":
+
+```bash
+chaperone scan ~/clawd --fail-on critical   # only fail the build on criticals
+```
+
+See [Formats & CI usage](#formats--ci-usage) below for a full CI job
+example.
+
 ## Example output
 
 Running against a deliberately-insecure sample install
@@ -124,16 +183,12 @@ chaperone scan test/fixtures/clean-agent        # hardened sample
 
 ## Formats & CI usage
 
-```bash
-chaperone scan <path> --format console   # human-readable, colored (default)
-chaperone scan <path> --format json      # schema-stable, for automation
-chaperone scan <path> --format sarif     # SARIF 2.1.0, for GitHub code scanning
-```
-
-Other flags:
+Full flag reference (see [How to use](#how-to-use) above for examples of
+each):
 
 | Flag                   | Effect                                                      |
 | ---------------------- | ----------------------------------------------------------- |
+| `--format <format>`    | `console` (default, colored), `json`, or `sarif`            |
 | `--fail-on <severity>` | Minimum severity for a non-zero exit code (default: `high`) |
 | `--output <file>`      | Write the report to a file instead of stdout                |
 | `--only <ids>`         | Run only the listed check IDs (comma-separated)             |
