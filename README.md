@@ -185,22 +185,24 @@ chaperone scan test/fixtures/clean-agent        # hardened sample
 Full flag reference (see [How to use](#how-to-use) above for examples of
 each):
 
-| Flag                        | Effect                                                                       | Env var                   |
-| --------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| `--format <format>`         | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`  | `CHAPERONE_FORMAT`        |
-| `--fail-on <severity>`      | Minimum severity for a non-zero exit code (default: `high`)                  | `CHAPERONE_FAIL_ON`       |
-| `--output <file>`           | Write the report to a file instead of stdout                                 | `CHAPERONE_OUTPUT`        |
-| `--only <ids>`              | Run only the listed check IDs (comma-separated)                              |                           |
-| `--skip <ids>`              | Skip the listed check IDs (comma-separated)                                  |                           |
-| `--only-category <cats>`    | Display filter: only show findings in these categories (comma-separated)     | `CHAPERONE_ONLY_CATEGORY` |
-| `--skip-category <cats>`    | Display filter: hide findings in these categories (comma-separated)          | `CHAPERONE_SKIP_CATEGORY` |
-| `--min-severity <severity>` | Display filter: only show findings at or above this severity                 | `CHAPERONE_MIN_SEVERITY`  |
-| `--quiet`                   | One compact line per finding (id + severity) instead of full detail          |                           |
-| `--summary-only`            | Print only the summary line and posture score, no per-finding detail         |                           |
-| `--no-color`                | Disable colored console output                                               |                           |
-| `--config <file>`           | Suppression/override config file (default: `./.chaperonerc.json` if present) | `CHAPERONE_CONFIG`        |
-| `--baseline <file>`         | A prior saved JSON report — report (and fail on) only findings new since it  | `CHAPERONE_BASELINE`      |
-| `--profile <profile>`       | Discovery profile: `default` (fictional format) or `mcp` (real MCP config)   | `CHAPERONE_PROFILE`       |
+| Flag                          | Effect                                                                       | Env var                   |
+| ----------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
+| `--format <format>`           | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`  | `CHAPERONE_FORMAT`        |
+| `--fail-on <severity>`        | Minimum severity for a non-zero exit code (default: `high`)                  | `CHAPERONE_FAIL_ON`       |
+| `--output <file>`             | Write the report to a file instead of stdout                                 | `CHAPERONE_OUTPUT`        |
+| `--only <ids>`                | Run only the listed check IDs (comma-separated)                              |                           |
+| `--skip <ids>`                | Skip the listed check IDs (comma-separated)                                  |                           |
+| `--only-category <cats>`      | Display filter: only show findings in these categories (comma-separated)     | `CHAPERONE_ONLY_CATEGORY` |
+| `--skip-category <cats>`      | Display filter: hide findings in these categories (comma-separated)          | `CHAPERONE_SKIP_CATEGORY` |
+| `--min-severity <severity>`   | Display filter: only show findings at or above this severity                 | `CHAPERONE_MIN_SEVERITY`  |
+| `--quiet`                     | One compact line per finding (id + severity) instead of full detail          |                           |
+| `--summary-only`              | Print only the summary line and posture score, no per-finding detail         |                           |
+| `--no-color`                  | Disable colored console output                                               |                           |
+| `--config <file>`             | Suppression/override config file (default: `./.chaperonerc.json` if present) | `CHAPERONE_CONFIG`        |
+| `--baseline <file>`           | A prior saved JSON report — report (and fail on) only findings new since it  | `CHAPERONE_BASELINE`      |
+| `--profile <profile>`         | Discovery profile: `default` (fictional format) or `mcp` (real MCP config)   | `CHAPERONE_PROFILE`       |
+| `--all <pattern>`             | Scan every immediate subdirectory of a parent, one aggregate report          | `CHAPERONE_ALL`           |
+| `--docker <container[:path]>` | Scan a container's filesystem via `docker cp` (read-only)                    | `CHAPERONE_DOCKER`        |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -302,6 +304,44 @@ server's `env` block instead of an env-var reference), `CHAP-SEC-003`
 gateway/channel/trust config, a skill's own source code — correctly stay
 silent rather than being forced onto a shape they don't fit; see
 `DECISIONS.md`, Phase 17.
+
+### Multi-root batch scanning (`--all`)
+
+Scan every install under one parent directory in a single run, producing
+one aggregate report:
+
+```bash
+chaperone scan --all '~/agents/*' --format json    # quote it — your shell would otherwise expand the glob first
+```
+
+`--all` supports exactly one shape: a pattern ending in `/*` expands to
+every immediate subdirectory of the parent (not a general glob engine —
+no `**`, no character classes); a pattern with no trailing `/*` is
+treated as a single directory. `--fail-on` fails the build if **any**
+target trips it. `--format json`/`--format sarif` aggregate as one JSON
+array / one multi-run SARIF document respectively — still a single,
+machine-parseable file; every other format prints one
+`===== Target N/M: <path> =====`-separated section per install.
+`--output <file>` writes one combined file, not N separate ones.
+
+### Docker-aware scanning (`--docker`)
+
+Scan a container's filesystem directly, without needing a shell (or
+anything at all) running inside it:
+
+```bash
+chaperone scan --docker my-agent-container:/agent-root
+chaperone scan --docker my-agent-container   # defaults to the container's root
+```
+
+Reads the container via `docker cp` (read-only, works on a stopped
+container too) into a throwaway local temp directory, then runs the
+exact same discovery pipeline used for a local install — cleaned up
+automatically when the scan finishes. Requires the `docker` CLI on
+`PATH` and a reachable daemon; **not** a live `docker exec` introspection
+of the running process — see `DECISIONS.md`, Phase 20 for what that
+means for env-var-injected secrets (`docker-compose.yml`'s
+`environment:`/`env_file:`) that this doesn't (yet) resolve.
 
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:
@@ -414,7 +454,8 @@ audit` for real, comprehensive coverage.
 These are hard requirements Chaperone holds itself to, not suggestions:
 
 1. **Read-only.** Chaperone never writes to, modifies, moves, or deletes
-   any file in the target installation.
+   any file in the target installation — including a `--docker` target's
+   container: `docker cp` only ever reads from it.
 2. **No network.** Chaperone makes no outbound network connections during
    `chaperone scan` — verified by a test that fails if one occurs (see
    `test/scan/noNetworkCalls.test.ts`). `CHAP-SUP-003` matches
@@ -423,6 +464,11 @@ These are hard requirements Chaperone holds itself to, not suggestions:
    exception in this whole codebase is `npm run refresh:vulndb` — an
    explicit, maintainer-run, out-of-band script (never part of `scan`,
    `test`, `build`, or CI) that refreshes that snapshot from OSV.dev.
+   `--docker` talks to the local Docker daemon over its local socket to
+   read a container's filesystem — not an outbound connection to the
+   internet, the thing this guarantee is actually about — but it is the
+   one place `chaperone scan` itself spawns a subprocess at all; see
+   `DECISIONS.md`, Phase 20.
 3. **No exfiltration.** Anything Chaperone reads stays local. Reports are
    written only where you direct them. Secrets are masked in all output.
 4. **Defensive framing only.** Chaperone identifies weaknesses in your own

@@ -8,9 +8,12 @@ import {
   applyChaperoneConfig,
   DEFAULT_CONFIG_FILENAME,
   loadChaperoneConfig,
+  type ChaperoneConfig,
 } from './config/chaperoneConfig.js';
+import { extractDockerSource } from './discovery/dockerSource.js';
 import { errorMessage } from './discovery/errors.js';
 import { DISCOVERY_PROFILES, discoverAgent, type DiscoveryProfile } from './discovery/index.js';
+import { expandAllPattern } from './discovery/multiRoot.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
 import type { Check } from './engine/types.js';
@@ -21,7 +24,13 @@ import {
   type Finding,
   type Severity,
 } from './model/types.js';
-import { REPORT_FORMATS, renderReport, type ReportFormat } from './reporters/index.js';
+import {
+  REPORT_FORMATS,
+  renderMultiTargetReport,
+  type ReportFormat,
+  type ScanReport,
+  type TargetReport,
+} from './reporters/index.js';
 import type { ScanMetadata } from './reporters/types.js';
 import { VERSION } from './version.js';
 
@@ -40,6 +49,8 @@ interface ScanCommandOptions {
   config?: string;
   baseline?: string;
   profile: DiscoveryProfile;
+  all?: string;
+  docker?: string;
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -159,6 +170,87 @@ function runCheckSuite(
   return result;
 }
 
+interface OneTargetSpec {
+  /** Passed straight through to discoverAgent as targetPath. */
+  targetPath: string | undefined;
+  /** Overrides the report's displayed `target` — used by --docker, whose real targetPath is a throwaway temp directory the user never asked to see. */
+  displayTarget?: string;
+}
+
+interface OneTargetResult {
+  metadata: ScanMetadata;
+  /** Config-/baseline-adjusted, NOT display-filtered — --fail-on and score aggregation must see every finding that actually ran, same rule renderReport's callers already follow for a single target (improvement_plan.md 3.8). */
+  findings: Finding[];
+  displayFindings: Finding[];
+  targetRootResolved: boolean;
+}
+
+/**
+ * The full discover -> check -> config/baseline-adjust -> display-filter
+ * pipeline for exactly one target — factored out of the scan action so
+ * --all (improvement_plan.md 3.2) and --docker (3.3) can run it once per
+ * target and let reporters/index.ts's renderMultiTargetReport aggregate
+ * the results, while a single target (still the overwhelming majority of
+ * invocations) goes through the exact same function with no behavior
+ * change.
+ */
+function scanOneTarget(
+  spec: OneTargetSpec,
+  options: ScanCommandOptions,
+  command: Command,
+  rcConfig: ChaperoneConfig,
+  baseline: ScanReport | undefined,
+  knownIds: ReadonlySet<string>,
+): OneTargetResult {
+  const { model, targetRootResolved } = discoverAgent({
+    profile: options.profile,
+    ...(spec.targetPath === undefined ? {} : { targetPath: spec.targetPath }),
+  });
+
+  // No point evaluating checks against an empty/placeholder model when
+  // no installation was even located — every "finding" would be about a
+  // target that doesn't exist, which is confusing, not helpful.
+  const rawFindings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
+
+  // severityOverrides/ignore are a real reclassification the user has
+  // consciously made, so — unlike the purely cosmetic display filters
+  // below — this result feeds --fail-on and the score too, not just
+  // what's rendered (improvement_plan.md 3.4).
+  const { findings: configAdjustedFindings, warnings: configWarnings } = applyChaperoneConfig(
+    rawFindings,
+    rcConfig,
+    knownIds,
+  );
+  for (const warning of configWarnings) {
+    console.error(`chaperone: warning: ${warning}`);
+  }
+
+  // --baseline (improvement_plan.md 3.5) is, like severityOverrides/
+  // ignore just above, a real narrowing of what "counts" — the whole
+  // point is to let --fail-on gate on new findings only, not just to
+  // hide old ones from the printed report.
+  const findings =
+    baseline !== undefined
+      ? findNewFindings(configAdjustedFindings, baseline)
+      : configAdjustedFindings;
+
+  // Category/severity filters are purely presentational — --fail-on
+  // always evaluates the full (config-/baseline-adjusted) `findings`,
+  // never this filtered view (improvement_plan.md 3.8).
+  const displayFindings = applyDisplayFilters(findings, options);
+
+  const metadata: ScanMetadata = {
+    target: spec.displayTarget ?? model.targetRoot,
+    targetRootResolved,
+    timestamp: new Date().toISOString(),
+    toolVersion: VERSION,
+    inspected: model.inspected,
+    skipped: model.skipped,
+  };
+
+  return { metadata, findings, displayFindings, targetRootResolved };
+}
+
 export function buildProgram(): Command {
   const program = new Command();
 
@@ -253,6 +345,22 @@ export function buildProgram(): Command {
         .default('default')
         .env('CHAPERONE_PROFILE'),
     )
+    .addOption(
+      new Option(
+        '--all <pattern>',
+        `scan every immediate subdirectory of a parent (\`~/agents/*\` — quote it so your shell doesn't expand it first), producing one aggregate report; a pattern with no trailing /* is a single directory`,
+      )
+        .env('CHAPERONE_ALL')
+        .conflicts('docker'),
+    )
+    .addOption(
+      new Option(
+        '--docker <container[:path]>',
+        "scan a container's filesystem via `docker cp` (read-only; path defaults to the container root)",
+      )
+        .env('CHAPERONE_DOCKER')
+        .conflicts('all'),
+    )
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
       // Everything below is wrapped so an unexpected bug (e.g. a reporter
       // throwing on some edge-case input) can never be mistaken for
@@ -272,7 +380,7 @@ export function buildProgram(): Command {
           command.error(errorMessage(err));
         }
 
-        let baseline;
+        let baseline: ScanReport | undefined;
         if (options.baseline !== undefined) {
           try {
             baseline = loadBaseline(options.baseline);
@@ -297,87 +405,85 @@ export function buildProgram(): Command {
           }
         }
 
-        const { model, targetRootResolved } = discoverAgent({
-          profile: options.profile,
-          ...(targetPath === undefined ? {} : { targetPath }),
-        });
-
-        // No point evaluating checks against an empty/placeholder model
-        // when no installation was even located — every "finding" would
-        // be about a target that doesn't exist, which is confusing, not
-        // helpful.
-        const rawFindings = targetRootResolved
-          ? runCheckSuite(model, options, command).findings
-          : [];
-
-        // severityOverrides/ignore are a real reclassification the user
-        // has consciously made, so — unlike the purely cosmetic display
-        // filters just below — this result feeds --fail-on and the score
-        // too, not just what's rendered (improvement_plan.md 3.4).
-        const { findings: configAdjustedFindings, warnings: configWarnings } = applyChaperoneConfig(
-          rawFindings,
-          rcConfig,
-          knownIds,
-        );
-        for (const warning of configWarnings) {
-          console.error(`chaperone: warning: ${warning}`);
-        }
-
-        // --baseline (improvement_plan.md 3.5) is, like severityOverrides/
-        // ignore just above, a real narrowing of what "counts" — the
-        // whole point is to let --fail-on gate on new findings only, not
-        // just to hide old ones from the printed report.
-        const findings =
-          baseline !== undefined
-            ? findNewFindings(configAdjustedFindings, baseline)
-            : configAdjustedFindings;
-
-        // Category/severity filters are purely presentational — --fail-on
-        // below always evaluates the full (config-/baseline-adjusted)
-        // `findings`, never this filtered view (improvement_plan.md 3.8).
-        const displayFindings = applyDisplayFilters(findings, options);
-
-        const metadata: ScanMetadata = {
-          target: model.targetRoot,
-          targetRootResolved,
-          timestamp: new Date().toISOString(),
-          toolVersion: VERSION,
-          inspected: model.inspected,
-          skipped: model.skipped,
-        };
-
-        const { output } = options;
-        // Colors are meant for an interactive terminal; force plain text
-        // before writing a saved report file (or when --no-color is
-        // passed) so a saved file isn't full of ANSI codes.
-        const colorEnabled = output !== undefined ? false : options.color;
-        const report = renderReport(options.format, displayFindings, metadata, {
-          console: {
-            color: colorEnabled,
-            ...(options.quiet !== undefined ? { quiet: options.quiet } : {}),
-            ...(options.summaryOnly !== undefined ? { summaryOnly: options.summaryOnly } : {}),
-          },
-          ...(rcConfig.scoreWeights !== undefined ? { scoreWeights: rcConfig.scoreWeights } : {}),
-        });
-
-        if (output !== undefined) {
+        // Resolves the target(s) to scan: --docker (one container,
+        // extracted read-only to a throwaway temp dir via `docker cp` —
+        // improvement_plan.md 3.3), --all (every immediate subdirectory
+        // of a parent — 3.2), or the ordinary single positional path.
+        // Mutually exclusive, enforced by the options' own .conflicts().
+        let dockerCleanup: (() => void) | undefined;
+        let targetSpecs: OneTargetSpec[];
+        if (options.docker !== undefined) {
           try {
-            writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
+            const { localDir, cleanup } = extractDockerSource(options.docker);
+            dockerCleanup = cleanup;
+            targetSpecs = [{ targetPath: localDir, displayTarget: `docker:${options.docker}` }];
           } catch (err) {
-            command.error(`Could not write report to '${output}': ${errorMessage(err)}`);
+            command.error(errorMessage(err));
           }
+        } else if (options.all !== undefined) {
+          let roots: string[];
+          try {
+            roots = expandAllPattern(options.all);
+          } catch (err) {
+            command.error(errorMessage(err));
+          }
+          if (roots.length === 0) {
+            command.error(`--all '${options.all}' matched no directories to scan.`);
+          }
+          targetSpecs = roots.map((root) => ({ targetPath: root }));
         } else {
-          console.log(report);
+          targetSpecs = [{ targetPath }];
         }
 
-        // A scan that never located an installation is treated the same
-        // as hitting the fail-on threshold — automation should never
-        // read a "nothing was scanned" run as a silent pass.
-        const failed =
-          !targetRootResolved ||
-          findings.some((finding) => severityMeetsThreshold(finding.severity, options.failOn));
-        if (failed) {
-          process.exitCode = 1;
+        try {
+          const results = targetSpecs.map((spec) =>
+            scanOneTarget(spec, options, command, rcConfig, baseline, knownIds),
+          );
+
+          const { output } = options;
+          // Colors are meant for an interactive terminal; force plain
+          // text before writing a saved report file (or when --no-color
+          // is passed) so a saved file isn't full of ANSI codes.
+          const colorEnabled = output !== undefined ? false : options.color;
+          const targetReports: TargetReport[] = results.map((r) => ({
+            findings: r.displayFindings,
+            metadata: r.metadata,
+          }));
+          const report = renderMultiTargetReport(options.format, targetReports, {
+            console: {
+              color: colorEnabled,
+              ...(options.quiet !== undefined ? { quiet: options.quiet } : {}),
+              ...(options.summaryOnly !== undefined ? { summaryOnly: options.summaryOnly } : {}),
+            },
+            ...(rcConfig.scoreWeights !== undefined ? { scoreWeights: rcConfig.scoreWeights } : {}),
+          });
+
+          if (output !== undefined) {
+            try {
+              writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
+            } catch (err) {
+              command.error(`Could not write report to '${output}': ${errorMessage(err)}`);
+            }
+          } else {
+            console.log(report);
+          }
+
+          // A scan that never located an installation is treated the
+          // same as hitting the fail-on threshold — automation should
+          // never read a "nothing was scanned" run as a silent pass. A
+          // batch (--all) run fails if ANY target does.
+          const failed = results.some(
+            (r) =>
+              !r.targetRootResolved ||
+              r.findings.some((finding) =>
+                severityMeetsThreshold(finding.severity, options.failOn),
+              ),
+          );
+          if (failed) {
+            process.exitCode = 1;
+          }
+        } finally {
+          dockerCleanup?.();
         }
       } catch (err) {
         console.error(`chaperone: unexpected error: ${errorMessage(err)}`);
