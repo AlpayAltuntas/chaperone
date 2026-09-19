@@ -1841,3 +1841,37 @@ report.html` test that writes a real file to disk and reads it back,
   `--dry-run`, an unknown check ID, and an unresolved target all go
   through `command.error()`/`process.exit()` and were verified manually,
   same convention as every other such path in this suite.
+
+## Improvement plan, Phase 23 (5.1) — Golden-file/snapshot reporter tests
+
+- **Vitest's built-in `.toMatchSnapshot()`, no new dependency** —
+  already bundled with the test runner this project uses; no separate
+  snapshot library (`jest-snapshot` standalone, etc.) needed.
+- **Two normalizations are load-bearing, not optional** — a scan
+  timestamp and the target's absolute path both vary between runs (a
+  fresh `mkdtempSync` temp dir every time) and between machines/CI
+  (different filesystem root entirely). Without normalizing both before
+  snapshotting, every single run would look like a "changed" snapshot,
+  making the whole mechanism useless. The timestamp is supplied as a
+  fixed literal in the constructed `ScanMetadata` (simpler than
+  regex-stripping a real one); the temp directory's exact path is known
+  at test time (`copyFixtureWithPermissions`'s own return value) and
+  replaced verbatim with a fixed placeholder.
+- **Real fixtures, real discovery, real checks — not hand-built
+  `Finding[]` arrays** (unlike every `test/reporters/*.test.ts` file,
+  which intentionally stays scoped to one reporter's own formatting
+  logic against a small synthetic input). This test exists specifically
+  to catch a regression somewhere in the full
+  `discoverAgent` -> `runChecks` -> `renderReport` pipeline that a
+  narrower, mocked-input reporter test wouldn't see. Reuses the same
+  chmod'd-copy-of-a-real-fixture technique `fullCatalog.test.ts`
+  established (git doesn't preserve exact file modes, so `CHAP-SEC-003`
+  needs an explicit, portable one) rather than inventing a new pattern.
+- **Verified the test is not vacuous**: deliberately introduced a real
+  one-word regression into `console.ts`'s report header, confirmed the
+  snapshot test failed and printed a clear diff naming exactly what
+  changed, then reverted — before trusting this as a real signal, not
+  just as passing tests.
+- All six report formats (`console`/`json`/`sarif`/`markdown`/`gha`/
+  `html`), both fixtures — 12 snapshots total, committed alongside the
+  test in `test/scan/__snapshots__/`.

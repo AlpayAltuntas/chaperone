@@ -599,6 +599,15 @@ true-negative fixture (stays silent); see `test/checks/` for the existing
 pattern and `test/fixtures/{vulnerable,clean}-agent/` for the sample
 installs. Update `CHECKS.md` to match.
 
+**Reporter output is golden-file/snapshot tested**
+(`test/scan/reporterSnapshots.test.ts`, improvement_plan.md 5.1) against
+both fixtures, across every format — catches an accidental whitespace/
+ordering/field regression a substring assertion could miss. A deliberate
+output change (adding a field, rewording a line) means updating the
+snapshot: `npx vitest run test/scan/reporterSnapshots.test.ts -u`, then
+review the diff in `test/scan/__snapshots__/` like any other source
+change before committing it.
+
 **Refreshing the offline vulnerability snapshot** (`CHAP-SUP-003`,
 `src/checks/shared/vulnDb.ts`): run `npm run refresh:vulndb`. This is the
 one script in the repo that makes an outbound network call (to

