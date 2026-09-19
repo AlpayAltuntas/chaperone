@@ -96,6 +96,32 @@ export function formatChecksList(checks: readonly Check[]): string {
   return lines.join('\n');
 }
 
+/**
+ * Renders the `explain <check-id>` subcommand's full detail for one
+ * check — the same detects/heuristic/remediation fields CHECKS.md is
+ * generated from (improvement_plan.md 3.7/4.2), so this and the doc
+ * can't drift apart.
+ */
+export function formatCheckExplanation(check: Check): string {
+  const severityLabel = check.severityNote ?? check.severity.toUpperCase();
+  return [
+    `${check.id} — ${check.title}`,
+    '',
+    `Severity: ${severityLabel}`,
+    `Category: ${check.category}`,
+    `OWASP:    ${check.owasp}`,
+    '',
+    'Detects:',
+    `  ${check.detects}`,
+    '',
+    'Heuristic:',
+    `  ${check.heuristic}`,
+    '',
+    'Remediation:',
+    `  ${check.remediation}`,
+  ].join('\n');
+}
+
 /** Applies --only/--skip and runs the check suite, erroring out (via `command`) if the filters leave nothing to run. */
 function runCheckSuite(
   model: AgentModel,
@@ -275,6 +301,20 @@ export function buildProgram(): Command {
     .description('List all available checks (id, title, severity)')
     .action(() => {
       console.log(formatChecksList(ALL_CHECKS));
+    });
+
+  program
+    .command('explain')
+    .argument('<check-id>', 'a check ID, e.g. CHAP-SEC-001 (see `chaperone checks`)')
+    .description('Print full detail (detects, heuristic, remediation) for one check')
+    .action((checkId: string, _options: unknown, command: Command) => {
+      const check = ALL_CHECKS.find((c) => c.id === checkId);
+      if (check === undefined) {
+        command.error(
+          `Unknown check ID: ${checkId}. Run \`chaperone checks\` to see available check IDs.`,
+        );
+      }
+      console.log(formatCheckExplanation(check));
     });
 
   // Alongside the built-in -V/--version flag (from .version() above) — §10

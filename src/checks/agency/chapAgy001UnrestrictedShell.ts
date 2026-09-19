@@ -17,6 +17,11 @@ export const chapAgy001UnrestrictedShell: Check = {
   severity: 'critical',
   category: 'agency',
   owasp: OWASP,
+  detects: 'Skills/plugins that can run arbitrary shell commands.',
+  heuristic:
+    "A skill's source contains a shell/exec/spawn capability (`child_process`, `exec`/`execSync`, `spawn`/`spawnSync`). v1 does not yet detect a command allowlist or confirmation gate (see DECISIONS.md), so any detected shell capability is treated as unrestricted.",
+  remediation:
+    'Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.',
   run(model) {
     return model.skills
       .filter((skill) => skill.capabilities.shellExec)

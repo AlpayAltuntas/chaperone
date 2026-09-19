@@ -52,7 +52,17 @@ function makeFinding(checkId: string): Finding {
 }
 
 function makeCheck(id: string, run: Check['run']): Check {
-  return { id, title: id, severity: 'low', category: 'secrets', owasp: 'LLM06', run };
+  return {
+    id,
+    title: id,
+    severity: 'low',
+    category: 'secrets',
+    owasp: 'LLM06',
+    detects: 'test',
+    heuristic: 'test',
+    remediation: 'test',
+    run,
+  };
 }
 
 describe('runChecks', () => {

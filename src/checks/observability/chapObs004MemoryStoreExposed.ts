@@ -21,6 +21,12 @@ export const chapObs004MemoryStoreExposed: Check = {
   severity: 'medium',
   category: 'observability',
   owasp: OWASP,
+  detects:
+    "A configured persistent memory/state directory (one of `instruction.md` §2's five discoverable artifacts) that's readable by group/other, or git-tracked and not gitignored.",
+  heuristic:
+    "Mirrors CHAP-SEC-002/CHAP-SEC-003, applied to a `memory_dir`/`state_dir` config field (mirroring `skills_dir`'s existing pattern — see `discovery/memory.ts`) instead of the config file. No content inside the directory is ever read; only its existence, permission mode, and git-tracking status. Silent when the directory is configured but doesn't exist on disk.",
+  remediation:
+    'Restrict the memory/state directory to owner-only access (chmod 700) and add it to .gitignore — it can accumulate sensitive conversational content over time.',
   run(model) {
     if (!model.memory.present || model.memory.dir === null) {
       return [];

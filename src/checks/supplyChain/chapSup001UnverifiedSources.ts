@@ -11,6 +11,11 @@ export const chapSup001UnverifiedSources: Check = {
   severity: 'high',
   category: 'supply-chain',
   owasp: OWASP,
+  detects: 'Skills installed from an unpinned ref or with no verifiable provenance.',
+  heuristic:
+    'The skill\'s manifest doesn\'t confirm a pinned version/ref (`pinnedRef !== true` — covers both an explicitly unpinned version like `"latest"` and a manifest with no version/ref info at all).',
+  remediation:
+    'Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.',
   run(model) {
     return model.skills
       .filter((skill) => skill.provenance.pinnedRef !== true)

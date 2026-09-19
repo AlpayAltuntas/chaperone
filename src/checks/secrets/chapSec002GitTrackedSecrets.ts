@@ -17,6 +17,12 @@ export const chapSec002GitTrackedSecrets: Check = {
   severity: 'high',
   category: 'secrets',
   owasp: OWASP,
+  detects:
+    "A config file holding a literal secret that sits inside a git repository without being covered by that repo's `.gitignore`.",
+  heuristic:
+    "An ancestor `.git` directory exists above the config file (discovery-detected), the config holds at least one literal secret (see CHAP-SEC-001), and the config's path relative to the repo root doesn't match any pattern in the repo-root `.gitignore`. Pattern matching supports `*`/`?` wildcards, directory-only and root-anchored patterns, and `!` negation — a deliberately small subset of real gitignore semantics (no `**`, no nested `.gitignore` files); see `checks/shared/gitignoreMatch.ts`.",
+  remediation:
+    'Add the config/secret file to .gitignore, and rotate any key that may already have been committed.',
   run(model) {
     if (
       model.config.path === null ||

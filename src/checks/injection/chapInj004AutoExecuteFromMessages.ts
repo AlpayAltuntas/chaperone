@@ -12,6 +12,10 @@ export const chapInj004AutoExecuteFromMessages: Check = {
   severity: 'high',
   category: 'injection',
   owasp: OWASP,
+  detects: 'Config that auto-opens links or auto-runs commands found in inbound messages.',
+  heuristic: '`trust.auto_execute_links` is `true`.',
+  remediation:
+    'Disable auto-execution of links/commands found in messages; require explicit confirmation instead.',
   run(model) {
     if (
       model.config.path === null ||

@@ -17,6 +17,12 @@ export const chapSec001PlaintextSecrets: Check = {
   severity: 'high',
   category: 'secrets',
   owasp: OWASP,
+  detects:
+    'API keys, tokens, passwords, and similar credentials stored directly in the config file as literal values.',
+  heuristic:
+    'A config key whose name looks secret-bearing (`api_key`, `token`, `secret`, `password`, `credential`, case-insensitive) holds a literal string value rather than an indirect reference (`${VAR}`, `$VAR`, `env:VAR`). The literal value is masked (e.g. `sk-…wxyz`) before it ever reaches this check or any report — the real value is never printed.',
+  remediation:
+    'Move the value to an environment variable or a secrets manager and reference it indirectly in config.',
   run(model) {
     if (model.config.path === null) {
       return [];

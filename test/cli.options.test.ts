@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { ALL_CHECKS } from '../src/checks/index.js';
-import { formatChecksList, run } from '../src/cli.js';
+import { formatCheckExplanation, formatChecksList, run } from '../src/cli.js';
 import { VERSION } from '../src/version.js';
 
 // As with cli.exitcode.test.ts: only paths that don't call commander's
@@ -29,6 +29,41 @@ describe('formatChecksList', () => {
   it('handles an empty registry without throwing', () => {
     expect(() => formatChecksList([])).not.toThrow();
     expect(formatChecksList([])).toContain('Chaperone check catalog (0 checks)');
+  });
+});
+
+describe('formatCheckExplanation', () => {
+  it('includes id, title, severity, category, owasp, detects, heuristic, and remediation', () => {
+    const check = ALL_CHECKS.find((c) => c.id === 'CHAP-SEC-001');
+    if (check === undefined) {
+      throw new Error('CHAP-SEC-001 missing from ALL_CHECKS');
+    }
+
+    const output = formatCheckExplanation(check);
+
+    expect(output).toContain('CHAP-SEC-001 — Plaintext secrets in config');
+    expect(output).toContain('Severity: HIGH');
+    expect(output).toContain('Category: secrets');
+    expect(output).toContain(`OWASP:    ${check.owasp}`);
+    expect(output).toContain(check.detects);
+    expect(output).toContain(check.heuristic);
+    expect(output).toContain(check.remediation);
+  });
+
+  it('uses severityNote instead of the plain severity when set', () => {
+    const check = ALL_CHECKS.find((c) => c.id === 'CHAP-SUP-003');
+    if (check === undefined) {
+      throw new Error('CHAP-SUP-003 missing from ALL_CHECKS');
+    }
+    const { severityNote } = check;
+    if (severityNote === undefined) {
+      throw new Error('CHAP-SUP-003 is expected to have a severityNote');
+    }
+
+    const output = formatCheckExplanation(check);
+
+    expect(output).toContain(`Severity: ${severityNote}`);
+    expect(output).not.toContain('Severity: INFO');
   });
 });
 
@@ -133,6 +168,31 @@ describe('cli scan — --only/--skip/--no-color (in-process, non-throwing paths 
     const printed = logSpy.mock.calls[0]?.[0] as string;
     expect(printed).toContain('Chaperone check catalog');
     expect(printed).toContain('CHAP-SEC-001');
+  });
+
+  // improvement_plan.md 3.7. The unknown-check-id path goes through
+  // command.error() -> process.exit(), same "verified manually instead"
+  // caveat as cli.exitcode.test.ts documents for other command.error()
+  // paths: `chaperone explain CHAP-FAKE-999` exits 1 with "Unknown check
+  // ID: CHAP-FAKE-999. Run `chaperone checks` to see available check
+  // IDs." (manually verified).
+  it('explain prints full detail for a known check', () => {
+    run(['node', 'chaperone', 'explain', 'CHAP-SEC-001']);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    expect(printed).toContain('CHAP-SEC-001 — Plaintext secrets in config');
+    expect(printed).toContain('Severity: HIGH');
+    expect(printed).toContain('Category: secrets');
+    expect(printed).toContain('Detects:');
+    expect(printed).toContain('Heuristic:');
+    expect(printed).toContain('Remediation:');
+  });
+
+  it('explain shows the severityNote override instead of the plain severity, when set', () => {
+    run(['node', 'chaperone', 'explain', 'CHAP-SUP-003']);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    expect(printed).toContain('Severity: Info (demoted from High)');
   });
 
   it('the version subcommand prints just the version (alongside -V/--version)', () => {

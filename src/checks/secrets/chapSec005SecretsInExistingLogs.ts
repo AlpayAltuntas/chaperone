@@ -19,6 +19,12 @@ export const chapSec005SecretsInExistingLogs: Check = {
   severity: 'high',
   category: 'secrets',
   owasp: OWASP,
+  detects:
+    "A secret-shaped value already written into the log file's existing content — distinct from CHAP-SEC-004/CHAP-OBS-002, which only reason about whether logging config is likely to leak going forward, not whether it already has.",
+  heuristic:
+    '(Deliberately simple, v1.) Scans up to the last 256 KiB of the log file (bounded — see `discovery/logContentScanner.ts`) for `key=value`/`"key": "value"`-shaped substrings where the key looks secret-bearing (the same `looksLikeSecretKeyName` heuristic CHAP-SEC-001 uses) and the value is at least 8 characters. A generic high-entropy-string scanner was the documented alternative (`improvement_plan.md` 2.1); this reuses existing, tested logic instead. Matched values are masked before ever reaching the model — the real value is never retained or printed, same guarantee as config secrets.',
+  remediation:
+    'Rotate the leaked credential, purge or redact the log file, and fix the logging behavior that caused it to be written.',
   run(model) {
     if (model.logging.path === null) {
       return [];

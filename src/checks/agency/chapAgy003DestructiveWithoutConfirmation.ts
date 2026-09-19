@@ -11,6 +11,11 @@ export const chapAgy003DestructiveWithoutConfirmation: Check = {
   severity: 'high',
   category: 'agency',
   owasp: OWASP,
+  detects:
+    'Skills that can delete data, send messages, spend money, or otherwise act irreversibly with no human-in-the-loop gate.',
+  heuristic:
+    "The skill's source contains a destructive-action keyword as a standalone word (`delete`, `send`, `transfer`, `purchase`, `deploy`, `remove`, `pay`), and its manifest does not declare `confirmationRequired: true` (checked at the manifest's top level or nested under `capabilities`) — an invented-but-documented convention, no real manifest schema exists for these example agents (see DECISIONS.md).",
+  remediation: 'Require explicit confirmation before this action runs (or add a dry-run mode).',
   run(model) {
     return model.skills
       .filter(

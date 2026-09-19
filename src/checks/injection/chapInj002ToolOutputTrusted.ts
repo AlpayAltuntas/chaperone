@@ -18,6 +18,11 @@ export const chapInj002ToolOutputTrusted: Check = {
   severity: 'medium',
   category: 'injection',
   owasp: OWASP,
+  detects: 'A skill whose output could drive another tool with no validation step.',
+  heuristic:
+    '(A static proxy, not real data-flow analysis.) A skill that both ingests external/tool data (network or filesystem capability) and can execute shell commands — the shape of a tool-output-to-shell-execution chain, since Chaperone has no way to confirm data actually flows between them.',
+  remediation:
+    "Validate/escape a tool's output before it can drive another tool; never auto-execute model or tool output.",
   run(model) {
     return model.skills
       .filter(

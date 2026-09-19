@@ -41,7 +41,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit"
+    "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit",
+    "docs:checks": "tsx scripts/generateChecksDoc.ts",
+    "docs:checks:check": "tsx scripts/generateChecksDoc.ts --check"
   },
   "license": "MIT",
   "dependencies": {

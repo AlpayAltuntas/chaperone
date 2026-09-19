@@ -26,8 +26,14 @@ export const chapSup003KnownVulnerableDependencies: Check = {
   id: ID,
   title: TITLE,
   severity: 'info',
+  severityNote: 'Info (demoted from High)',
   category: 'supply-chain',
   owasp: OWASP,
+  detects: 'Any skill dependency manifest, surfaced for manual review.',
+  heuristic:
+    "(Deliberately weak, v1.) Chaperone makes no outbound network calls (§14), so it cannot check dependencies against a live advisory database. This check simply fires on any skill with a `package.json` and points the user at `npm audit` — it fires on a hardened install exactly as readily as a vulnerable one. This is a documented v1 limitation, not a bug; see `test/checks/chapSup003.test.ts` and DECISIONS.md. Severity is `Info` rather than the category's usual weight specifically because of that weakness — a real vulnerability match would warrant `High` again (see `improvement_plan.md` Phase 18, the planned offline-vulnerability-database fix).",
+  remediation:
+    "Run npm audit (or your package manager's equivalent) inside the skill directory; update or remove vulnerable/unused dependencies.",
   run(model) {
     return model.skills
       .filter((skill) => skill.dependencies.manifestPath !== null)

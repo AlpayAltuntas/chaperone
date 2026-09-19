@@ -15,6 +15,11 @@ export const chapAgy002UnrestrictedFilesystem: Check = {
   severity: 'high',
   category: 'agency',
   owasp: OWASP,
+  detects: 'Skills that write/delete files with no scoping to a fixed workspace directory.',
+  heuristic:
+    'The skill writes files (`fs.writeFile`/`unlink`/etc.) and its source shows no evidence of scoping — no `path.join(__dirname, ...)` (or `.resolve`) pattern and no constant named like `WORKSPACE`/`SANDBOX`/`SCOPED`. A static proxy for "no path scoping", not true taint tracking.',
+  remediation:
+    "Scope the skill's file access to a dedicated workspace directory and deny path traversal outside it.",
   run(model) {
     return model.skills
       .filter(

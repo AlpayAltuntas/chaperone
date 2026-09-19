@@ -11,6 +11,10 @@ export const chapObs002UnredactedLogs: Check = {
   severity: 'medium',
   category: 'observability',
   owasp: OWASP,
+  detects: "Log config that doesn't confirm secrets/message bodies are redacted.",
+  heuristic: 'Logging is configured and `logging.redact_secrets` is not `true`.',
+  remediation:
+    'Redact secrets and sensitive message content before logging, and restrict access to the log file.',
   run(model) {
     if (!model.logging.present || model.logging.redactSecrets === true) {
       return [];

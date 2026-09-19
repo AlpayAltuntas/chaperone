@@ -11,6 +11,10 @@ export const chapSup002NoIntegrityVerification: Check = {
   severity: 'medium',
   category: 'supply-chain',
   owasp: OWASP,
+  detects: 'Skill dependencies installed with no lockfile.',
+  heuristic:
+    'The skill has a `package.json` but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it.',
+  remediation: 'Commit a lockfile alongside the manifest and enable integrity checks.',
   run(model) {
     return model.skills
       .filter(
