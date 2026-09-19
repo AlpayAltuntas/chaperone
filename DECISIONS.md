@@ -588,3 +588,51 @@ Each has a dedicated regression test; see the item numbers below.
   `CHECKS.md`, and the posture-score assertions in
   `test/scan/fullCatalog.test.ts` (clean fixture: 55/D -> 100/A, since the
   3 `CHAP-SUP-003` findings there now deduct 0 instead of 45).
+
+## Improvement plan, Phase 2 — Repo hygiene & documentation
+
+Items `4.1`, `4.3`, `4.7`, `4.8` from `improvement_plan.md`. Docs only —
+no code changes.
+
+- **`CHANGELOG.md`** in Keep a Changelog format, with `[Unreleased]`
+  backfilled from Phase 1's seven fixes and a `[0.1.0]` entry
+  reconstructed from what actually shipped (dated from the real npm
+  publish timestamp, `npm view @alpay_altuntas/chaperone time`, not
+  guessed). States the versioning policy explicitly (a new check or a
+  severity change is a minor bump minimum) rather than leaving it
+  implicit.
+- **`SECURITY.md`** names two in-scope report classes explicitly — a bug
+  in Chaperone itself (violating its own read-only/no-network/masking
+  guardrails) and a false negative that matters (a check silently missing
+  something) — since the second is easy to under-value as "just a
+  correctness bug" for a tool whose entire purpose is catching things.
+  Points at GitHub's private vulnerability reporting as the preferred
+  channel; enabled it on the repo (`private-vulnerability-reporting`, was
+  off) so the link in the doc actually works.
+- **Issue template (bug report) + `config.yml`** prompting for the
+  specific fields that actually matter for a heuristic-driven tool (which
+  check, expected vs. actual, a redacted repro snippet) rather than a
+  blank box; `config.yml` redirects security reports to `SECURITY.md`
+  instead of a public issue.
+- **PR template** checklist mirrors the actual definition-of-done this
+  project has used in every phase so far (fixture pair for a check
+  change, `CHECKS.md`/`CHANGELOG.md`/`DECISIONS.md` kept in sync) —
+  encoding it once so it doesn't have to be restated per PR.
+- **README "How Chaperone relates to other tools"** section (item `4.8`)
+  added between "Checks" and "Known limitations". Names gitleaks/
+  trufflehog/npm audit/Snyk explicitly rather than being vague about
+  "other scanners" — the point is to be honest that Chaperone doesn't
+  compete on generic secret/dependency detection, only on the
+  agent-specific categories (`CHAP-AGY-*`/`CHAP-INJ-*`/`CHAP-NET-*`/
+  `CHAP-OBS-*`) nothing else covers.
+- **Caught and fixed a real staleness bug while doing this pass**: the
+  README's "Example output" section had hardcoded real captured CLI
+  output from before Phase 1's `CHAP-SUP-003` severity demotion — still
+  said "17 high, 0 info" and "15 more high-severity findings" (already
+  slightly wrong even before Phase 1 — 1 shown + 15 more = 16, not the
+  claimed 17). Re-ran the actual scan and corrected both to the current
+  real numbers (13 high, 4 info, 12 more). A concrete instance of why
+  `DECISIONS.md`'s Phase 6 note ("the README's example output is real,
+  captured CLI output... so it can't drift") only holds if it's actually
+  re-verified after a change that affects it — noted here so future
+  phases remember to check this file too.
