@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { AgentModel, InspectedEntry, SkippedEntry } from '../model/types.js';
 import { DEFAULT_ROOTS, locateConfigFile, resolveTargetRoot } from './configLocator.js';
-import { maskConfig, parseConfigSource } from './configParser.js';
+import { createLineLookup, maskConfig, parseConfigSource } from './configParser.js';
 import { errorMessage } from './errors.js';
 import { extractGatewayModel } from './gateway.js';
 import { detectGitContext } from './gitContext.js';
@@ -51,12 +51,14 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   const configPath = locateConfigFile(targetRoot);
   let rawParsed: unknown = null;
   let format: 'yaml' | 'json' | null = null;
+  let configSource: string | null = null;
 
   if (configPath !== null) {
     try {
       const source = readFileSync(configPath, 'utf8');
       format = configPath.toLowerCase().endsWith('.json') ? 'json' : 'yaml';
       rawParsed = parseConfigSource(source, format);
+      configSource = source;
       inspected.push({ path: configPath, kind: 'config' });
     } catch (err) {
       skipped.push({ path: configPath, reason: `unparseable config: ${errorMessage(err)}` });
@@ -71,7 +73,16 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   const gateway = extractGatewayModel(rawParsed);
   let logging = extractLoggingModel(rawParsed, targetRoot);
   const memory = extractMemoryModel(rawParsed, targetRoot);
-  const { data, secretFields } = maskConfig(rawParsed);
+  const { data, secretFields: maskedSecretFields } = maskConfig(rawParsed);
+  // Line numbers (improvement_plan.md 1.17): only available for YAML —
+  // createLineLookup returns an always-null lookup for JSON, so this
+  // stays a documented no-op there rather than a special case here.
+  const lineLookup =
+    configSource !== null && format !== null ? createLineLookup(configSource, format) : null;
+  const secretFields =
+    lineLookup !== null
+      ? maskedSecretFields.map((field) => ({ ...field, line: lineLookup(field.keyPath) }))
+      : maskedSecretFields;
 
   const logPath = logging.path;
   if (logPath !== null && existsSync(logPath)) {

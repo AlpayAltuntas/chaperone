@@ -55,7 +55,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** High
 - **OWASP:** LLM06 — Sensitive Information Disclosure
 - **Detects:** API keys, tokens, passwords, and similar credentials stored directly in the config file as literal values.
-- **Heuristic:** A config key whose name looks secret-bearing (`api_key`, `token`, `secret`, `password`, `credential`, case-insensitive) holds a literal string value rather than an indirect reference (`${VAR}`, `$VAR`, `env:VAR`). The literal value is masked (e.g. `sk-…wxyz`) before it ever reaches this check or any report — the real value is never printed.
+- **Heuristic:** A config key whose name looks secret-bearing (`api_key`, `token`, `secret`, `password`, `credential`, case-insensitive) holds a literal string value rather than an indirect reference (`${VAR}`, `$VAR`, `env:VAR`). The literal value is masked (e.g. `sk-…wxyz`) before it ever reaches this check or any report — the real value is never printed. For a YAML config, the finding includes a real source line number (via `YAML.parseDocument`); a JSON config has no equivalent free CST-with-positions, so its findings report a `null` line.
 - **Remediation:** Move the value to an environment variable or a secrets manager and reference it indirectly in config.
 
 ### CHAP-SEC-002 — Secrets in a git-tracked path
@@ -103,7 +103,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Low
 - **OWASP:** LLM06 — Sensitive Information Disclosure
 - **Detects:** A config field using a bare `${VAR}`/`$VAR`/`env:VAR` reference where `VAR` isn't set (or is empty) in Chaperone's own process environment at scan time.
-- **Heuristic:** (Explicitly advisory/low-confidence.) Chaperone runs as a separate process from the agent and may not share its real environment — e.g. the agent could be launched via `systemd`/`launchd` with its own `EnvironmentFile` Chaperone never sees. The finding message states this caveat directly, not just here. Only bare references are checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default resolves to something even when the variable itself is unset, so it's silently skipped rather than risk a false positive.
+- **Heuristic:** (Explicitly advisory/low-confidence.) Chaperone runs as a separate process from the agent and may not share its real environment — e.g. the agent could be launched via `systemd`/`launchd` with its own `EnvironmentFile` Chaperone never sees. The finding message states this caveat directly, not just here. Only bare references are checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default resolves to something even when the variable itself is unset, so it's silently skipped rather than risk a false positive. Reports a real source line number for a YAML config, `null` for JSON (see CHAP-SEC-001).
 - **Remediation:** Confirm the variable is actually set in the environment the agent runs under; an unresolved reference can mean the agent starts with an empty or broken credential.
 
 ## Category B — Excessive agency & permissions

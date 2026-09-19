@@ -30,6 +30,8 @@ describe("CHAP-SEC-007 — config references an environment variable that isn't 
     expect(findings[0]?.message).toContain('CHAP_SEC_007_TEST_VAR');
     // The advisory caveat must be in the message itself, not just docs.
     expect(findings[0]?.message).toContain('advisory');
+    // improvement_plan.md 1.17 — a real line number for a YAML config.
+    expect(findings[0]?.location.line).toBe(2);
   });
 
   it('fires when the referenced variable is set but empty', () => {

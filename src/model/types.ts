@@ -72,6 +72,11 @@ export const SecretFieldSchema = z.object({
   keyPath: z.string(),
   displayValue: z.string(),
   looksLikeEnvReference: z.boolean(),
+  // 1-indexed source line, for a YAML config only (improvement_plan.md
+  // 1.17, via YAML.parseDocument's source ranges) — a JSON config has
+  // no natural CST-with-positions the way `yaml` gives us for free, so
+  // this stays null there. Documented, not a silent inconsistency.
+  line: z.number().nullable(),
 });
 export type SecretField = z.infer<typeof SecretFieldSchema>;
 

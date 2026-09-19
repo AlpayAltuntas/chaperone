@@ -26,7 +26,7 @@ export const chapSec007EnvVarNotSet: Check = {
   detects:
     "A config field using a bare `${VAR}`/`$VAR`/`env:VAR` reference where `VAR` isn't set (or is empty) in Chaperone's own process environment at scan time.",
   heuristic:
-    "(Explicitly advisory/low-confidence.) Chaperone runs as a separate process from the agent and may not share its real environment — e.g. the agent could be launched via `systemd`/`launchd` with its own `EnvironmentFile` Chaperone never sees. The finding message states this caveat directly, not just here. Only bare references are checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default resolves to something even when the variable itself is unset, so it's silently skipped rather than risk a false positive.",
+    "(Explicitly advisory/low-confidence.) Chaperone runs as a separate process from the agent and may not share its real environment — e.g. the agent could be launched via `systemd`/`launchd` with its own `EnvironmentFile` Chaperone never sees. The finding message states this caveat directly, not just here. Only bare references are checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default resolves to something even when the variable itself is unset, so it's silently skipped rather than risk a false positive. Reports a real source line number for a YAML config, `null` for JSON (see CHAP-SEC-001).",
   remediation:
     'Confirm the variable is actually set in the environment the agent runs under; an unresolved reference can mean the agent starts with an empty or broken credential.',
   run(model) {
@@ -55,7 +55,7 @@ export const chapSec007EnvVarNotSet: Check = {
         category: 'secrets' as const,
         owasp: OWASP,
         message: `Config field '${field.keyPath}' references environment variable '${varName}', which is not set (or is empty) in Chaperone's own process environment. This is advisory and low-confidence: Chaperone runs as a separate process from the agent and may not share its real environment — verify directly rather than treating this as confirmed.`,
-        location: { filePath: model.config.path, line: null, detail: field.keyPath },
+        location: { filePath: model.config.path, line: field.line, detail: field.keyPath },
         remediation: `Confirm '${varName}' is actually set in the environment the agent runs under; an unresolved reference can mean the agent starts with an empty or broken credential.`,
       });
     }

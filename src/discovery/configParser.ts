@@ -68,6 +68,72 @@ export function extractEnvVarName(value: string): string | null {
   return null;
 }
 
+export type LineLookup = (keyPath: string) => number | null;
+
+const NO_LINE_LOOKUP: LineLookup = () => null;
+
+/**
+ * Builds a `keyPath -> source line` lookup for a config (improvement_plan.md
+ * 1.17), using `YAML.parseDocument`'s CST (which retains source ranges) —
+ * distinct from `parseConfigSource`'s plain-value parse, which discards
+ * position info entirely. JSON has no equivalent free CST-with-positions
+ * in this codebase's chosen parser (`JSON.parse`), so a JSON config gets
+ * a lookup that always returns `null` — a documented limitation, not a
+ * silent inconsistency (see `SecretField.line`'s doc comment).
+ */
+export function createLineLookup(source: string, format: 'yaml' | 'json'): LineLookup {
+  if (format === 'json') {
+    return NO_LINE_LOOKUP;
+  }
+
+  const lineCounter = new YAML.LineCounter();
+  let doc: ReturnType<typeof YAML.parseDocument>;
+  try {
+    doc = YAML.parseDocument(source, { lineCounter });
+  } catch {
+    return NO_LINE_LOOKUP;
+  }
+
+  return (keyPath: string): number | null => {
+    const segments = parseKeyPathSegments(keyPath);
+    if (segments.length === 0) {
+      return null;
+    }
+    try {
+      const node: unknown = doc.getIn(segments, true);
+      if (isRangedNode(node)) {
+        return lineCounter.linePos(node.range[0]).line;
+      }
+    } catch {
+      // keyPath didn't resolve to a real node in the document — no line info.
+    }
+    return null;
+  };
+}
+
+function isRangedNode(value: unknown): value is { range: [number, number, number] } {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const range = value['range'];
+  return Array.isArray(range) && typeof range[0] === 'number';
+}
+
+/** Splits a masking keyPath like `trust.tool_allowlist[0]` back into the segments `YAML.Document#getIn` expects: `['trust', 'tool_allowlist', 0]`. */
+function parseKeyPathSegments(keyPath: string): Array<string | number> {
+  const segments: Array<string | number> = [];
+  const pattern = /([^.[\]]+)|\[(\d+)\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(keyPath)) !== null) {
+    if (match[1] !== undefined) {
+      segments.push(match[1]);
+    } else if (match[2] !== undefined) {
+      segments.push(Number(match[2]));
+    }
+  }
+  return segments;
+}
+
 export function maskSecretValue(value: string): string {
   if (value.length <= 8) {
     return '*'.repeat(Math.max(value.length, 3));
@@ -112,7 +178,7 @@ function maskTree(node: JsonValue, keyPath: string, out: SecretField[]): JsonVal
         const isEnvRef = looksLikeEnvReference(value);
         const displayValue = isEnvRef ? value : maskSecretValue(value);
         result[key] = displayValue;
-        out.push({ keyPath: childPath, displayValue, looksLikeEnvReference: isEnvRef });
+        out.push({ keyPath: childPath, displayValue, looksLikeEnvReference: isEnvRef, line: null });
         continue;
       }
       result[key] = maskTree(value, childPath, out);
