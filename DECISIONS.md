@@ -1594,3 +1594,97 @@ PYTHON_SOURCE_EXTENSIONS`) is the "SOURCE_EXTENSIONS-equivalent
   both fixtures via the real CLI), and a dedicated `--output
 report.html` test that writes a real file to disk and reads it back,
   the literal "opens correctly as a static file" scenario.
+
+## Improvement plan, Phase 20 — Multi-root & Docker-aware scanning
+
+- **`--all`: a right-sized `/*` matcher, not a general glob engine** —
+  `3.2`'s own example (`~/agents/*`) is the one shape this needs to
+  handle well: "every immediate subdirectory of a parent directory". No
+  new dependency (`glob`/`fast-glob`), no `**`/character-class support —
+  a pattern with no trailing `/*` degenerates to a single literal
+  directory. Documented explicitly that the shell would normally expand
+  `~/agents/*` before Chaperone ever sees it, so the flag only does
+  anything useful when quoted (`--all '~/agents/*'`) — the same
+  quoting convention tools with their own glob semantics already use.
+- **One aggregate report, not N separate files** — the DoD's own two
+  named alternatives; picked the simpler, more uniformly-testable one.
+  `renderMultiTargetReport` (reporters/index.ts) degenerates
+  byte-for-byte to `renderReport`'s own single-target output for the
+  overwhelming majority case (no `--all`/`--docker`), so this refactor
+  changed zero observable behavior for every existing caller — verified
+  by the full 560-test suite passing unchanged except one test whose
+  _mock target_ moved (see below). `json` aggregates as an array of the
+  same schema-valid report objects; `sarif` merges into one real
+  multi-run SARIF document (SARIF's own native way to represent more
+  than one analysis pass — naively concatenating N SARIF documents isn't
+  valid JSON); every other format is header-separated concatenation,
+  since it's human-facing prose/line-based output already.
+- **`cli.ts`'s scan action factored into `scanOneTarget` +
+  target-resolution + aggregation** — the single biggest structural
+  change in this phase. `scanOneTarget` is the exact same discover ->
+  check -> config/baseline-adjust -> display-filter pipeline that used
+  to be inlined once in the action body, now callable once per target.
+  Caught one real test-design coupling while doing this:
+  `cli.unexpectedError.test.ts` simulated "an unexpected error deep in
+  the pipeline" by mocking `renderReport` directly — since the action
+  now always calls `renderMultiTargetReport` (which only calls
+  `renderReport` via its own internal, un-mocked module binding — the
+  classic `vi.mock` gotcha where a mocked export doesn't intercept an
+  in-module call to the same function), the mock target had to move to
+  `renderMultiTargetReport`. A legitimate test update reflecting where
+  the real integration point moved, not a workaround.
+- **`--docker` via `docker cp`, not `docker exec`** — reads a
+  container's filesystem directly from its image/writable layers, so it
+  works on a _stopped_ container and never depends on a shell (or any
+  binary at all) existing inside it, unlike `docker exec sh -c '...'`
+  which needs both. One subprocess call, argv-array invocation only
+  (`execFileSync`, never a shell string — no injection surface from a
+  container name/path), a 30s timeout so a hung daemon can never hang
+  `chaperone scan` indefinitely, and the extracted content lands in a
+  throwaway local temp directory that the _existing, already-tested_
+  local-filesystem discovery pipeline reads completely unmodified — no
+  fs call anywhere in `discovery/` needs to know or care its source was
+  ever a container.
+- **A deliberate, considered exception to "no subprocess"** — Phase 12
+  (`1.13`) explicitly declined to shell out to `git` for a _simpler_
+  case (gitignore semantics), citing exactly this class of risk: a new
+  binary-on-PATH dependency, cross-version behavioral differences, and a
+  categorically different failure mode (a hung/misbehaving subprocess)
+  than a plain file read has. `--docker` is the first time this
+  reasoning is overridden — justified because the entire feature is
+  meaningless without it (there is no way to read a container's
+  filesystem from the host other than asking the Docker daemon), and
+  scoped as tightly as that Phase 12 entry's own concerns allow: opt-in
+  only (never triggered without the explicit flag), one call, a hard
+  timeout, and the real daemon error surfaced verbatim (via
+  `execFileSync`'s captured stderr) rather than a generic failure
+  message.
+- **The env-var-injection subtlety `3.3` itself calls out is
+  deliberately NOT solved here** — a containerized secret set via
+  `docker-compose.yml`'s `environment:`/`env_file:` sits one layer
+  removed from both the agent's config _and_ Chaperone's own process
+  environment, meaning `CHAP-SEC-007` (env-var-actually-set check)
+  can't see it through `--docker` any better than it already can't for
+  a local install with the same pattern. The plan's own text frames
+  this as "worth designing around deliberately", not a Phase-20
+  requirement — noted, deferred, not silently dropped.
+- **Real-container testing, not mocked** — Docker was confirmed
+  available in this session (daemon running), and GitHub Actions'
+  `ubuntu-latest` runners ship Docker pre-installed with the daemon
+  running by default, satisfying the DoD's own "(if feasible in CI)"
+  hedge on both counts. `test/discovery/dockerSource.test.ts` and
+  `test/cli.docker.test.ts` spin up a real throwaway `busybox` container,
+  populate it via `docker cp` from the host, and verify extraction/
+  scanning/cleanup against it — `describe.skipIf(!dockerAvailable)`
+  makes the suite degrade gracefully (skip, not fail) on a machine
+  without Docker rather than hard-requiring it everywhere.
+- Also tested: `expandAllPattern` directly (trailing-`/*` expansion,
+  sorting, empty-parent, missing-parent error, `~` expansion, no-`/*`
+  degeneration), `renderMultiTargetReport` directly (single-target
+  byte-identity with `renderReport`, json/sarif aggregation shape,
+  header-separated concatenation, the zero-targets edge case), and
+  `--all`/`--docker` through the real CLI against real temp-dir/
+  container fixtures. `--all` matching zero directories and an unknown
+  `--docker` container both go through `command.error()`/
+  `process.exit()` and were verified manually, same convention as every
+  other such path in this suite.

@@ -2,7 +2,11 @@ import { pathToFileURL } from 'node:url';
 import type { Finding, Severity } from '../model/types.js';
 import type { ScanMetadata } from './types.js';
 
-const SARIF_SCHEMA_URI =
+// Exported for reporters/index.ts's renderMultiTargetReport (Phase 20,
+// improvement_plan.md 3.2) — a --all multi-target SARIF report merges
+// several single-run documents into one multi-run one, and needs the
+// same schema URI at the top level.
+export const SARIF_SCHEMA_URI =
   'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json';
 
 // SARIF 2.1.0 only defines these four result levels.

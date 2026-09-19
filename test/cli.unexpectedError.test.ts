@@ -11,11 +11,17 @@ import { run } from '../src/cli.js';
 // relies on the real reporters. vi.mock calls are hoisted above imports
 // by vitest's transform, so this takes effect before `run` above is
 // resolved even though it's written after the import.
+// Phase 20 (improvement_plan.md 3.2/3.3): cli.ts's scan action now
+// always calls renderMultiTargetReport (which degenerates to
+// renderReport's own output for the single-target case that's still the
+// overwhelming majority of invocations — see reporters/index.ts) rather
+// than renderReport directly, so that's the export this simulated
+// failure needs to target.
 vi.mock('../src/reporters/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/reporters/index.js')>();
   return {
     ...actual,
-    renderReport: vi.fn(() => {
+    renderMultiTargetReport: vi.fn(() => {
       throw new Error('simulated reporter failure');
     }),
   };
