@@ -907,3 +907,43 @@ generateChecksDoc.ts` renders the full catalog from `ALL_CHECKS`,
 - **`scripts/` added to `tsconfig.eslint.json`'s `include` and
   `eslint.config.js`'s `files`** — the new script gets the same
   typecheck/lint bar as `src/`/`test/`, not a second-class exemption.
+
+## Improvement plan, Phase 9 — Additional reporters
+
+- **`--format markdown`** (`3.9`): a single sorted-by-severity table
+  (`| Severity | Check | Message | Location |`) plus the same summary/
+  score line the console reporter has — cheaper to build than a full
+  HTML reporter and directly useful for the CI use case the README
+  already documented (post as a PR comment via `gh pr comment
+--body-file`). Table cells escape `|` (would otherwise break the
+  table) and collapse `\n` to a space (a literal newline breaks a
+  Markdown table row) — defensive, since a scanned skill/file name could
+  legitimately contain either character even though Chaperone's own
+  generated prose never does.
+- **`--format gha`** (`3.9`): GitHub Actions `::error file=...::`/
+  `::warning::`/`::notice::` workflow commands, one per finding, plus a
+  trailing `::notice::` summary line. Complements SARIF rather than
+  replacing it — inline annotations with zero extra CI steps (no upload
+  action needed), vs. SARIF's code-scanning-tab integration. Implements
+  GitHub's two-tier escaping exactly as documented: message _data_ only
+  needs `%`/`\r`/`\n` escaped, but property _values_ (like `file=`/
+  `title=`) additionally need `:`/`,` escaped, since those are the
+  property-list delimiters — verified with a dedicated test for a title
+  containing both a colon and a comma.
+- **Both formats reuse `engine/severity.ts`'s `compareSeverity`/
+  `computeScore`** rather than re-deriving severity order or score
+  math locally — same precedent as the console/JSON reporters, avoids a
+  second source of truth for "which severity is worse" ever existing.
+- **GHA `file=` paths are whatever `Finding.location.filePath` already
+  is** (an absolute path resolved from the scan target), not made
+  relative to `GITHUB_WORKSPACE`. Reporters are pure functions of
+  `Finding[]`/`ScanMetadata` with no environment awareness (established
+  architecture — see Phase-1-era `engine/types.ts` docstring); computing
+  a workspace-relative path would need injecting CI environment context
+  into a reporter, which breaks that purity for a benefit that only
+  matters when the scan target is checked into the same repo the
+  workflow runs in. Documented as a known limitation rather than solved.
+- Both formats tested against both fixtures (`cli.exitcode.test.ts`, per
+  the phase's definition of done), plus dedicated unit tests for each
+  reporter module. README's format table, `--format` examples, and the
+  CI-usage section (`gh pr comment`/inline-annotation examples) updated.

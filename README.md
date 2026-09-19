@@ -97,9 +97,11 @@ chaperone checks                                          # see every check ID f
 **4. Pick an output format** depending on who's consuming it:
 
 ```bash
-chaperone scan ~/clawd --format console   # for a human, in a terminal (default)
-chaperone scan ~/clawd --format json      # for scripts/automation
-chaperone scan ~/clawd --format sarif     # for GitHub code scanning
+chaperone scan ~/clawd --format console    # for a human, in a terminal (default)
+chaperone scan ~/clawd --format json       # for scripts/automation
+chaperone scan ~/clawd --format sarif      # for GitHub code scanning
+chaperone scan ~/clawd --format markdown   # for a PR comment (gh pr comment --body-file)
+chaperone scan ~/clawd --format gha        # inline GitHub Actions annotations
 ```
 
 **5. Save it instead of printing it:**
@@ -182,7 +184,7 @@ each):
 
 | Flag                        | Effect                                                                   | Env var                   |
 | --------------------------- | ------------------------------------------------------------------------ | ------------------------- |
-| `--format <format>`         | `console` (default, colored), `json`, or `sarif`                         | `CHAPERONE_FORMAT`        |
+| `--format <format>`         | `console` (default, colored), `json`, `sarif`, `markdown`, or `gha`      | `CHAPERONE_FORMAT`        |
 | `--fail-on <severity>`      | Minimum severity for a non-zero exit code (default: `high`)              | `CHAPERONE_FAIL_ON`       |
 | `--output <file>`           | Write the report to a file instead of stdout                             | `CHAPERONE_OUTPUT`        |
 | `--only <ids>`              | Run only the listed check IDs (comma-separated)                          |                           |
@@ -219,6 +221,22 @@ to GitHub code scanning:
   if: always()
   with:
     sarif_file: chaperone.sarif
+```
+
+Two lighter-weight GitHub-native alternatives, when the full code-scanning
+upload flow is more than a given job needs:
+
+```yaml
+# Inline PR annotations, no upload step needed — GitHub parses these
+# workflow commands live from the step's own output.
+- run: chaperone scan ~/clawd --format gha --fail-on high
+
+# Or post the findings as a PR comment.
+- run: chaperone scan ~/clawd --format markdown --output report.md --fail-on high
+- run: gh pr comment "$PR_NUMBER" --body-file report.md
+  if: always()
+  env:
+    GH_TOKEN: ${{ github.token }}
 ```
 
 ## Checks

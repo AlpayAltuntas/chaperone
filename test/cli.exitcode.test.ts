@@ -114,6 +114,43 @@ describe('cli scan — exit codes and output (in-process, non-throwing paths onl
     expect(sarif.version).toBe('2.1.0');
   });
 
+  // improvement_plan.md 3.9 — tested against both fixtures, per the
+  // phase's definition of done.
+  describe.each(['vulnerable-agent', 'clean-agent'])(
+    '--format markdown / --format gha against %s',
+    (fixture) => {
+      it('prints a Markdown table for --format markdown', () => {
+        run([
+          'node',
+          'chaperone',
+          'scan',
+          path.join('test', 'fixtures', fixture),
+          '--format',
+          'markdown',
+        ]);
+
+        const printed = logSpy.mock.calls[0]?.[0] as string;
+        expect(printed).toContain('# Chaperone scan report');
+        expect(printed).toContain('**Summary:**');
+      });
+
+      it('prints GitHub Actions annotations for --format gha', () => {
+        run([
+          'node',
+          'chaperone',
+          'scan',
+          path.join('test', 'fixtures', fixture),
+          '--format',
+          'gha',
+        ]);
+
+        const printed = logSpy.mock.calls[0]?.[0] as string;
+        expect(printed).toMatch(/^::(error|warning|notice)/);
+        expect(printed).toContain('::notice::Chaperone scan:');
+      });
+    },
+  );
+
   describe('--output', () => {
     let dir: string;
 
