@@ -608,6 +608,18 @@ snapshot: `npx vitest run test/scan/reporterSnapshots.test.ts -u`, then
 review the diff in `test/scan/__snapshots__/` like any other source
 change before committing it.
 
+**The config parser and the `.gitignore` matcher are property-based
+fuzz tested** (`test/discovery/configParser.fuzz.test.ts`,
+`test/checks/shared/gitignoreMatch.fuzz.test.ts`, using
+[fast-check](https://github.com/dubzzz/fast-check),
+improvement_plan.md 5.2) against hundreds of generated inputs per run,
+beyond the hand-picked cases the rest of the test suite covers —
+exactly the "small, pure, input-shape-sensitive function" category the
+plan calls out. This already caught two real bugs during development
+(an uncaught exception from the underlying `ignore` package on a
+handful of edge-case path strings, and a flawed test assumption about
+`-0`'s JSON round-trip) — see `DECISIONS.md`, Phase 23 (5.2).
+
 **Refreshing the offline vulnerability snapshot** (`CHAP-SUP-003`,
 `src/checks/shared/vulnDb.ts`): run `npm run refresh:vulndb`. This is the
 one script in the repo that makes an outbound network call (to

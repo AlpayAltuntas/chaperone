@@ -39,7 +39,23 @@ export function isGitignored(
   // against a query path that itself carries a trailing slash — it has
   // no other way to know the target is a directory.
   const queryPath = isDirectory && !relativePath.endsWith('/') ? `${relativePath}/` : relativePath;
-  return matcher.ignores(queryPath);
+  try {
+    return matcher.ignores(queryPath);
+  } catch {
+    // Real bugs caught by property-based fuzzing (improvement_plan.md
+    // 5.2), not hand-picked cases: `ignore`'s `.ignores()` throws a raw
+    // TypeError/RangeError for a handful of inputs it considers not a
+    // valid `path.relative()`'d string (an empty string, `.`, and
+    // others) instead of just returning `false` the way it does for
+    // every ordinary non-matching path. Every real caller here passes
+    // an actual discovered relative path, which can never take one of
+    // these degenerate forms — but this function's own contract is
+    // "return a boolean", so any input the matcher can't make sense of
+    // is treated the same safe way an empty gitignoreFiles list already
+    // is: not ignored, rather than propagating a surprising
+    // library-internal exception type past this function's boundary.
+    return false;
+  }
 }
 
 /**
