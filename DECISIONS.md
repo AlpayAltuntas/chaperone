@@ -1039,3 +1039,81 @@ importing a network module with no call through it`) to lock in the
   added (`astCapabilities.test.ts`, `wordSegments.test.ts`) covering
   every binding shape, the word-boundary fix, comment/string-literal
   immunity, and the tightened network-import-vs-call distinction.
+
+## Improvement plan, Phase 11 — New checks unlocked by AST work
+
+- **`CHAP-SUP-005`** (`2.6`): flags any `eval()`/`Function()` use
+  (bare or `new Function(...)`) unconditionally, regardless of what's
+  passed to it. A decode-then-execute chain like `eval(atob(payload))`
+  needs no special-case pattern — it's already covered as a call whose
+  argument happens to itself be a call, so flagging eval/Function at all
+  is a strict superset of the specific example the plan named. `critical`
+  severity: dynamic evaluation is at least as serious a smell as
+  unrestricted shell execution (also `critical`), and a real backdoor
+  hidden this way is, by construction, invisible to every other static
+  check.
+- **`CHAP-SUP-006`** (`2.7`): a bundled ~100-name reference list of
+  well-known npm packages (`checks/shared/popularPackages.ts`) plus a
+  from-scratch Levenshtein distance implementation
+  (`checks/shared/levenshtein.ts` — no new dependency; classic O(n·m) DP,
+  ~25 lines) — deliberately no live registry lookup, preserving the
+  no-network guardrail (§14) the plan explicitly calls out. Flags a
+  dependency name only when it's _not_ itself on the list (an exact
+  match is the legitimate case), is at least 4 characters, and has edit
+  distance 1-2 from a list entry (also length-floored at 4, to avoid
+  noise from very short names where a small edit distance is common and
+  meaningless). `SkillDependencyInfo` gained a `names: string[]` field
+  (package.json's `dependencies` keys) — discovery's job, not the
+  check's, per the established "checks are pure, no I/O" architecture.
+- **`1.16`'s data-flow improvement to `CHAP-INJ-002`**: added a bounded,
+  intra-file taint-propagation pass to `astCapabilities.ts`
+  (`dataFlowToShellExec`) rather than attempting real cross-function/
+  file data-flow analysis, which the plan itself frames as "a genuine
+  static-analysis project, not a quick patch." Taint sources are
+  network/fs-read call results; taint propagates through simple variable
+  assignment and one level of method-call chaining via fixed-point
+  iteration (up to 5 passes) over the file's flat variable-declaration
+  list — enough to trace the _exact_ shape the `command-relay` fixture
+  already demonstrates (`const res = await fetch(url); const command =
+await res.text(); exec(command)`), without claiming general
+  soundness. When the trace confirms a real chain, `CHAP-INJ-002` now
+  reports `high` severity with a "confirmed chain" message instead of
+  the previous flat `medium` shape-match; when only the shape-match
+  holds (both capabilities present, nothing traced), it stays at the
+  original `medium`. Verified against `command-relay` (upgrades to
+  `high`) and a new isolated-fixture case with both capabilities but no
+  real chain (stays `medium`) — both explicitly asserted in
+  `chapInj002.test.ts`, not just implied by absence of failure.
+- **`CHAP-INJ-005`** (`2.9`): a new, additive check — deliberately does
+  **not** modify `CHAP-INJ-003`'s existing global-allowlist-only logic
+  (scope creep beyond what this item asked for). Invented convention
+  (documented, no real schema exists — same caveat as CHAP-AGY-003/004):
+  `channels.<name>.public` (missing defaults to `true`/untrusted, the
+  same conservative-default posture `CHAP-INJ-001` already takes for
+  `mark_untrusted_input`) and an optional channel-level
+  `channels.<name>.tool_allowlist` override. Fires when at least one
+  enabled public channel has no channel-specific override (so it
+  inherits the broad global allowlist) while at least one enabled
+  private channel also exists — the exact "identical trust treatment for
+  a public Discord server and a private admin-only Telegram chat" shape
+  the plan named. Two new pure helpers in `configAccess.ts`
+  (`getEnabledChannels`), following the established pattern of reading
+  `trust`/`channels` straight out of `model.config.data` rather than
+  adding a new normalized `AgentModel` field (neither section is
+  secret-shaped, and this is pure in-memory traversal, not I/O — see the
+  Phase 1 note already on that file).
+- **Fixture strategy**: added one new TP fixture skill,
+  `vulnerable-agent/skills/plugin-loader` (fetches a payload, decodes and
+  `eval()`s it, depends on a typosquatted `reqeust` package) — covers
+  `CHAP-SUP-005`/`CHAP-SUP-006` in the realistic full-catalog context and
+  incidentally also exercises `CHAP-AGY-004` (no domain allowlist) since
+  it fetches. `CHAP-INJ-005` intentionally stayed isolated-temp-dir-only
+  (comprehensive TP/TN matrix in `chapInj005.test.ts`) rather than
+  reshaping `vulnerable-agent`'s existing channel/allowlist config, which
+  is already load-bearing for `CHAP-INJ-003`'s own TP case — changing it
+  would have meant re-deriving that check's fixture too, out of scope for
+  an _additive_ check. `fullCatalog.test.ts`'s vulnerable-agent counts
+  updated from real tool output (44 findings, not hand-computed) after
+  adding the fixture — `CHAP-SUP-001/002/003` each +1 (the new skill has
+  an unpinned version, no lockfile, and a manifest, same as every other
+  skill), `CHAP-AGY-004` +1 (fetches with no domain allowlist).

@@ -12,7 +12,13 @@ describe('CHAP-SUP-002 — no integrity verification for skill dependencies', ()
     const findings = chapSup002NoIntegrityVerification.run(model);
 
     const skillNames = findings.map((f) => f.location.detail).sort();
-    expect(skillNames).toEqual(['command-relay', 'file-writer', 'shell-runner', 'web-fetcher']);
+    expect(skillNames).toEqual([
+      'command-relay',
+      'file-writer',
+      'plugin-loader',
+      'shell-runner',
+      'web-fetcher',
+    ]);
     for (const finding of findings) {
       expect(finding.checkId).toBe('CHAP-SUP-002');
       expect(finding.severity).toBe('medium');

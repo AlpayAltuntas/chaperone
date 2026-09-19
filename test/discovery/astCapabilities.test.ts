@@ -206,6 +206,78 @@ describe('detectCapabilities — destructiveKeywords (word-boundary fix)', () =>
   });
 });
 
+describe('detectCapabilities — dynamicEval', () => {
+  it('detects a bare eval(...) call', () => {
+    const result = detectCapabilities('skill.js', "eval('doSomething()');\n");
+    expect(result.dynamicEval).toBe(true);
+  });
+
+  it('detects new Function(...)', () => {
+    const result = detectCapabilities('skill.js', "const f = new Function('return 1');\n");
+    expect(result.dynamicEval).toBe(true);
+  });
+
+  it('detects a bare Function(...) call (no `new`)', () => {
+    const result = detectCapabilities('skill.js', "const f = Function('return 1');\n");
+    expect(result.dynamicEval).toBe(true);
+  });
+
+  it('detects a decode-then-execute chain (eval(atob(x)))', () => {
+    const result = detectCapabilities('skill.js', 'eval(atob(payload));\n');
+    expect(result.dynamicEval).toBe(true);
+  });
+
+  it('does not fire when eval only appears in a comment or string', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "// don't eval(x) here\nconst msg = 'no eval() in this string either';\n",
+    );
+    expect(result.dynamicEval).toBe(false);
+  });
+});
+
+describe('detectCapabilities — dataFlowToShellExec (CHAP-INJ-002 data-flow improvement)', () => {
+  it('traces fetch -> res.text() -> exec(...), the command-relay fixture shape', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "const { exec } = require('child_process');\nasync function relay(url) {\n  const res = await fetch(url);\n  const command = await res.text();\n  exec(command);\n}\n",
+    );
+    expect(result.dataFlowToShellExec).toBe(true);
+  });
+
+  it('traces a direct fetch result passed straight to exec', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "const { exec } = require('child_process');\nasync function relay(url) {\n  const body = await fetch(url);\n  exec(body);\n}\n",
+    );
+    expect(result.dataFlowToShellExec).toBe(true);
+  });
+
+  it('traces an fs.readFileSync result into exec', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "const fs = require('fs');\nconst { execSync } = require('child_process');\nconst script = fs.readFileSync('/tmp/x', 'utf8');\nexecSync(script);\n",
+    );
+    expect(result.dataFlowToShellExec).toBe(true);
+  });
+
+  it('does NOT fire when both capabilities are present but nothing traces (a mere shape-match)', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "const { exec } = require('child_process');\nasync function relay(url) {\n  await fetch(url);\n  exec('ls');\n}\n",
+    );
+    expect(result.dataFlowToShellExec).toBe(false);
+  });
+
+  it('does not fire for shellExec alone with no network/fs capability', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "const { exec } = require('child_process');\nexec('ls');\n",
+    );
+    expect(result.dataFlowToShellExec).toBe(false);
+  });
+});
+
 describe('detectCapabilities — parsing', () => {
   it('parses TypeScript syntax (type annotations) without throwing', () => {
     const result = detectCapabilities(
@@ -227,6 +299,8 @@ describe('detectCapabilities — parsing', () => {
       fileSystemScoped: false,
       networkAccess: false,
       destructiveKeywords: [],
+      dynamicEval: false,
+      dataFlowToShellExec: false,
     });
   });
 });
@@ -240,6 +314,8 @@ describe('mergeCapabilities', () => {
         fileSystemScoped: false,
         networkAccess: false,
         destructiveKeywords: [],
+        dynamicEval: false,
+        dataFlowToShellExec: false,
       },
       {
         shellExec: false,
@@ -247,6 +323,8 @@ describe('mergeCapabilities', () => {
         fileSystemScoped: false,
         networkAccess: false,
         destructiveKeywords: [],
+        dynamicEval: false,
+        dataFlowToShellExec: false,
       },
     ]);
     expect(merged.shellExec).toBe(true);
@@ -261,6 +339,8 @@ describe('mergeCapabilities', () => {
         fileSystemScoped: false,
         networkAccess: false,
         destructiveKeywords: ['send'],
+        dynamicEval: false,
+        dataFlowToShellExec: false,
       },
       {
         shellExec: false,
@@ -268,6 +348,8 @@ describe('mergeCapabilities', () => {
         fileSystemScoped: false,
         networkAccess: false,
         destructiveKeywords: ['delete', 'send'],
+        dynamicEval: false,
+        dataFlowToShellExec: false,
       },
     ]);
     expect(merged.destructiveKeywords).toEqual(['delete', 'send']);
@@ -280,6 +362,8 @@ describe('mergeCapabilities', () => {
       fileSystemScoped: false,
       networkAccess: false,
       destructiveKeywords: [],
+      dynamicEval: false,
+      dataFlowToShellExec: false,
     });
   });
 });

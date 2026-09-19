@@ -21,9 +21,11 @@ import { splitWordSegments } from './wordSegments.js';
 //
 // Known remaining gaps (documented, not solved — see DECISIONS.md):
 // arbitrary indirection (`const run = exec; run(cmd)`), a function
-// reference passed across files/modules, and fully dynamic requires
-// (`require(moduleNameVariable)`) are still invisible. This is static,
-// single-file analysis, not real data-flow/points-to analysis.
+// reference passed across files/modules, fully dynamic requires
+// (`require(moduleNameVariable)`), and a local declaration shadowing a
+// bare-global name (`fetch`/`eval`/`Function`) are still invisible —
+// this is static, single-file analysis, not real data-flow/points-to
+// analysis or scope resolution.
 
 export interface DetectedCapabilities {
   shellExec: boolean;
@@ -31,6 +33,8 @@ export interface DetectedCapabilities {
   fileSystemScoped: boolean;
   networkAccess: boolean;
   destructiveKeywords: string[];
+  dynamicEval: boolean;
+  dataFlowToShellExec: boolean;
 }
 
 const EMPTY_CAPABILITIES: DetectedCapabilities = {
@@ -39,7 +43,23 @@ const EMPTY_CAPABILITIES: DetectedCapabilities = {
   fileSystemScoped: false,
   networkAccess: false,
   destructiveKeywords: [],
+  dynamicEval: false,
+  dataFlowToShellExec: false,
 };
+
+// eval()/Function() (bare or `new Function(...)`) — improvement_plan.md
+// 2.6. Flagged unconditionally, regardless of what's passed to them: a
+// decode-then-execute chain like `eval(atob(payload))` is just a call
+// whose argument happens to itself be a call — already covered by
+// flagging eval/Function at all, no separate atob-specific pattern
+// needed.
+const DYNAMIC_EVAL_GLOBAL_NAMES = new Set(['eval', 'Function']);
+
+// Taint *sources* for the CHAP-INJ-002 data-flow improvement
+// (improvement_plan.md 1.16) — read-oriented fs functions, distinct from
+// FS_WRITE_FUNCTIONS above (a write result isn't attacker-controlled
+// data flowing *in*).
+const FS_READ_FUNCTIONS = new Set(['readFile', 'readFileSync', 'readdir', 'readdirSync']);
 
 const SHELL_MODULES = new Set(['child_process', 'node:child_process']);
 const SHELL_FUNCTIONS = new Set([
@@ -133,6 +153,7 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
   let fileSystemAccess = false;
   let fileSystemScoped = false;
   let networkAccess = false;
+  let dynamicEval = false;
   const destructiveKeywords = new Set<string>();
 
   const recordDestructive = (name: string): void => {
@@ -151,6 +172,14 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
       // unless the file itself has shadowed/rebound the name.
       if (ts.isIdentifier(callee) && callee.text === 'fetch' && !bindings.has('fetch')) {
         networkAccess = true;
+      }
+
+      if (
+        ts.isIdentifier(callee) &&
+        DYNAMIC_EVAL_GLOBAL_NAMES.has(callee.text) &&
+        !bindings.has(callee.text)
+      ) {
+        dynamicEval = true;
       }
 
       const target = resolveCallTarget(callee, bindings);
@@ -179,6 +208,15 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
       }
     }
 
+    if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'Function' &&
+      !bindings.has('Function')
+    ) {
+      dynamicEval = true;
+    }
+
     if (isNamedFunctionLike(node)) {
       const name = getFunctionLikeDeclaredName(node);
       if (name !== null) {
@@ -203,6 +241,8 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
     fileSystemScoped,
     networkAccess,
     destructiveKeywords: [...destructiveKeywords].sort(),
+    dynamicEval,
+    dataFlowToShellExec: detectDataFlowToShellExec(sourceFile, bindings),
   };
 }
 
@@ -214,11 +254,129 @@ export function mergeCapabilities(results: readonly DetectedCapabilities[]): Det
     merged.fileSystemAccess ||= result.fileSystemAccess;
     merged.fileSystemScoped ||= result.fileSystemScoped;
     merged.networkAccess ||= result.networkAccess;
+    merged.dynamicEval ||= result.dynamicEval;
+    merged.dataFlowToShellExec ||= result.dataFlowToShellExec;
     for (const keyword of result.destructiveKeywords) {
       merged.destructiveKeywords.add(keyword);
     }
   }
   return { ...merged, destructiveKeywords: [...merged.destructiveKeywords].sort() };
+}
+
+/**
+ * A bounded, intra-file taint analysis for the CHAP-INJ-002 data-flow
+ * improvement (improvement_plan.md 1.16): does a network/fs-read
+ * result actually reach a shell-exec call's argument, rather than just
+ * "both capabilities present somewhere in the file"? Tracks taint
+ * through simple variable assignment and one level of method-call
+ * chaining (`const res = await fetch(x); const body = await res.text();
+ * exec(body)` — the exact shape the command-relay fixture demonstrates),
+ * via fixed-point propagation over the file's variable declarations, not
+ * scope-aware (the whole file is treated as one flat scope, same
+ * simplification the rest of this module already makes for bindings).
+ * Known gap, not solved: reassignment, destructuring, and control flow
+ * (a branch that never actually executes) aren't modeled — this raises
+ * confidence over a pure shape-match, it doesn't prove exploitability.
+ */
+function detectDataFlowToShellExec(
+  sourceFile: ts.SourceFile,
+  bindings: Map<string, Binding>,
+): boolean {
+  const declarations: Array<{ name: string; initializer: ts.Expression }> = [];
+  const shellExecCalls: ts.CallExpression[] = [];
+
+  const collect = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      declarations.push({ name: node.name.text, initializer: unwrapAwait(node.initializer) });
+    }
+    if (ts.isCallExpression(node)) {
+      const target = resolveCallTarget(node.expression, bindings);
+      if (
+        target !== null &&
+        SHELL_MODULES.has(target.module) &&
+        SHELL_FUNCTIONS.has(target.functionName)
+      ) {
+        shellExecCalls.push(node);
+      }
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(sourceFile);
+
+  const isTaintSourceCall = (expr: ts.Expression): boolean => {
+    if (!ts.isCallExpression(expr)) {
+      return false;
+    }
+    if (
+      ts.isIdentifier(expr.expression) &&
+      expr.expression.text === 'fetch' &&
+      !bindings.has('fetch')
+    ) {
+      return true;
+    }
+    const target = resolveCallTarget(expr.expression, bindings);
+    if (target === null) {
+      return false;
+    }
+    return (
+      NETWORK_MODULES.has(target.module) ||
+      (FS_MODULES.has(target.module) && FS_READ_FUNCTIONS.has(target.functionName))
+    );
+  };
+
+  const tainted = new Set<string>();
+  for (const decl of declarations) {
+    if (isTaintSourceCall(decl.initializer)) {
+      tainted.add(decl.name);
+    }
+  }
+
+  let changed = true;
+  for (let iteration = 0; changed && iteration < 5; iteration++) {
+    changed = false;
+    for (const decl of declarations) {
+      if (!tainted.has(decl.name) && expressionReferencesTainted(decl.initializer, tainted)) {
+        tainted.add(decl.name);
+        changed = true;
+      }
+    }
+  }
+
+  return shellExecCalls.some((call) =>
+    call.arguments.some((arg) => expressionReferencesTainted(arg, tainted)),
+  );
+}
+
+function expressionReferencesTainted(expr: ts.Expression, tainted: Set<string>): boolean {
+  if (ts.isIdentifier(expr)) {
+    return tainted.has(expr.text);
+  }
+  if (ts.isCallExpression(expr)) {
+    if (expressionReferencesTainted(expr.expression, tainted)) {
+      return true;
+    }
+    return expr.arguments.some((arg) => expressionReferencesTainted(arg, tainted));
+  }
+  if (ts.isPropertyAccessExpression(expr)) {
+    return expressionReferencesTainted(expr.expression, tainted);
+  }
+  if (ts.isTemplateExpression(expr)) {
+    return expr.templateSpans.some((span) => expressionReferencesTainted(span.expression, tainted));
+  }
+  if (ts.isBinaryExpression(expr)) {
+    return (
+      expressionReferencesTainted(expr.left, tainted) ||
+      expressionReferencesTainted(expr.right, tainted)
+    );
+  }
+  if (ts.isParenthesizedExpression(expr) || ts.isAwaitExpression(expr)) {
+    return expressionReferencesTainted(expr.expression, tainted);
+  }
+  return false;
+}
+
+function unwrapAwait(expr: ts.Expression): ts.Expression {
+  return ts.isAwaitExpression(expr) ? expr.expression : expr;
 }
 
 function getExtension(filename: string): string {

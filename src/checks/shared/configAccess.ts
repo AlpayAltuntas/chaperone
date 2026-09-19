@@ -41,3 +41,44 @@ export function getTrustToolAllowlist(configData: JsonValue | null): string[] | 
   const value = trust['tool_allowlist'];
   return Array.isArray(value) && value.every((v) => typeof v === 'string') ? value : null;
 }
+
+// Feeds CHAP-INJ-005 (improvement_plan.md 2.9): a per-channel trust-level
+// distinction `channels.*.tool_allowlist` doesn't check for — a public
+// Discord server and a private, admin-only Telegram chat currently look
+// identical to CHAP-INJ-003 once *any* global allowlist exists. Both
+// `channels.<name>.public` and `channels.<name>.tool_allowlist` are an
+// invented-but-documented convention (same caveat as CHAP-AGY-003/004),
+// no real manifest schema exists for these example agents.
+export interface EnabledChannel {
+  name: string;
+  // Missing `public` defaults to true (untrusted) — the same
+  // conservative-default posture CHAP-INJ-001 already takes for
+  // `mark_untrusted_input`: an unmarked channel is assumed public until
+  // proven otherwise, not the other way around.
+  public: boolean;
+  toolAllowlist: string[] | null;
+}
+
+export function getEnabledChannels(configData: JsonValue | null): EnabledChannel[] {
+  const channels = isRecord(configData) ? configData['channels'] : undefined;
+  if (!isRecord(channels)) {
+    return [];
+  }
+  const result: EnabledChannel[] = [];
+  for (const [name, value] of Object.entries(channels)) {
+    if (!isRecord(value) || value['enabled'] !== true) {
+      continue;
+    }
+    const publicField = value['public'];
+    const allowlist = value['tool_allowlist'];
+    result.push({
+      name,
+      public: typeof publicField === 'boolean' ? publicField : true,
+      toolAllowlist:
+        Array.isArray(allowlist) && allowlist.every((v) => typeof v === 'string')
+          ? allowlist
+          : null,
+    });
+  }
+  return result;
+}

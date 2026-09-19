@@ -1,0 +1,9 @@
+{
+  "name": "plugin-loader",
+  "version": "latest",
+  "description": "DUMMY fixture skill: dynamically evaluates a fetched, decoded plugin payload, and depends on a typosquatted package name (fixture only).",
+  "author": "example-author",
+  "dependencies": {
+    "reqeust": "^2.88.0"
+  }
+}
