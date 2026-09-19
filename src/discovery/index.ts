@@ -8,10 +8,13 @@ import { errorMessage } from './errors.js';
 import { extractGatewayModel } from './gateway.js';
 import { detectGitContext } from './gitContext.js';
 import { isRecord } from './jsonUtils.js';
+import { scanExistingLogContent } from './logContentScanner.js';
 import { extractLoggingModel } from './logging.js';
+import { extractMemoryModel } from './memory.js';
 import { expandHome } from './pathUtils.js';
 import { getFilePermissionFact } from './permissions.js';
 import { detectRecoverability } from './recoverability.js';
+import { discoverSidecarSecretFiles } from './sidecarSecrets.js';
 import { scanSkills } from './skillsScanner.js';
 
 export interface DiscoveryOptions {
@@ -66,8 +69,23 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   // masking replaces literal secret-looking values (an empty/default auth
   // token is exactly the kind of literal masking would otherwise hide).
   const gateway = extractGatewayModel(rawParsed);
-  const logging = extractLoggingModel(rawParsed, targetRoot);
+  let logging = extractLoggingModel(rawParsed, targetRoot);
+  const memory = extractMemoryModel(rawParsed, targetRoot);
   const { data, secretFields } = maskConfig(rawParsed);
+
+  const logPath = logging.path;
+  if (logPath !== null && existsSync(logPath)) {
+    const logScan = scanExistingLogContent(logPath);
+    logging = { ...logging, existingSecretMatches: logScan.matches };
+    inspected.push({ path: logPath, kind: 'log-file' });
+    if (logScan.skippedReason !== null) {
+      skipped.push({ path: logPath, reason: logScan.skippedReason });
+    }
+  }
+
+  const sidecarResult = discoverSidecarSecretFiles(targetRoot);
+  inspected.push(...sidecarResult.inspected);
+  skipped.push(...sidecarResult.skipped);
 
   const git = detectGitContext(configPath ?? targetRoot);
   if (git.hasAncestorGitDir && git.gitDirPath !== null && git.gitRootPath !== null) {
@@ -78,7 +96,12 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
     }
   }
 
-  const permissionTargets = [configPath, logging.path].filter((p): p is string => p !== null);
+  const permissionTargets = [
+    configPath,
+    logging.path,
+    memory.dir,
+    ...sidecarResult.files.map((f) => f.path),
+  ].filter((p): p is string => p !== null);
   const permissions = permissionTargets.map((p) => getFilePermissionFact(p));
 
   const configuredSkillsDir =
@@ -95,11 +118,13 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   const model: AgentModel = {
     targetRoot,
     config: { path: configPath, format, data, secretFields },
+    sidecarSecretFiles: sidecarResult.files,
     git,
     permissions,
     skills: skillsResult.skills,
     gateway,
     logging,
+    memory,
     recoverability,
     inspected,
     skipped,
@@ -116,6 +141,7 @@ function emptyModel(
   return {
     targetRoot: targetRootLabel,
     config: { path: null, format: null, data: null, secretFields: [] },
+    sidecarSecretFiles: [],
     git: {
       hasAncestorGitDir: false,
       gitDirPath: null,
@@ -139,7 +165,9 @@ function emptyModel(
       path: null,
       redactSecrets: null,
       auditLogEnabled: null,
+      existingSecretMatches: [],
     },
+    memory: { present: false, dir: null },
     recoverability: { killSwitchDocumented: false },
     inspected,
     skipped,

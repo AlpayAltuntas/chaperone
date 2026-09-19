@@ -127,7 +127,7 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 35 findings across all 22 checks):
+the real run reports 38 findings across all 26 checks):
 
 ```
 Chaperone scan report
@@ -148,7 +148,7 @@ CRITICAL (3)
     OWASP: LLM06 / general
     Remediation: Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.
 
-HIGH (13)
+HIGH (15)
 
   [CHAP-SEC-001] Plaintext secrets in config
     Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
@@ -156,12 +156,12 @@ HIGH (13)
     OWASP: LLM06: Sensitive Information Disclosure
     Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).
 
-  ... 12 more high-severity findings ...
+  ... 14 more high-severity findings ...
 
-MEDIUM (14)  LOW (1)  ...
+MEDIUM (15)  LOW (1)  ...
 
-Summary: 35 findings (3 critical, 13 high, 14 medium, 1 low, 4 info)
-Inspected 12 paths, skipped 0.
+Summary: 38 findings (3 critical, 15 high, 15 medium, 1 low, 4 info)
+Inspected 14 paths, skipped 0.
 ```
 
 Notice the secret value is masked (`sk-…wxyz`) — the real value is never
@@ -210,7 +210,7 @@ to GitHub code scanning:
 
 ## Checks
 
-Chaperone runs 22 checks across six categories — secrets & credential
+Chaperone runs 26 checks across six categories — secrets & credential
 hygiene, excessive agency & permissions, supply chain & skill provenance,
 prompt-injection surface, exposure & network posture, and observability &
 recoverability. Every check maps to an OWASP LLM Top 10 category and ships

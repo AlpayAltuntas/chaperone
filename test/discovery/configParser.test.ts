@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  extractEnvVarName,
   looksLikeEnvReference,
   looksLikeSecretKeyName,
   maskConfig,
@@ -46,6 +47,32 @@ describe('looksLikeEnvReference', () => {
       expect(looksLikeEnvReference(value)).toBe(false);
     },
   );
+});
+
+describe('extractEnvVarName', () => {
+  it.each([
+    ['${FOO}', 'FOO'],
+    ['$FOO', 'FOO'],
+    ['env:FOO', 'FOO'],
+    ['ENV:FOO_BAR', 'FOO_BAR'],
+  ] as const)('extracts the variable name from %s', (value, expected) => {
+    expect(extractEnvVarName(value)).toBe(expected);
+  });
+
+  // CHAP-SEC-007 deliberately can't say anything useful once a fallback
+  // is present (the reference resolves to something even when the
+  // variable itself is unset) — extraction returns null so the check
+  // skips these rather than risk a false positive.
+  it.each(['${FOO:-default}', '${FOO:=default}', '${FOO:?missing value}', '${FOO:+alt}'])(
+    'returns null for %s (has a fallback/default)',
+    (value) => {
+      expect(extractEnvVarName(value)).toBeNull();
+    },
+  );
+
+  it('returns null for a non-reference value', () => {
+    expect(extractEnvVarName('plainpassword')).toBeNull();
+  });
 });
 
 // Regression tests for improvement_plan.md 1.2: the old substring regex

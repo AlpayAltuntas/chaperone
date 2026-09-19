@@ -1,1 +1,2 @@
 2026-01-01T00:00:00Z DUMMY fixture log line for Chaperone's own test suite.
+2026-01-02T00:00:00Z DEBUG request headers: {"api_key": "sk-EXAMPLE-dummy-leaked-not-real"}

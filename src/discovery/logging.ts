@@ -9,6 +9,7 @@ const EMPTY_LOGGING: LoggingModel = {
   path: null,
   redactSecrets: null,
   auditLogEnabled: null,
+  existingSecretMatches: [],
 };
 
 /** Projects logging/observability facts out of the raw parsed config, resolving a relative log path against the target root. */
@@ -40,5 +41,12 @@ export function extractLoggingModel(rawConfig: unknown, targetRoot: string): Log
         ? audit['enabled']
         : null;
 
-  return { present: true, level, path: resolvedPath, redactSecrets, auditLogEnabled };
+  return {
+    present: true,
+    level,
+    path: resolvedPath,
+    redactSecrets,
+    auditLogEnabled,
+    existingSecretMatches: [],
+  };
 }

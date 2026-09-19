@@ -1,0 +1,67 @@
+name: Release
+
+# Publishes to npm using OIDC "trusted publishing" instead of a long-lived
+# token (see DECISIONS.md, "Improvement plan, Phase 4" — this replaces the
+# manual 2FA/token flow used for the 0.1.0 publish). Real releases are
+# tag-triggered (`vX.Y.Z`); workflow_dispatch with dry_run lets us exercise
+# the whole pipeline (including `npm publish --dry-run`) without cutting a
+# release or needing trusted publishing configured yet.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (npm publish --dry-run, does not actually publish)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Trusted publishing (OIDC) needs npm >= 11.5.1 and Node >= 22.14 —
+          # newer than the Node 20 used in ci.yml, which has no such
+          # requirement.
+          node-version: 22
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+      # Belt-and-suspenders: don't rely on whatever npm version the Node 22
+      # image happens to bundle.
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format
+      - run: npm run typecheck
+      - run: npm run typecheck:tests
+      - run: npm run build
+      - run: npm test
+
+      - name: Verify tag matches package.json version
+        if: github.event_name == 'push'
+        run: |
+          set -e
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+
+      # Provenance is generated automatically under trusted publishing — no
+      # --provenance flag needed (see docs.npmjs.com/trusted-publishers).
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: npm publish --dry-run
+
+      - name: Publish
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: npm publish

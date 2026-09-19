@@ -32,3 +32,4 @@ trust:
   tool_allowlist: []
 
 skills_dir: ./skills
+memory_dir: ./memory

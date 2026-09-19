@@ -636,3 +636,185 @@ no code changes.
   captured CLI output... so it can't drift") only holds if it's actually
   re-verified after a change that affects it — noted here so future
   phases remember to check this file too.
+
+## Improvement plan, Phase 3 — CI pipeline hardening
+
+- **Coverage tooling** (`4.5`): added `@vitest/coverage-v8` pinned to the
+  exact same version as `vitest` itself (`4.1.11`) — the coverage
+  provider and the runner have to be version-matched or vitest refuses
+  to run. `vitest.config.ts` scopes `include` to `src/**/*.ts` only —
+  `test/fixtures/**` is inert sample data the checks scan, not code this
+  project owns, so it has no business in a coverage number. Real
+  measured numbers on this pass: 96.43% statements / 83.68% branches /
+  98.66% functions / 96.47% lines. `coverage/` added to `.gitignore`
+  (generated output, not source).
+- **Coverage badge deferred**: `4.5`'s literal definition-of-done
+  mentions a README badge. Decided not to wire one up this phase — the
+  standard path (Codecov or similar) means granting an external service
+  access to the repo, which is a decision the account owner should make
+  explicitly rather than one made silently mid-phase. Chose the
+  self-contained alternative instead: CI uploads the `coverage/` HTML
+  report as a build artifact (`actions/upload-artifact`) on every run,
+  so real numbers are inspectable from the Actions tab without a
+  third-party integration. Revisit the badge specifically if/when
+  wanted.
+- **Packaged-binary smoke test in CI** (`4.4`): promotes the manual
+  `npm pack` → install-into-temp-dir → run verification (used ad hoc
+  during the original npm-publish debugging, see "Post-v1 — npm publish
+  prep" above) into an automated CI step that runs on every push/PR.
+  Explicitly asserts `chaperone --version` prints non-empty output —
+  that exact assertion is the regression guard for the symlink
+  entrypoint bug (`isMainModule` comparing `import.meta.url` against
+  `process.argv[1]` without resolving npm's bin symlink first), which
+  `npm test` alone never exercised because it never runs the actual
+  installed binary. Scans `test/fixtures/clean-agent` (not
+  `vulnerable-agent`) as the smoke target deliberately — a scan that
+  intentionally exits non-zero interacts badly with the default GitHub
+  Actions shell (`bash -eo pipefail`), and this step only needs to prove
+  the binary runs, not re-assert scan correctness (already covered by
+  the test suite).
+- **Dependency audit** (`4.6`): `npm audit --audit-level=high` added as
+  its own CI step (fails the build on high/critical advisories, not on
+  every low-severity noise finding) plus `.github/dependabot.yml`
+  covering both the `npm` and `github-actions` ecosystems on a weekly
+  schedule, with dev dependencies grouped into one PR rather than one PR
+  per dev dependency bump.
+
+## Improvement plan, Phase 4 — Release automation
+
+- **OIDC "trusted publishing" release workflow** (`3.6`): `.github/
+workflows/release.yml`, tag-triggered (`v*`) for real releases plus a
+  `workflow_dispatch` input (`dry_run`, default `true`) so the whole
+  pipeline — lint/format/typecheck/build/test, then `npm publish
+--dry-run` — can be exercised on demand without cutting a release or
+  needing trusted publishing configured on the npm side yet. Verified by
+  triggering the dry-run path directly.
+- **Node 22, not 20**: trusted publishing needs at least npm 11.5.1 and
+  at least Node 22.14 (confirmed against current npm docs,
+  docs.npmjs.com/trusted-publishers/ — not assumed). `ci.yml` stays on
+  Node 20 since it has no such requirement; only the release workflow
+  needs the newer runtime. Pinned `npm install -g npm@latest` as a
+  belt-and-suspenders step rather than trusting whatever npm version the
+  Node 22 image happens to bundle.
+- **No `--provenance` flag**: per current npm docs, provenance
+  attestation is generated automatically under trusted publishing —
+  passing the flag explicitly is redundant (harmless but redundant, left
+  out for clarity).
+- **Tag/version guard**: a real (tag-push) release fails fast if the
+  pushed tag (`vX.Y.Z`) doesn't match `package.json`'s version, instead
+  of silently publishing a mismatched version.
+- **One remaining manual step, outside CI's reach**: trusted publishing
+  requires linking `@alpay_altuntas/chaperone` to this repo + workflow
+  filename (`release.yml`) via npmjs.com's package settings
+  ("Trusted Publisher") — there's no npm API for this, it's a one-time
+  web UI action only the package owner can take. Until that's done, a
+  real tag-triggered publish will fail at the final `npm publish` step
+  (auth); the dry-run path works regardless since it never contacts the
+  registry's publish endpoint. This replaces the manual 2FA/access-token
+  flow used for the `0.1.0` publish (see "Post-v1 — npm publish prep"
+  above) once configured.
+
+## Improvement plan, Phase 5 — Discovery: sidecar secret files + persistent memory/state
+
+- **Sidecar secret files** (`1.6`/`2.2`): discovery now looks for `.env`,
+  `.env.local`, `secrets.yaml`, `secrets.yml`, `secrets.json` alongside
+  the main config and feeds each one through the exact same masking
+  pipeline `config.yaml` already gets (`discovery/configParser.ts`'s
+  `maskConfig` — reused as-is, not reimplemented, so the secret-key-name
+  heuristic and env-reference detection stay in one place). Closes the
+  single biggest real-world blind spot from this pass: a config
+  referencing `${API_KEY}` was already safe, but the literal value living
+  in a colocated `.env` was previously invisible to every `CHAP-SEC-*`
+  check. `.env` parsing is a deliberately minimal, documented-gap
+  implementation (`KEY=value`, `#` comments, quote-stripping — no
+  multi-line values, no `export` prefix), same precedent as
+  `gitignoreMatch.ts`'s partial-gitignore-semantics approach.
+- **`CHAP-SEC-006`**: applies CHAP-SEC-002's git-tracking check and
+  CHAP-SEC-003's permission check to each sidecar file holding a literal
+  secret, combined into one finding (same "combine reasons into one
+  message" pattern CHAP-SEC-004 already established) rather than two new
+  separate check IDs — the plan allocated one ID for this.
+- **Persistent memory/state** (`1.7`/`2.8`): `memory_dir`/`state_dir`
+  config field (mirrors `skills_dir`'s existing resolve-and-check
+  pattern) closes a real gap against `instruction.md` §2's own scope —
+  it lists memory/state as one of five discoverable artifacts, and four
+  of five had discovery modules before this; the fifth had none. No
+  content inside the directory is ever read, only existence/permissions/
+  git-tracking — consistent with the read-boundary discipline elsewhere.
+- **`CHAP-OBS-004`**: mirrors CHAP-SEC-002/003 again, applied to the
+  memory/state directory. `medium` severity (not `high`, unlike
+  CHAP-SEC-006) since there's no literal-secret gate here — arbitrary
+  memory content isn't scanned, so this is a general exposure signal, not
+  a confirmed-secret one.
+- **Fixture strategy**: added `secrets.yaml` + `memory_dir`/`memory/` to
+  `vulnerable-agent` only (a true-positive demonstration in the
+  full-catalog integration test), left `clean-agent` without them
+  (absence is itself a legitimate, trivially-safe configuration) rather
+  than fighting this repo's own root `.gitignore` (`.env` is already
+  globally ignored there) to construct a "present but safe" fixture —
+  the "present but safe" TP/TN matrix is instead covered by dedicated
+  isolated-temp-dir unit tests for both new checks (mirroring
+  `chapSec002.test.ts`/`chapSec003.test.ts`'s existing pattern), which
+  don't depend on or interact with this repo's real git context at all.
+- **Caught a test-infra bug while wiring this in**: `chmod`'ing the new
+  `memory` directory to a file-style mode (e.g. `0o644`) in
+  `fullCatalog.test.ts`'s copy helper stripped the execute bit and made
+  the directory untraversable — broke not just the check under test but
+  the test's own `rmSync` cleanup afterward (`EACCES, Directory not
+empty`). Fixed by deriving a directory-appropriate mode (execute bit
+  wherever a read bit is set, e.g. `644` -> `755`) instead of reusing the
+  file mode directly.
+- **README's example output re-verified and updated again** (real
+  captured CLI output, not hand-computed — see the Phase 2 entry above
+  for why this matters): 22 -> 24 checks, 35 -> 37 findings, 13 -> 14
+  high, 14 -> 15 medium, 13 inspected paths (was 12).
+
+## Improvement plan, Phase 6 — New standalone checks
+
+- **`CHAP-SEC-005`** (`2.1`/`1.8`): a new `discovery/logContentScanner.ts`
+  reads up to the last 256 KiB of the log file (bounded — this is a
+  security tool auditing files that could themselves be huge or
+  adversarial) and scans it for `key=value`/`"key": "value"`-shaped
+  substrings whose key matches the existing `looksLikeSecretKeyName`
+  heuristic, capped at 20 matches. Reuses `configParser.ts`'s key-name
+  and masking logic rather than the plan's alternative
+  (a generic high-entropy-string scanner) — picking one, documented,
+  same precedent as CHAP-SUP-003's deliberately-simple v1 heuristic.
+  Matched values are masked (`maskSecretValue`) before ever reaching the
+  model; the real value is never retained, same guarantee config secrets
+  already get. Distinct from CHAP-SEC-004/CHAP-OBS-002, which only
+  reason about whether logging _will_ leak going forward — this is
+  evidence something already did.
+- **`CHAP-SEC-007`** (`2.3`): checks whether a bare `${VAR}`/`$VAR`/
+  `env:VAR` config reference resolves to anything in Chaperone's own
+  `process.env` at scan time. Explicitly advisory — the plan calls for
+  the caveat to be "in its own message text, not just CHECKS.md" since
+  Chaperone runs as a separate process and may not share the agent's
+  real environment (e.g. a systemd/launchd `EnvironmentFile`); the
+  finding message states this directly. `low` severity reflects that
+  low confidence. Only bare references are checked — a `:-`/`:=`/`:?`/
+  `:+` fallback/default resolves to something even when the variable
+  itself is unset, so `configParser.ts`'s new `extractEnvVarName`
+  returns `null` for those and the check silently skips them rather
+  than risk a false positive.
+- **A real interaction this surfaced**: `clean-agent`'s config uses
+  indirect env-var references by design (`${ANTHROPIC_API_KEY}`,
+  `env:TELEGRAM_BOT_TOKEN`, `env:GATEWAY_AUTH_TOKEN`) — meaning
+  `CHAP-SEC-007` would fire against it in `fullCatalog.test.ts` in any
+  environment where those three vars happen not to be set (true almost
+  everywhere, but not guaranteed — a real `ANTHROPIC_API_KEY` set in a
+  developer's own shell would have silently changed the test's outcome
+  depending on who ran it). Fixed by having the test explicitly
+  `vi.stubEnv` those three variables as set before running the
+  clean-agent full-catalog scan — the honest scenario for a genuinely
+  hardened install (the operator has these set for the agent process
+  itself), and makes the test fully deterministic regardless of the
+  running environment's ambient state.
+- **Fixture strategy**: appended one dummy leaked-secret log line to
+  `vulnerable-agent/logs/agent.log` (TP for CHAP-SEC-005 in the
+  full-catalog integration test); `clean-agent`'s log stays untouched
+  (TN via absence). Full TP/TN matrix for both new checks — including
+  the "present but safe" cases — lives in dedicated isolated-temp-dir
+  unit tests, same strategy as Phase 5.
+- **README's example output re-verified again**: 24 -> 26 checks, 37 ->
+  38 findings, 14 -> 15 high, 14 -> 15 paths inspected.
