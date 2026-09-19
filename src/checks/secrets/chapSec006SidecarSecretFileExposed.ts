@@ -39,7 +39,7 @@ export const chapSec006SidecarSecretFileExposed: Check = {
 
       if (model.git.hasAncestorGitDir && model.git.gitRootPath !== null) {
         const relative = path.relative(model.git.gitRootPath, file.path);
-        if (!isGitignored(relative, model.git.gitignorePatterns)) {
+        if (!isGitignored(relative, model.git.gitignoreFiles)) {
           reasons.push(
             `it sits inside a git repository (${model.git.gitRootPath}) without being covered by its .gitignore`,
           );

@@ -1117,3 +1117,67 @@ await res.text(); exec(command)`), without claiming general
   adding the fixture — `CHAP-SUP-001/002/003` each +1 (the new skill has
   an unpinned version, no lockfile, and a manifest, same as every other
   skill), `CHAP-AGY-004` +1 (fetches with no domain allowlist).
+
+## Improvement plan, Phase 12 — Real `.gitignore` semantics
+
+- **`ignore` (npm, zero dependencies of its own, ~500 bytes gzipped)
+  replaces the hand-rolled matcher** (`1.14`) in
+  `checks/shared/gitignoreMatch.ts` — the exact trade Chaperone's own
+  minimal-dependencies principle (§4) explicitly allows when correctness
+  on a security-relevant check is at stake, rather than hand-rolling
+  more glob semantics (`**`, precedence edge cases) that a de facto
+  standard library already gets right. Pinned to an exact version
+  (`7.0.9`), same convention as every other dependency in this project.
+- **`GitContext.gitignorePatterns: string[]` became
+  `gitignoreFiles: GitignoreFile[]`** (`{dirRelativeToRoot, patterns}`),
+  a real schema change touching `model/types.ts`, `gitContext.ts`,
+  `discovery/index.ts`, and all three consuming checks
+  (`CHAP-SEC-002`/`006`/`OBS-004`). `gitContext.ts` now walks _down_
+  from the git root to `targetRoot` after finding it (not just reading
+  the root `.gitignore`), collecting every `.gitignore` at each
+  directory level along that chain — real nested-`.gitignore` support,
+  the second half of `1.14`'s ask. Deliberately does not walk _past_
+  `targetRoot` into its own subdirectories (e.g. a `.gitignore` inside
+  `targetRoot/skills/some-skill/`) — every path the three consuming
+  checks look at lives at or directly under `targetRoot`, so a
+  per-checked-path walk into arbitrary subdirectories would add real
+  complexity for cases outside what any check actually needs.
+- **Nested-`.gitignore` scoping is a technique layered on top of
+  `ignore`, not something the library does automatically**: `ignore`
+  matches one flat pattern set against root-relative paths, so a nested
+  file's patterns are rewritten before being added to one combined
+  matcher — a bare pattern (`foo`) becomes `dir/**/foo` (gitignore's
+  `**` matches zero or more directories, so this also covers `foo`
+  directly in `dir`), while a rooted or already-multi-segment pattern
+  (`/foo`, `sub/foo`) becomes `dir/foo`/`dir/sub/foo`. Verified with
+  dedicated tests distinguishing a nested pattern from an
+  identically-named root-level one, a nested negation overriding a
+  broader root pattern, and root+nested patterns combined.
+- **Caught and fixed a real behavioral gap while wiring this in**: the
+  `ignore` package only matches a directory-only pattern (`foo/`)
+  against a _query_ path that itself carries a trailing slash — passing
+  a bare directory name like `memory` against a `memory/` pattern
+  silently returns `false`. The old hand-rolled matcher never
+  distinguished files from directories at all (a latent inaccuracy that
+  happened to make `CHAP-OBS-004`'s existing test pass by accident).
+  `isGitignored` gained an explicit `isDirectory` parameter; `CHAP-OBS-004`
+  (the only caller checking a directory, not a file) now passes `true`.
+  Regression-tested directly (`memory` without vs. with `isDirectory:
+true` against a `memory/` pattern).
+- **`1.13` decided explicitly, not by omission, per the plan's own
+  instruction**: `.git/info/exclude` and a user's global
+  `core.excludesFile` are **not** read, and the tracked-vs-untracked
+  distinction is **not** implemented. Both would require shelling out to
+  `git` (`git check-ignore`, `git ls-files`) — genuinely new I/O surface
+  (discovery currently only ever reads the filesystem directly; this
+  would be the first external process Chaperone ever spawns), with its
+  own real costs: dependence on a `git` binary being present and on
+  `PATH`, behavioral differences across git versions, and a categorically
+  different failure mode (a hung or misbehaving subprocess) than a
+  simple file read can have. Given `1.14`'s `ignore`-package rewrite
+  already closes the two biggest, most impactful gaps (`**`, nested
+  files) with a small, static, dependency-only change, the marginal
+  accuracy gain from subprocess-based git introspection didn't clear the
+  bar for the added architectural risk. Revisit if a real install's
+  false-positive rate from these specific gaps turns out to matter in
+  practice.

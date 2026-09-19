@@ -46,7 +46,7 @@ export const chapObs004MemoryStoreExposed: Check = {
 
     if (model.git.hasAncestorGitDir && model.git.gitRootPath !== null) {
       const relative = path.relative(model.git.gitRootPath, model.memory.dir);
-      if (!isGitignored(relative, model.git.gitignorePatterns)) {
+      if (!isGitignored(relative, model.git.gitignoreFiles, true)) {
         reasons.push(
           `it sits inside a git repository (${model.git.gitRootPath}) without being covered by its .gitignore`,
         );

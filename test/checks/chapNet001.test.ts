@@ -15,7 +15,7 @@ const BASE_MODEL: AgentModel = {
     hasAncestorGitDir: false,
     gitDirPath: null,
     gitRootPath: null,
-    gitignorePatterns: [],
+    gitignoreFiles: [],
     configPathRelativeToGitRoot: null,
   },
   permissions: [],

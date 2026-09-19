@@ -87,11 +87,15 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   inspected.push(...sidecarResult.inspected);
   skipped.push(...sidecarResult.skipped);
 
-  const git = detectGitContext(configPath ?? targetRoot);
+  const git = detectGitContext(configPath ?? targetRoot, targetRoot);
   if (git.hasAncestorGitDir && git.gitDirPath !== null && git.gitRootPath !== null) {
     inspected.push({ path: git.gitDirPath, kind: 'other' });
-    const gitignorePath = path.join(git.gitRootPath, '.gitignore');
-    if (existsSync(gitignorePath)) {
+    for (const gitignoreFile of git.gitignoreFiles) {
+      const gitignorePath = path.join(
+        git.gitRootPath,
+        gitignoreFile.dirRelativeToRoot,
+        '.gitignore',
+      );
       inspected.push({ path: gitignorePath, kind: 'gitignore' });
     }
   }
@@ -146,7 +150,7 @@ function emptyModel(
       hasAncestorGitDir: false,
       gitDirPath: null,
       gitRootPath: null,
-      gitignorePatterns: [],
+      gitignoreFiles: [],
       configPathRelativeToGitRoot: null,
     },
     permissions: [],
