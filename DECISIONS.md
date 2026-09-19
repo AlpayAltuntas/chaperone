@@ -1891,3 +1891,66 @@ report.html` test that writes a real file to disk and reads it back,
   exactly the class of accidental-environment-dependence bug this
   whole sub-item exists to catch, just one turn removed (in the test's
   own normalization logic, not in application behavior).
+
+## Improvement plan, Phase 23 (5.2) — Property-based/fuzz testing (fast-check)
+
+- **`fast-check`, pinned exact** (matching every other devDependency's
+  pinning convention in this project — no caret range, even though `npm
+install --save-dev` defaults to one) — the standard TS property-based
+  testing library, exactly as the plan itself names it.
+- **Two real bugs found and fixed during development, not hypothetical
+  ones** — this sub-item's whole reason to exist, demonstrated
+  immediately:
+  1. `isGitignored('', [...])` (and separately, `isGitignored('.',
+[...])`) threw a raw, uncaught `TypeError`/`RangeError` from the
+     underlying `ignore` package's `.ignores()`, rather than returning
+     a boolean like the function's own contract promises. Fixed by
+     wrapping the match call in a `try`/`catch`, treating **any**
+     exception the underlying library throws the same safe way an
+     empty `gitignoreFiles` list already is: not ignored. Deliberately
+     a broad catch, not a narrow "handle empty string" special case —
+     shrinking kept finding _more_ rejected input shapes (`.` was the
+     second one found immediately after fixing the first), and there
+     was no principled way to enumerate every string `ignore` considers
+     "not a valid `path.relative()`'d string" up front. No real caller
+     in this codebase can currently produce one of these degenerate
+     path strings — every real relative path comes from an actual
+     discovered file — but the function's own boundary should never
+     surprise a caller with a library-internal exception type
+     regardless.
+  2. A flawed _test_ assumption, not an application bug: a
+     `JSON.stringify(value) -> parseConfigSource(json)` "round-trips
+     the original value" property failed on `-0` (`fc.jsonValue()` can
+     generate it), because `JSON.stringify(-0) === '0'` — JSON itself
+     has no negative-zero representation, so this was never something
+     `parseConfigSource` did wrong. Fixed the property itself: compare
+     against `JSON.parse(source)` (the same source string, run through
+     the same lossy JSON round-trip on both sides), not the original
+     fast-check-generated value — the actually-correct invariant being
+     "behaves identically to a plain `JSON.parse`", not "is a perfect
+     round trip of arbitrary JS values through a format that can't
+     represent all of them".
+  3. Also observed, not a bug: the YAML fuzz property surfaced genuinely
+     obscure input the hand-picked test cases never exercised (a bare
+     `%` directive line, an unresolved `!P` tag) — `YAML.parse` handles
+     both by printing a `console.warn`-level warning and continuing
+     (never throwing), so the "only ever throws a real `Error`"
+     property held throughout; kept as evidence fuzzing is exploring
+     real edge cases, not just passing trivially.
+- **The real security property, not just "doesn't throw"**: for
+  `maskConfig`, the most valuable property fuzzed is that a secret-
+  shaped field's literal value never appears anywhere in the masked
+  output, for randomly generated secret-shaped keys and long
+  (non-env-reference-looking) values — a genuine invariant this
+  project's whole "secrets are masked in all output" guarantee rests
+  on, exercised far beyond the specific example values the hand-picked
+  tests use.
+- **Positive (recall) and negative (precision) properties for
+  `isGitignored`**, not just "doesn't crash": a bare filename listed
+  verbatim in the root `.gitignore` is always ignored; a different,
+  unlisted name never is; a nested `.gitignore`'s bare pattern matches
+  within its own directory but never leaks to an unrelated root-level
+  file of the same name (`scopePattern`'s entire reason to exist,
+  improvement_plan.md 1.14) — fuzzed across a wide generated name space,
+  not just the specific examples the existing example-based test suite
+  already covers.
