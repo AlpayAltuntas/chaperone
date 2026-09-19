@@ -629,6 +629,20 @@ accidental O(n²) in discovery or the check engine) rather than only
 being discovered as a real user complaint. A real run currently
 completes in well under a second.
 
+**Mutation testing** (`npm run mutation`, [Stryker](https://stryker-mutator.io/),
+improvement_plan.md 5.4) is a non-blocking, "tests for the test suite"
+CI signal — verifies the existing coverage would actually catch a
+regression, not just that it currently passes. Deliberately scoped to a
+small, fast subset (`configParser.ts`/`gitignoreMatch.ts` — the same two
+modules 5.2 already fuzz-tests) rather than the whole `src/` tree, which
+would be too slow to run on every push; runs in `mutation-testing`, a
+separate CI job that is not a required status check, so it can never
+block a merge. `stryker.config.mjs`'s own `thresholds.break` is also
+`null` — the mutation score itself never fails the `stryker run`
+process either. See `DECISIONS.md`, Phase 23 (5.4) for the full scoping
+rationale, including a real worker-thread/`process.chdir()` constraint
+this had to be designed around.
+
 **Refreshing the offline vulnerability snapshot** (`CHAP-SUP-003`,
 `src/checks/shared/vulnDb.ts`): run `npm run refresh:vulndb`. This is the
 one script in the repo that makes an outbound network call (to

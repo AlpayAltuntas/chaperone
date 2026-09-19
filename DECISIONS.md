@@ -1988,3 +1988,70 @@ install --save-dev` defaults to one) — the standard TS property-based
   before this phase, for an unrelated reason — bounding recursive
   directory listing) also keeps a pathologically deep tree's scan time
   bounded, not just its own recursion depth.
+
+## Improvement plan, Phase 23 (5.4) — Mutation testing (Stryker), non-blocking
+
+- **A separate CI job, not listed in required status checks — the
+  literal mechanism for "non-blocking"**, not just a documentation
+  claim. `mutation-testing` runs alongside `build-lint-test` but this
+  repo's branch protection only requires the latter, so a Stryker
+  failure (or a low score) can never block a merge regardless of
+  outcome. Belt-and-suspenders: `stryker.config.mjs`'s own
+  `thresholds.break` is explicitly `null`, so `stryker run` itself never
+  exits non-zero based on mutation score either — a job failure there
+  would only ever mean Stryker itself errored (a real, worth-surfacing
+  problem), never "the score dipped".
+- **Scoped to two files, not the whole `src/` tree** — mutation testing
+  re-runs the relevant tests once per generated mutant (213 mutants for
+  just these two files, ~9 seconds total here), so whole-codebase
+  mutation testing would be far too slow for a per-push CI signal.
+  Deliberately the same two "small, pure, input-shape-sensitive"
+  modules `5.2` already named and property-fuzz-tests
+  (`configParser.ts`, `gitignoreMatch.ts`) — the parts of this codebase
+  most worth verifying test quality against, and a natural pairing with
+  the fuzz tests already covering them.
+- **A real environment constraint had to be designed around**:
+  Stryker's vitest-runner always executes tests inside worker threads,
+  and Node explicitly disallows `process.chdir()` inside a worker
+  thread — several of this project's own tests call it directly (e.g.
+  `.chaperonerc.json` auto-discovery, Phase 14). Running Stryker against
+  the project's normal `vitest.config.ts` (which includes the whole
+  `test/**/*.test.ts` tree) fails immediately in Stryker's own initial
+  coverage-mapping dry run, before a single mutant is even generated.
+  Fixed with a dedicated `vitest.stryker.config.ts` whose `include` is
+  narrowed to just the four test files that actually exercise the two
+  mutated modules (their example-based and fuzz test files each) —
+  `stryker.config.mjs` points at it via `vitest.configFile`. No existing
+  test needed to change; the chdir-based tests are legitimate and
+  useful, this just keeps them out of Stryker's unrelated dry run.
+- **A second real environment constraint, caught by CI (not caught
+  locally, since this machine already runs a newer Node)**: StrykerJS
+  10 itself requires Node ≥22, stricter than this project's own ≥20
+  requirement — the `mutation-testing` job's `setup-node` step needed
+  its own `node-version: 22`, distinct from `build-lint-test`'s `20`.
+  CI-tooling-only; doesn't change what the published `chaperone` package
+  itself requires to run.
+- **A real, working signal from the very first run** — 78.87% mutation
+  score (168 killed, 43 survived, 2 no-coverage, 0 errors) across 213
+  mutants, ~9 seconds. Several surviving mutants are genuine, legible
+  signal: the `^`/`$` anchors in the env-var-reference regexes
+  (`ENV_REF_PATTERNS`) survive removal, meaning the current fuzz/example
+  tests only generate strings that already fully match the pattern —
+  they never test that a superset string (extra prefix/suffix text
+  around an otherwise-valid `${VAR}`) is correctly rejected. Left as-is,
+  not chased down to 100% — the DoD is "add the signal", not "achieve a
+  specific score" (5.4 is explicitly framed in the plan as "probably
+  lower priority than everything else in this document"), and the
+  surviving mutants themselves are now a legible worklist for whoever
+  picks this up next, exactly what a non-blocking QA signal is for.
+- **`@stryker-mutator/core` pulls in a transitive moderate-severity
+  advisory** (`qs`, via `typed-rest-client`, likely Stryker's own
+  update-check/telemetry HTTP client) — `npm audit fix` doesn't resolve
+  it without a breaking change. Accepted, not silently ignored: this is
+  a dev-only dependency (never published — `package.json`'s `files`
+  field only ships `dist/`), the advisory is a DoS class requiring
+  attacker-controlled input to `qs.stringify` in a context this
+  tool never exposes to untrusted input, and it sits below the
+  `--audit-level=high` threshold this project's own CI audit gate
+  already enforces (`npm run` 4.6) — confirmed CI's audit step still
+  exits 0 with this dependency present.

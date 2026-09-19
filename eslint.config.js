@@ -10,7 +10,16 @@ export default [
     // (deliberately insecure, or deliberately plain-JS) code — they are
     // data Chaperone scans, not project source, so our lint rules don't
     // apply to them.
-    ignores: ['dist/**', 'node_modules/**', 'test/fixtures/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'test/fixtures/**',
+      // Stryker's mutation-testing sandbox (improvement_plan.md 5.4) —
+      // an instrumented, temporary copy of the whole project, gitignored
+      // alongside its report output; never real project source.
+      '.stryker-tmp/**',
+      'reports/**',
+    ],
   },
   eslint.configs.recommended,
   {

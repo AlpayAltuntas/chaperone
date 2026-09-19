@@ -57,3 +57,33 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 14
+
+  # Mutation testing (improvement_plan.md 5.4) — a non-blocking "tests
+  # for the test suite" signal, deliberately: a separate job, not a step
+  # in build-lint-test, and not listed in this repo's required status
+  # checks, so it can never block a merge regardless of outcome.
+  # stryker.config.mjs's own thresholds.break is also explicitly `null`
+  # (mutation score alone never fails the `stryker run` process) — a job
+  # failure here means Stryker itself errored, not a low score.
+  # Deliberately scoped to a small, fast subset of the codebase (see
+  # stryker.config.mjs) rather than the whole src/ tree, which would be
+  # too slow for a per-push signal.
+  mutation-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          # StrykerJS 10 itself requires Node >=22 (stricter than this
+          # project's own >=20 requirement) — CI-tooling-only, doesn't
+          # change what chaperone the package requires to run.
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run mutation
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 14
