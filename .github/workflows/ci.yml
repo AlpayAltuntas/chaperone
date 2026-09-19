@@ -47,7 +47,7 @@ jobs:
           node node_modules/.bin/chaperone scan "$GITHUB_WORKSPACE/test/fixtures/clean-agent" --no-color
 
       - run: npm run test:coverage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
