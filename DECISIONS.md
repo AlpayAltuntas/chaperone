@@ -2024,6 +2024,13 @@ install --save-dev` defaults to one) — the standard TS property-based
   `stryker.config.mjs` points at it via `vitest.configFile`. No existing
   test needed to change; the chdir-based tests are legitimate and
   useful, this just keeps them out of Stryker's unrelated dry run.
+- **A second real environment constraint, caught by CI (not caught
+  locally, since this machine already runs a newer Node)**: StrykerJS
+  10 itself requires Node ≥22, stricter than this project's own ≥20
+  requirement — the `mutation-testing` job's `setup-node` step needed
+  its own `node-version: 22`, distinct from `build-lint-test`'s `20`.
+  CI-tooling-only; doesn't change what the published `chaperone` package
+  itself requires to run.
 - **A real, working signal from the very first run** — 78.87% mutation
   score (168 killed, 43 survived, 2 no-coverage, 0 errors) across 213
   mutants, ~9 seconds. Several surviving mutants are genuine, legible

@@ -74,7 +74,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # StrykerJS 10 itself requires Node >=22 (stricter than this
+          # project's own >=20 requirement) — CI-tooling-only, doesn't
+          # change what chaperone the package requires to run.
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run mutation
