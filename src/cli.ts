@@ -10,7 +10,7 @@ import {
   loadChaperoneConfig,
 } from './config/chaperoneConfig.js';
 import { errorMessage } from './discovery/errors.js';
-import { discoverAgent } from './discovery/index.js';
+import { DISCOVERY_PROFILES, discoverAgent, type DiscoveryProfile } from './discovery/index.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
 import type { Check } from './engine/types.js';
@@ -39,6 +39,7 @@ interface ScanCommandOptions {
   summaryOnly?: boolean;
   config?: string;
   baseline?: string;
+  profile: DiscoveryProfile;
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -53,6 +54,13 @@ function parseSeverity(value: string): Severity {
     throw new InvalidArgumentError(`must be one of: ${SEVERITY_ORDER.join(', ')}`);
   }
   return value as Severity;
+}
+
+function parseProfile(value: string): DiscoveryProfile {
+  if (!(DISCOVERY_PROFILES as readonly string[]).includes(value)) {
+    throw new InvalidArgumentError(`must be one of: ${DISCOVERY_PROFILES.join(', ')}`);
+  }
+  return value as DiscoveryProfile;
 }
 
 function parseCheckIdList(value: string): string[] {
@@ -236,6 +244,15 @@ export function buildProgram(): Command {
         'a prior JSON report (chaperone scan --format json --output <file>) — report only findings new since then',
       ).env('CHAPERONE_BASELINE'),
     )
+    .addOption(
+      new Option(
+        '--profile <profile>',
+        `discovery profile (${DISCOVERY_PROFILES.join('|')}) — 'default' is the fictional Clawdbot/Moltbot/OpenClaw-style format, 'mcp' reads a real MCP server config (.mcp.json/mcp.json/claude_desktop_config.json)`,
+      )
+        .argParser(parseProfile)
+        .default('default')
+        .env('CHAPERONE_PROFILE'),
+    )
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
       // Everything below is wrapped so an unexpected bug (e.g. a reporter
       // throwing on some edge-case input) can never be mistaken for
@@ -280,9 +297,10 @@ export function buildProgram(): Command {
           }
         }
 
-        const { model, targetRootResolved } = discoverAgent(
-          targetPath === undefined ? {} : { targetPath },
-        );
+        const { model, targetRootResolved } = discoverAgent({
+          profile: options.profile,
+          ...(targetPath === undefined ? {} : { targetPath }),
+        });
 
         // No point evaluating checks against an empty/placeholder model
         // when no installation was even located — every "finding" would

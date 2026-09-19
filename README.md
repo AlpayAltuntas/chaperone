@@ -199,6 +199,7 @@ each):
 | `--no-color`                | Disable colored console output                                               |                           |
 | `--config <file>`           | Suppression/override config file (default: `./.chaperonerc.json` if present) | `CHAPERONE_CONFIG`        |
 | `--baseline <file>`         | A prior saved JSON report — report (and fail on) only findings new since it  | `CHAPERONE_BASELINE`      |
+| `--profile <profile>`       | Discovery profile: `default` (fictional format) or `mcp` (real MCP config)   | `CHAPERONE_PROFILE`       |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -272,6 +273,34 @@ location detail, and message, deliberately **not** line number — an
 unrelated edit shifting lines elsewhere in the file shouldn't make an
 unchanged finding look new. As findings actually get fixed, re-capture
 the baseline to keep it current.
+
+### Discovery profiles (`--profile`)
+
+Chaperone's default profile targets a fictional, documented
+Clawdbot/Moltbot/OpenClaw-style config shape (see [Known
+limitations](#known-limitations)). `--profile mcp` (or `CHAPERONE_PROFILE=mcp`)
+switches discovery to a **real** config shape instead — the [MCP (Model
+Context Protocol)](https://modelcontextprotocol.io) server config used by
+Claude Desktop, Claude Code, and other MCP clients
+(`.mcp.json`/`mcp.json`/`claude_desktop_config.json`, a top-level
+`{"mcpServers": {"<name>": {...}}}` object):
+
+```bash
+chaperone scan --profile mcp .            # looks for .mcp.json in the current directory
+chaperone scan --profile mcp ~/my-project # or an explicit directory
+```
+
+The `mcp` profile maps each configured MCP server onto the same
+`AgentModel` the default profile produces, so the existing check catalog
+runs against it — but only the checks whose heuristic genuinely applies
+to an MCP config actually fire: `CHAP-SEC-001` (a literal secret in a
+server's `env` block instead of an env-var reference), `CHAP-SEC-003`
+(the config file itself being group/other-readable), and `CHAP-SUP-001`
+(a server launched from an unpinned package version, e.g. `npx -y
+<pkg>` with no `@<version>` pin). Checks with no MCP equivalent —
+gateway/channel/trust config, a skill's own source code — correctly stay
+silent rather than being forced onto a shape they don't fit; see
+`DECISIONS.md`, Phase 17.
 
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:

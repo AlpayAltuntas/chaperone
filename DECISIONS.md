@@ -1405,3 +1405,79 @@ PYTHON_SOURCE_EXTENSIONS`) is the "SOURCE_EXTENSIONS-equivalent
   check/discovery test were updated against real captured CLI output
   (44 → 49 vulnerable-agent findings; 3 → 4 clean-agent `CHAP-SUP-003`
   findings), never hand-computed.
+
+## Improvement plan, Phase 17 — Real agent framework adapter (`--profile`)
+
+- **Scoped to a right-sized MVP, not the open-ended "strategic bet"
+  framing the plan flags this phase with.** `3.1`/Phase 17 is explicitly
+  marked in the plan as needing "its own dedicated planning pass" and
+  listed only as a placeholder with its scope. Rather than either
+  skipping it or over-building (a second full check registry, a plugin-
+  style profile-loading system — Phase 21's actual job), this lands the
+  literal DoD: `chaperone scan --profile <real-target> <path>` against a
+  real (not synthetic) config shape, with its own fixture pair, at
+  minimum blast radius on the existing architecture.
+- **MCP server config chosen as the real target** (the plan's other
+  named option, "Open Interpreter", is a less standardized/stable
+  format) — a genuine, stable, widely-used shape:
+  `.mcp.json`/`mcp.json`/`claude_desktop_config.json`, a top-level
+  `{"mcpServers": {"<name>": {command/args/env | url/headers}}}`
+  object, used by Claude Desktop, Claude Code, and other MCP clients.
+- **Mapped onto the existing `AgentModel`/29-check catalog, not a
+  parallel one** — `src/discovery/mcpProfile.ts`'s `discoverMcpAgent`
+  produces the exact same `AgentModel` shape `discoverAgent` already
+  does, so every existing check runs against it unmodified. Deliberately
+  honest about which checks that means "produces meaningful findings"
+  for: only `CHAP-SEC-001` (a server's `env` block reuses
+  `configParser.ts`'s `maskConfig` verbatim — it walks any JSON tree for
+  secret-shaped keys, an MCP server's `env` is just more tree to it),
+  `CHAP-SEC-003` (the config file's own permission fact, same
+  `getFilePermissionFact` machinery), and `CHAP-SUP-001` (a new
+  `detectPinnedRef` heuristic: an `args` entry naming an exact
+  `@<semver>` is pinned, a bare package name or `@latest` isn't — the
+  same question `extractProvenance`'s regex asks for the default
+  profile, expressed in MCP's own idiom). Every skill's `capabilities`
+  are left all-`false` (there's no source code to statically analyze —
+  an MCP server is an external process/endpoint) and
+  `dependencies.manifestPath` is left `null` (no separate npm-manifest/
+  lockfile concept exists for an MCP server entry) so
+  `CHAP-AGY-*`/`CHAP-INJ-002`/`CHAP-SUP-002/003/005/006` correctly stay
+  silent rather than being forced onto a shape they don't fit.
+  `CHAP-OBS-001`/`CHAP-OBS-003` (absence-based: no logging configured,
+  no kill-switch file at the target root) fire regardless of profile —
+  a real, if incidental, signal for MCP installs too.
+- **`emptyModel` extracted and shared, not duplicated** — the
+  "everything absent" `AgentModel` builder (previously a private
+  function in `discovery/index.ts`) is now exported and reused by both
+  the "no default install found" path and the new "no MCP config found"
+  path, rather than a second near-identical copy in `mcpProfile.ts`.
+  `DiscoveryOptions`/`DiscoveryResult` stay the single shared contract
+  both profiles implement — `index.ts` imports `discoverMcpAgent` (a
+  value) from `mcpProfile.ts`, which imports those two types (type-only,
+  erased at compile time) back from `index.ts`; safe because neither
+  side calls the other at module-top-level, only inside a function body
+  invoked later.
+- **MCP configs are project-scoped by convention, not home-scoped** —
+  unlike the default profile's `DEFAULT_ROOTS` probe under `$HOME`, the
+  `mcp` profile's "no explicit path" default is `process.cwd()` (an
+  `.mcp.json` is conventionally checked in alongside a repo, the same
+  way `tsc`/`eslint` default to the current directory). The `[path]`
+  CLI argument's meaning stays identical across profiles either way — a
+  directory to look in, never a config file path directly.
+- **`pinnedRef: null` (not `false`) for a remote/URL-based server** — a
+  server with no `command`/`args` has no package/version concept to be
+  pinned or not, so `CHAP-SUP-001`'s existing null-vs-false branch
+  ("unpinned" vs. "no version/ref info found") already renders this
+  honestly with zero changes to that check.
+- Tested at three layers: `test/discovery/mcpProfile.test.ts` (the pure
+  discovery function — file-name variants, missing/malformed config,
+  secret extraction, all three `pinnedRef` cases, permission facts,
+  cwd-default resolution, a malformed `mcpServers` entry, and
+  confirmation the default profile is byte-for-byte unaffected),
+  `test/scan/mcpProfileFullCatalog.test.ts` (the new fixture pair run
+  through the real, unmodified `ALL_CHECKS` catalog — a fullCatalog.
+  test.ts-style exact-count assertion, proving the "meaningful findings"
+  DoD end-to-end), and `test/cli.profile.test.ts` (`--profile`/
+  `CHAPERONE_PROFILE` through the real CLI). The invalid-`--profile`-
+  value hard-error path was verified manually (same `command.error()`/
+  `process.exit()` constraint as every other such path in this suite).
