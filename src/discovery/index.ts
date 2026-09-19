@@ -10,6 +10,7 @@ import { detectGitContext } from './gitContext.js';
 import { isRecord } from './jsonUtils.js';
 import { scanExistingLogContent } from './logContentScanner.js';
 import { extractLoggingModel } from './logging.js';
+import { discoverMcpAgent } from './mcpProfile.js';
 import { extractMemoryModel } from './memory.js';
 import { expandHome } from './pathUtils.js';
 import { getFilePermissionFact } from './permissions.js';
@@ -17,8 +18,13 @@ import { detectRecoverability } from './recoverability.js';
 import { discoverSidecarSecretFiles } from './sidecarSecrets.js';
 import { scanSkills } from './skillsScanner.js';
 
+/** 'default' (or unset) is the existing fictional Clawdbot/Moltbot/OpenClaw-style profile; 'mcp' is the real MCP server config profile (improvement_plan.md 3.1/Phase 17). */
+export type DiscoveryProfile = 'default' | 'mcp';
+export const DISCOVERY_PROFILES: readonly DiscoveryProfile[] = ['default', 'mcp'];
+
 export interface DiscoveryOptions {
   targetPath?: string;
+  profile?: DiscoveryProfile;
 }
 
 export interface DiscoveryResult {
@@ -28,6 +34,10 @@ export interface DiscoveryResult {
 
 /** Orchestrates discovery: locates and parses agent artifacts into a normalized, defensively-built AgentModel. */
 export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
+  if (options.profile === 'mcp') {
+    return discoverMcpAgent(options);
+  }
+
   const inspected: InspectedEntry[] = [];
   const skipped: SkippedEntry[] = [];
 
@@ -148,7 +158,8 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   return { targetRootResolved: true, model };
 }
 
-function emptyModel(
+/** Shared by both profiles' "nothing found" paths (a missing default install, or a missing MCP config) — one canonical all-absent AgentModel shape. */
+export function emptyModel(
   targetRootLabel: string,
   inspected: InspectedEntry[],
   skipped: SkippedEntry[],
