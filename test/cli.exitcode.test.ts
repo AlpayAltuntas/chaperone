@@ -148,6 +148,25 @@ describe('cli scan — exit codes and output (in-process, non-throwing paths onl
         expect(printed).toMatch(/^::(error|warning|notice)/);
         expect(printed).toContain('::notice::Chaperone scan:');
       });
+
+      // improvement_plan.md 3.10 (Phase 19) — self-contained HTML,
+      // tested against both fixtures per the phase's own DoD.
+      it('prints a complete, self-contained HTML document for --format html', () => {
+        run([
+          'node',
+          'chaperone',
+          'scan',
+          path.join('test', 'fixtures', fixture),
+          '--format',
+          'html',
+        ]);
+
+        const printed = logSpy.mock.calls[0]?.[0] as string;
+        expect(printed.startsWith('<!doctype html>')).toBe(true);
+        expect(printed).toContain('</html>');
+        expect(printed).toContain('Chaperone scan report');
+        expect(printed).not.toContain('<script');
+      });
     },
   );
 
@@ -198,6 +217,31 @@ describe('cli scan — exit codes and output (in-process, non-throwing paths onl
       const content = readFileSync(outFile, 'utf8');
       expect(content.includes('\u001b[')).toBe(false); // no ANSI escape sequences
       expect(content).toContain('CRITICAL');
+    });
+
+    // improvement_plan.md 3.10 (Phase 19) DoD, literally: "opens
+    // correctly as a static file". Writes a real .html file to disk
+    // and reads it back, same as a user double-clicking it in a file
+    // browser or opening it with `open`/`xdg-open` would.
+    it('writes a complete, self-contained .html file that reads back as a valid static document', () => {
+      const outFile = path.join(dir, 'report.html');
+
+      run([
+        'node',
+        'chaperone',
+        'scan',
+        path.join('test', 'fixtures', 'vulnerable-agent'),
+        '--format',
+        'html',
+        '--output',
+        outFile,
+      ]);
+
+      const content = readFileSync(outFile, 'utf8');
+      expect(content.startsWith('<!doctype html>')).toBe(true);
+      expect(content.trimEnd().endsWith('</html>')).toBe(true);
+      expect(content).not.toContain('<script');
+      expect(content).not.toContain('<link');
     });
   });
 });
