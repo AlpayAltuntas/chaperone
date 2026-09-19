@@ -44,7 +44,8 @@
     "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit",
     "docs:checks": "tsx scripts/generateChecksDoc.ts",
     "docs:checks:check": "tsx scripts/generateChecksDoc.ts --check",
-    "refresh:vulndb": "tsx scripts/refreshVulnDb.ts"
+    "refresh:vulndb": "tsx scripts/refreshVulnDb.ts",
+    "mutation": "stryker run"
   },
   "license": "MIT",
   "dependencies": {
@@ -57,6 +58,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@types/node": "26.6.1",
     "@typescript-eslint/eslint-plugin": "8.70.0",
     "@typescript-eslint/parser": "8.70.0",
