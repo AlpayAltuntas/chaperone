@@ -1297,3 +1297,53 @@ SeveritySchema)` since its keys are arbitrary check IDs, not an enum.
   `chaperoneConfig.ts`'s pure functions (`loadChaperoneConfig`,
   `applyChaperoneConfig`) are also unit-tested directly
   (`test/config/chaperoneConfig.test.ts`).
+
+## Improvement plan, Phase 15 — Baseline/diff mode
+
+- **A saved JSON report is the baseline format, exactly as the plan
+  anticipated** (`3.5`: "the schema already supports this for free") —
+  `loadBaseline` (`src/config/baseline.ts`) validates against the same
+  `ScanReportSchema` the JSON reporter already produces and enforces, so
+  `chaperone scan --format json --output baseline.json` is the entire
+  capture step. No separate baseline-specific format or schema.
+- **Fingerprint excludes `location.line`, deliberately**: `checkId` +
+  `location.filePath` + `location.detail` + `message` identifies "the
+  same finding" across two scans. Line number was the obvious first
+  candidate to include, but an edit anywhere above a finding in the same
+  file shifts every later line number, which would make an untouched
+  finding look "new" on the very next scan — the opposite of what a
+  baseline is for. The remaining fields are specific enough that two
+  genuinely different findings essentially never collide in practice.
+- **`--baseline` is a real reclassification, not a display filter** —
+  same category of decision as Phase 14's `severityOverrides`/`ignore`.
+  The plan's own motivation ("without... disabling `--fail-on` entirely")
+  only makes sense if the diffed-down set is what `--fail-on`/the
+  posture score evaluate, not just what's printed. Pipeline order is now:
+  raw findings → `applyChaperoneConfig` (Phase 14) → config-adjusted
+  findings → `findNewFindings` (this phase, only when `--baseline` is
+  passed) → the findings `--fail-on`/score/display-filters all see from
+  here on. Applied _after_ Phase 14's config step, not before — a
+  suppressed/reclassified finding shouldn't still count as "new" just
+  because it wasn't in an older baseline.
+- **No default-file auto-discovery for `--baseline`** (unlike
+  `.chaperonerc.json`'s `./` lookup) — the plan only ever describes an
+  explicit `--baseline <file>`, and unlike a missing suppression config
+  (which just means "no suppressions," a safe default), a silently
+  auto-picked-up _stale_ baseline is a much easier way to accidentally
+  hide a real regression. An explicit path (flag or `CHAPERONE_BASELINE`
+  env var, matching every other file-accepting flag's env-var
+  convention) that doesn't exist or doesn't validate hard-fails via
+  `command.error()`, consistent with `--config`/`--output`.
+- Tested via the real CLI, per the DoD's own framing ("a saved report
+  with a known subset of findings resolved/added"): current scan
+  exactly matching the baseline reports nothing; a baseline missing one
+  known finding reports exactly that finding as new and feeds
+  `--fail-on`; a baseline containing every current finding does not fail
+  the build even above `--fail-on`, despite real critical findings being
+  present; a report saved via `--output` is accepted directly as a
+  baseline. `findingFingerprint`/`findNewFindings`/`loadBaseline` are
+  also unit-tested directly (`test/config/baseline.test.ts`), including
+  the missing-file/invalid-JSON/invalid-schema error paths. The
+  missing/invalid-`--baseline`-file hard-error path itself was verified
+  manually (same `command.error()`/`process.exit()` constraint as every
+  other such path in this suite).

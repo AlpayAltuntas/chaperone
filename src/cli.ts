@@ -3,6 +3,7 @@ import { realpathSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
+import { findNewFindings, loadBaseline } from './config/baseline.js';
 import {
   applyChaperoneConfig,
   DEFAULT_CONFIG_FILENAME,
@@ -37,6 +38,7 @@ interface ScanCommandOptions {
   quiet?: boolean;
   summaryOnly?: boolean;
   config?: string;
+  baseline?: string;
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -228,6 +230,12 @@ export function buildProgram(): Command {
         `suppression/override config file (default: ./${DEFAULT_CONFIG_FILENAME} if present) — severityOverrides, ignore (with expires), disabledChecks, scoreWeights`,
       ).env('CHAPERONE_CONFIG'),
     )
+    .addOption(
+      new Option(
+        '--baseline <file>',
+        'a prior JSON report (chaperone scan --format json --output <file>) — report only findings new since then',
+      ).env('CHAPERONE_BASELINE'),
+    )
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
       // Everything below is wrapped so an unexpected bug (e.g. a reporter
       // throwing on some edge-case input) can never be mistaken for
@@ -245,6 +253,15 @@ export function buildProgram(): Command {
           rcConfig = loadChaperoneConfig(options.config).config;
         } catch (err) {
           command.error(errorMessage(err));
+        }
+
+        let baseline;
+        if (options.baseline !== undefined) {
+          try {
+            baseline = loadBaseline(options.baseline);
+          } catch (err) {
+            command.error(errorMessage(err));
+          }
         }
 
         // disabledChecks (improvement_plan.md 3.4) feeds the same --skip
@@ -279,7 +296,7 @@ export function buildProgram(): Command {
         // has consciously made, so — unlike the purely cosmetic display
         // filters just below — this result feeds --fail-on and the score
         // too, not just what's rendered (improvement_plan.md 3.4).
-        const { findings, warnings: configWarnings } = applyChaperoneConfig(
+        const { findings: configAdjustedFindings, warnings: configWarnings } = applyChaperoneConfig(
           rawFindings,
           rcConfig,
           knownIds,
@@ -288,9 +305,18 @@ export function buildProgram(): Command {
           console.error(`chaperone: warning: ${warning}`);
         }
 
+        // --baseline (improvement_plan.md 3.5) is, like severityOverrides/
+        // ignore just above, a real narrowing of what "counts" — the
+        // whole point is to let --fail-on gate on new findings only, not
+        // just to hide old ones from the printed report.
+        const findings =
+          baseline !== undefined
+            ? findNewFindings(configAdjustedFindings, baseline)
+            : configAdjustedFindings;
+
         // Category/severity filters are purely presentational — --fail-on
-        // below always evaluates the full (config-adjusted) `findings`,
-        // never this filtered view (improvement_plan.md 3.8).
+        // below always evaluates the full (config-/baseline-adjusted)
+        // `findings`, never this filtered view (improvement_plan.md 3.8).
         const displayFindings = applyDisplayFilters(findings, options);
 
         const metadata: ScanMetadata = {
