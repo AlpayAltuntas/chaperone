@@ -61,6 +61,7 @@ used, or that none were found.
 ```bash
 chaperone checks                # list every check Chaperone runs (id, title, severity)
 chaperone explain CHAP-SEC-001  # full detail for one check: detects, heuristic, remediation
+chaperone fix CHAP-SEC-001 ~/clawd --dry-run   # guided remediation — see below; NEVER run implicitly by scan
 chaperone version               # print the installed version
 chaperone scan --help           # full flag reference
 ```
@@ -405,6 +406,32 @@ feeds `--fail-on` and the posture score identically, and a check ID
 colliding with a built-in (or another plugin's) check is a hard error,
 never a silent override.
 
+### Guided remediation (`chaperone fix`)
+
+**A separate command, deliberately — never run during `scan`.**
+`chaperone scan`'s read-only guardrail (see [Security &
+ethics](#security--ethics)) applies to the scanner; `chaperone fix` is a
+materially different trust posture, named and packaged distinctly on
+purpose so "Chaperone found this" and "Chaperone changed this" are never
+confusable:
+
+```bash
+chaperone fix CHAP-SEC-001 ~/clawd                    # always prints the proposed change; writes nothing
+chaperone fix CHAP-SEC-001 ~/clawd --dry-run --write  # review it, then actually apply it
+```
+
+`--write` **requires** `--dry-run` to also be passed — the proposed
+change is always shown immediately before anything is written, in that
+order, every time; there is no way to write without it. Only `CHAP-SEC-001`
+has a working fixer in this release (replaces a literal secret in
+`config.yaml`/`.json` with a `${SUGGESTED_ENV_VAR_NAME}` reference,
+preserving the rest of the file's formatting and comments via a
+round-trip-preserving YAML edit) — a deliberately narrow v1, not parity
+with the full check catalog. The proposed change is always a masked,
+field-level summary (`llm.api_key: sk-…wxyz -> ${LLM_API_KEY}`), never a
+raw line diff of file text, so a real secret is never printed even in
+the "before" column.
+
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:
 
@@ -515,9 +542,16 @@ audit` for real, comprehensive coverage.
 
 These are hard requirements Chaperone holds itself to, not suggestions:
 
-1. **Read-only.** Chaperone never writes to, modifies, moves, or deletes
-   any file in the target installation — including a `--docker` target's
-   container: `docker cp` only ever reads from it.
+1. **Read-only.** `chaperone scan` never writes to, modifies, moves, or
+   deletes any file in the target installation — including a `--docker`
+   target's container: `docker cp` only ever reads from it. The one
+   exception in this entire codebase is the separate, explicitly opt-in
+   `chaperone fix` command (see [Guided
+   remediation](#guided-remediation-chaperone-fix) above) — and even
+   there, nothing is ever written without `--write`, which itself
+   requires `--dry-run` to also be passed, so the proposed change is
+   always shown immediately before anything is written. `chaperone
+scan` itself has no write capability at all, regardless of any flag.
 2. **No network.** Chaperone makes no outbound network connections during
    `chaperone scan` — verified by a test that fails if one occurs (see
    `test/scan/noNetworkCalls.test.ts`). `CHAP-SUP-003` matches
