@@ -10,6 +10,20 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: 'development'
+    ignore:
+      # Both confirmed broken as of 2026-09-19 (see DECISIONS.md, Phase 8):
+      # typescript 7.0.2 isn't supported by @typescript-eslint 8.70 yet
+      # (its own PR's CI run failed on this — not a guess), and vitest/
+      # @vitest/coverage-v8 5.0.1 require Node >=22.12, incompatible with
+      # this project's Node 20 floor. Ignoring the major-version bump only
+      # — patch/minor still flow through normally. Remove once
+      # typescript-eslint ships TS7 support (or the Node floor is raised).
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'vitest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/coverage-v8'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: 'github-actions'
     directory: '/'
