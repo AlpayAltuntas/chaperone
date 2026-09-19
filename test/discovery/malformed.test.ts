@@ -54,4 +54,29 @@ describe('discoverAgent — malformed and partial installs', () => {
     expect(model.config.data).toBeNull();
     expect(model.skipped.some((s) => /no config/.test(s.reason))).toBe(true);
   });
+
+  // Regression test for improvement_plan.md 1.11: a skill manifest is
+  // untrusted content (by definition, once CHAP-SUP-001 exists as a
+  // check), and its name/author get printed directly by the console
+  // reporter — a manifest embedding ANSI/control characters shouldn't be
+  // able to manipulate the user's terminal.
+  it('strips control characters (e.g. ANSI escapes) from a skill manifest name/author', () => {
+    writeFileSync(path.join(dir, 'config.yaml'), 'llm:\n  provider: anthropic\n');
+    const skillDir = path.join(dir, 'skills', 'hostile');
+    mkdirSync(skillDir, { recursive: true });
+    writeFileSync(
+      path.join(skillDir, 'package.json'),
+      JSON.stringify({ name: '\x1b[2Jhostile\x07', author: 'attacker\x1b[31m' }),
+    );
+
+    const { model } = discoverAgent({ targetPath: dir });
+
+    expect(model.skills).toHaveLength(1);
+    const skill = model.skills[0];
+    expect(skill?.name).toBe('hostile');
+    expect(skill?.provenance.author).toBe('attacker');
+    // Belt and suspenders: no control character (0x00-0x1F, 0x7F) anywhere.
+    // eslint-disable-next-line no-control-regex -- asserting control chars are absent
+    expect(/[\x00-\x1F\x7F]/.test(skill?.name ?? '')).toBe(false);
+  });
 });

@@ -9,6 +9,7 @@ import { extractGatewayModel } from './gateway.js';
 import { detectGitContext } from './gitContext.js';
 import { isRecord } from './jsonUtils.js';
 import { extractLoggingModel } from './logging.js';
+import { expandHome } from './pathUtils.js';
 import { getFilePermissionFact } from './permissions.js';
 import { detectRecoverability } from './recoverability.js';
 import { scanSkills } from './skillsScanner.js';
@@ -84,7 +85,7 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
     isRecord(rawParsed) && typeof rawParsed['skills_dir'] === 'string'
       ? rawParsed['skills_dir']
       : 'skills';
-  const skillsDir = path.resolve(targetRoot, configuredSkillsDir);
+  const skillsDir = path.resolve(targetRoot, expandHome(configuredSkillsDir));
   const skillsResult = scanSkills(skillsDir);
   inspected.push(...skillsResult.inspected);
   skipped.push(...skillsResult.skipped);

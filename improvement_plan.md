@@ -15,8 +15,8 @@ test files, 22 checks across 6 categories, 4 runtime dependencies
 stayed at the architecture level (regex-vs-AST, no real config schema)
 without actually re-reading every module for concrete bugs. This revision
 adds ~25 new items found that way: real false-positive/false-negative
-bugs in shipped checks, a gap against the *original spec's own stated
-scope* (persistent memory/state, §2, is never discovered or checked at
+bugs in shipped checks, a gap against the _original spec's own stated
+scope_ (persistent memory/state, §2, is never discovered or checked at
 all), nine new concrete check candidates, and a full pass over reporters,
 CLI, and test/process gaps that weren't covered before.
 
@@ -45,7 +45,7 @@ and it has real, known failure modes:
 - **The word-boundary bug we already found and worked around**: `\bdelete\b`
   doesn't match `deleteFile` (no non-word boundary between `e` and `F`).
   The `file-writer`/`messenger` fixtures had to reference the words in
-  *comments* to get real test coverage — a tell that the underlying
+  _comments_ to get real test coverage — a tell that the underlying
   heuristic is fragile, not just the fixture.
 
 A real fix means parsing skill source into an AST (TypeScript's own
@@ -56,7 +56,7 @@ the "agency" and "injection" categories inherits this layer's confidence.
 
 ### 1.2 `SECRET_KEY_PATTERN` misses almost every `*_key` name that isn't literally `api_key`
 
-**Impact: High. Effort: Low.** *(New finding from this pass.)*
+**Impact: High. Effort: Low.** _(New finding from this pass.)_
 
 `src/discovery/configParser.ts:5`:
 
@@ -79,7 +79,7 @@ those) but the impact is large given how central this check is.
 
 ### 1.3 `CHAP-NET-001` false-positives on valid loopback addresses outside the one literal it checks
 
-**Impact: Med. Effort: Low.** *(New finding from this pass.)*
+**Impact: Med. Effort: Low.** _(New finding from this pass.)_
 
 `src/checks/network/chapNet001GatewayExposed.ts:7`:
 
@@ -99,7 +99,7 @@ after normalization" rather than a literal string-equality set.
 
 ### 1.4 `~` (home-directory) paths in config are silently resolved wrong
 
-**Impact: Med. Effort: Low.** *(New finding from this pass.)*
+**Impact: Med. Effort: Low.** _(New finding from this pass.)_
 
 `src/discovery/logging.ts:24-25`:
 
@@ -123,7 +123,7 @@ install-root list.
 
 ### 1.5 Env-reference detection doesn't recognize default-value syntax (`${VAR:-default}`)
 
-**Impact: Med. Effort: Low.** *(New finding from this pass.)*
+**Impact: Med. Effort: Low.** _(New finding from this pass.)_
 
 `src/discovery/configParser.ts:9`:
 
@@ -143,7 +143,7 @@ closing brace.
 
 ### 1.6 `.env` / sidecar secret files are completely outside discovery's field of view
 
-**Impact: High. Effort: Med.** *(New finding from this pass.)*
+**Impact: High. Effort: Med.** _(New finding from this pass.)_
 
 Extremely common real-world pattern: `config.yaml` references
 `${API_KEY}`, and a colocated `.env` file (or `secrets.yaml`,
@@ -161,9 +161,9 @@ masking/permission/git-tracking pipeline the main config already gets.
 See also [2.9](#29-new-check-candidates) below for the specific new
 checks this unlocks.
 
-### 1.7 No discovery of persistent memory/state at all — a gap against the *original spec's own scope*
+### 1.7 No discovery of persistent memory/state at all — a gap against the _original spec's own scope_
 
-**Impact: High. Effort: Med.** *(New finding from this pass.)*
+**Impact: High. Effort: Med.** _(New finding from this pass.)_
 
 `instruction.md` §2 lists exactly five artifacts Chaperone's job is to
 discover: config file, skills directory, gateway daemon, **"Persistent
@@ -181,14 +181,14 @@ shape: a `memory_dir`/`state_dir`-style config field (mirroring
 "memory store is group/other readable" and "memory store is
 git-tracked/not gitignored," directly parallel to `CHAP-SEC-002/003`.
 
-### 1.8 Logging checks only ever look at *configuration*, never at what's already *in* existing log files
+### 1.8 Logging checks only ever look at _configuration_, never at what's already _in_ existing log files
 
-**Impact: Med. Effort: Med.** *(New finding from this pass.)*
+**Impact: Med. Effort: Med.** _(New finding from this pass.)_
 
 `CHAP-SEC-004`/`CHAP-OBS-002` both reason about whether logging is
-*configured* in a way that's likely to leak secrets going forward. Chaperone
+_configured_ in a way that's likely to leak secrets going forward. Chaperone
 never actually opens an existing log file and checks whether a secret
-*already* leaked into it from a past run (common in practice: someone
+_already_ leaked into it from a past run (common in practice: someone
 temporarily sets `level: debug` to chase a bug, a request containing an
 API key gets logged, then the level gets turned back down — the leaked
 value sits in the log file indefinitely). A bounded scan of existing log
@@ -210,7 +210,7 @@ even counted as "inspected," just silently absent from the model as if
 it doesn't exist. Given how much of the real self-hosted-agent ecosystem
 is Python (this was already implicitly assumed away in `DECISIONS.md`'s
 "the target agent ecosystem is Node/TS" rationale, which was an
-assumption about the *fictional* Clawdbot format, not a validated fact
+assumption about the _fictional_ Clawdbot format, not a validated fact
 about real agents), this is a major blind spot for real-world use. Ties
 directly into [2.1](#21-target-at-least-one-real-agent-framework) — any
 real framework adapter needs at minimum a Python capability-detection
@@ -219,9 +219,9 @@ pass (even a regex-based first cut: `subprocess`, `os.system`, `eval`,
 
 ### 1.10 No size/complexity guard before parsing the main config or any skill manifest/lockfile
 
-**Impact: Low (self-DoS hardening). Effort: Low.** *(New finding from this pass.)*
+**Impact: Low (self-DoS hardening). Effort: Low.** _(New finding from this pass.)_
 
-Skill *source* files get a `MAX_SOURCE_FILE_BYTES` (256 KB) guard before
+Skill _source_ files get a `MAX_SOURCE_FILE_BYTES` (256 KB) guard before
 reading (`skillsScanner.ts`), but the **main `config.yaml`/`.json`**
 (`discovery/index.ts`), every skill's `package.json`/lockfile, and
 `.gitignore` are all read and parsed with no size limit at all. A
@@ -238,7 +238,7 @@ already does for skill source.
 
 ### 1.11 Untrusted skill metadata (name/author) is interpolated into console output with no sanitization
 
-**Impact: Low. Effort: Low.** *(New finding from this pass.)*
+**Impact: Low. Effort: Low.** _(New finding from this pass.)_
 
 `skill.name` and `skill.provenance.author` come straight from a skill's
 own manifest — by definition untrusted content once `CHAP-SUP-001`
@@ -256,11 +256,11 @@ manifest-derived string before it reaches `formatConsoleReport`.
 
 ### 1.12 No distinction between "Chaperone found real issues" and "Chaperone itself errored" in the exit code
 
-**Impact: Med. Effort: Low.** *(New finding from this pass.)*
+**Impact: Med. Effort: Low.** _(New finding from this pass.)_
 
-`runChecks` already isolates a single broken *check* (catches the
+`runChecks` already isolates a single broken _check_ (catches the
 exception, emits an `info`-severity finding instead of crashing). But an
-unexpected error in a *reporter* (e.g. `renderReport` throwing on some
+unexpected error in a _reporter_ (e.g. `renderReport` throwing on some
 edge-case input) is not caught anywhere in `cli.ts` — it would surface as
 a raw Node stack trace and Node's default uncaught-exception exit code
 `1`. That's **indistinguishable from "findings met `--fail-on`"** to a
@@ -279,7 +279,7 @@ honors `.git/info/exclude` (a per-clone, never-committed exclude file)
 and a user's `core.excludesFile` (a global gitignore outside any repo).
 A file excluded via either mechanism would be a false positive for
 `CHAP-SEC-002` today. Separately, "not gitignored" isn't the same as
-"actually tracked" — a file could be merely *untracked and unignored*
+"actually tracked" — a file could be merely _untracked and unignored_
 (one `git add` away from being committed, but not yet in history), which
 is arguably lower-severity than a file that's actually been committed.
 Distinguishing the two would need shelling out to `git` (`git
@@ -302,7 +302,7 @@ security-relevant check seems like the right call here.
 
 **Impact: Med. Effort: High (real fix) / Low (mitigation).**
 
-Already a documented v1 limitation. It fires on *any* skill with a
+Already a documented v1 limitation. It fires on _any_ skill with a
 `package.json`, dragging down the posture score uniformly regardless of
 actual risk (`test/scan/fullCatalog.test.ts`: the hardened `clean-agent`
 fixture scores 55/D purely from this). Mitigation: demote to `info`
@@ -316,7 +316,7 @@ original spec's own §16 stretch goal.
 
 **Impact: Med. Effort: High.**
 
-Flags any skill with *both* shell-exec and network/fs capability in the
+Flags any skill with _both_ shell-exec and network/fs capability in the
 same file, regardless of whether one actually feeds the other. Meaningfully
 improving this needs the same AST work as 1.1, plus real variable
 data-flow tracking — a genuine static-analysis project, not a quick patch.
@@ -368,7 +368,7 @@ but worth a short list of one-level-nested fallbacks.
 
 Concrete, specific enough to implement directly (each would need its own
 fixture pair, same as every existing check) — this is the most
-directly-product-shaped part of this plan, since the check catalog *is*
+directly-product-shaped part of this plan, since the check catalog _is_
 the product.
 
 ### 2.1 `CHAP-SEC-005` — Secret already present in existing log content
@@ -376,7 +376,7 @@ the product.
 Scans existing log file content (bounded, e.g. last N KB or M lines) for
 secret-shaped strings, reusing the broadened `SECRET_KEY_PATTERN`-style
 matching or a generic high-entropy-string heuristic. Distinct from
-`CHAP-SEC-004`, which only reasons about whether logging *will* leak
+`CHAP-SEC-004`, which only reasons about whether logging _will_ leak
 going forward. See [1.8](#18-logging-checks-only-ever-look-at-configuration-never-at-what-is-already-in-existing-log-files).
 
 ### 2.2 `CHAP-SEC-006` — Sidecar secret file (`.env` etc.) exposed
@@ -434,7 +434,7 @@ group/other-readable or git-tracked-and-not-ignored, mirroring
 ### 2.9 `CHAP-INJ-005` — Inbound channels don't distinguish trust level
 
 `CHAP-INJ-003` today checks for a single, global `trust.tool_allowlist`.
-It doesn't check whether *different* channels should carry *different*
+It doesn't check whether _different_ channels should carry _different_
 trust levels — e.g. a public Discord server the agent listens on vs. a
 private, admin-only Telegram chat, currently treated identically once
 any allowlist exists at all. A per-channel (not just global) allowlist
@@ -464,13 +464,13 @@ in addition to) the invented Clawdbot-style format, add a discovery
 - A **generic adapter interface** instead of one fixed target: keep
   `AgentModel` as the stable core, make the config-locate/parse/skill-scan
   layer swappable per "profile" (`chaperone scan --profile mcp
-  ~/.config/claude`). Cleanly solves the fictional-format problem without
+~/.config/claude`). Cleanly solves the fictional-format problem without
   discarding the existing fixture-based test suite — the current format
   just becomes one profile among several.
 
 ### 3.2 Multi-root / batch scanning
 
-**Impact: Med. Effort: Med.** *(Missing from the first pass.)*
+**Impact: Med. Effort: Med.** _(Missing from the first pass.)_
 
 `chaperone scan --all ~/agents/*` or a small workspace-config file
 listing several agent installs, producing one aggregate report (or N
@@ -480,15 +480,15 @@ cleanly separate "one install → one model → findings."
 
 ### 3.3 Docker/container-aware scanning
 
-**Impact: Med. Effort: Med–High.** *(Missing from the first pass.)*
+**Impact: Med. Effort: Med–High.** _(Missing from the first pass.)_
 
 Many real self-hosted agents run inside a container. `chaperone scan
 --docker <container>` (inspecting a mounted volume or `docker exec`-ing a
 read-only listing) would meet users where they actually deploy. Also
 surfaces a subtlety worth designing around deliberately: containerized
 env-var injection (via `docker-compose.yml` `environment:`/`env_file:`)
-means the *literal secret* is often one layer removed from both the
-agent's config *and* Chaperone's own process environment — 
+means the _literal secret_ is often one layer removed from both the
+agent's config _and_ Chaperone's own process environment —
 [2.3](#23-chap-sec-007--config-references-an-environment-variable-that-isnt-actually-set)'s
 env-var-resolution check would need to account for this (e.g. optionally
 reading a referenced `docker-compose.yml`'s `env_file:`).
@@ -505,9 +505,13 @@ shape:
 {
   "severityOverrides": { "CHAP-SUP-003": "info" },
   "ignore": [
-    { "checkId": "CHAP-NET-001", "reason": "intentional — behind a VPN-only interface", "expires": "2026-12-31" }
+    {
+      "checkId": "CHAP-NET-001",
+      "reason": "intentional — behind a VPN-only interface",
+      "expires": "2026-12-31",
+    },
   ],
-  "disabledChecks": ["CHAP-OBS-003"]
+  "disabledChecks": ["CHAP-OBS-003"],
 }
 ```
 
@@ -521,7 +525,7 @@ overridable here too, not just check severities.
 
 **Impact: High. Effort: Med.**
 
-`chaperone scan ~/clawd --baseline last-scan.json` reports only *new*
+`chaperone scan ~/clawd --baseline last-scan.json` reports only _new_
 findings vs. a prior run — the standard shape for adopting a linter on an
 existing, imperfect codebase without either fixing everything on day one
 or disabling `--fail-on` entirely. A baseline file is just a saved JSON
@@ -536,7 +540,7 @@ creation, a scope-name bug only caught at the real registry — see
 `DECISIONS.md`). GitHub Actions OIDC "trusted publishing" removes the
 token/2FA friction for future releases entirely; `npm publish
 --provenance` cryptographically ties the package to the exact build that
-produced it — a meaningful trust signal for a *security* tool, and nearly
+produced it — a meaningful trust signal for a _security_ tool, and nearly
 free once CI-based publishing exists.
 
 ### 3.7 `chaperone explain <check-id>`
@@ -554,12 +558,12 @@ below so the two data sources can't drift apart.
 
 `--only-category secrets,network` / `--skip-category observability`
 (more ergonomic than listing every ID by hand), and `--min-severity
-medium` as a *display* filter distinct from `--fail-on` (which only
+medium` as a _display_ filter distinct from `--fail-on` (which only
 controls the exit code).
 
 ### 3.9 Additional reporters: Markdown and GitHub Actions annotations
 
-**Impact: Med. Effort: Low–Med.** *(Markdown reporter missing from the first pass.)*
+**Impact: Med. Effort: Low–Med.** _(Markdown reporter missing from the first pass.)_
 
 - **`--format markdown`**: a PR-comment-ready table — cheaper to build
   than the HTML reporter, and directly useful for the CI use case already
@@ -578,7 +582,7 @@ richer than plain console text pasted into a doc.
 
 ### 3.11 Console reporter: `--quiet`/`--summary-only` modes
 
-**Impact: Low. Effort: Low.** *(Missing from the first pass.)*
+**Impact: Low. Effort: Low.** _(Missing from the first pass.)_
 
 `--summary-only` prints just the summary line + score, no per-finding
 detail — a quick health-check use case. `--quiet` prints one line per
@@ -588,7 +592,7 @@ artifact and console output is just a glance.
 
 ### 3.12 Environment-variable support for common CLI flags
 
-**Impact: Low. Effort: Low.** *(Missing from the first pass.)*
+**Impact: Low. Effort: Low.** _(Missing from the first pass.)_
 
 `CHAPERONE_FAIL_ON=high`, `CHAPERONE_FORMAT=json`, etc. — many CI systems
 prefer environment-based configuration over CLI flags for shared/reusable
@@ -602,9 +606,9 @@ sourced from `process.env`.
 The `Check` interface (`src/engine/types.ts`) is already a small, clean
 contract (`{ id, title, severity, category, owasp, run(model) }`) — the
 work is a loading mechanism (`--plugin ./my-checks.js` or a config-file
-array of check modules). Worth an explicit design note: a plugin *is*
+array of check modules). Worth an explicit design note: a plugin _is_
 arbitrary code with full access to `AgentModel`, no sandboxing — exactly
-the kind of thing a reviewer of a *security* tool would ask about
+the kind of thing a reviewer of a _security_ tool would ask about
 immediately, so this should be documented as an explicit trust boundary
 ("loading a plugin means trusting it fully") rather than left implicit.
 
@@ -623,7 +627,7 @@ this" are never confusable.
 
 ### 3.15 Opt-in, explicit update check (careful framing)
 
-**Impact: Low. Effort: Low.** *(Missing from the first pass — floated cautiously.)*
+**Impact: Low. Effort: Low.** _(Missing from the first pass — floated cautiously.)_
 
 `chaperone --check-update` as a separate, manually-invoked command (never
 run implicitly during `scan`, never on by default) could nudge users
@@ -648,7 +652,7 @@ behavior for existing CI setups), even before 1.0.0.
 
 ### 4.2 Generate `CHECKS.md` from the check registry instead of hand-maintaining it
 
-**Impact: Med. Effort: Med.** *(Missing from the first pass.)*
+**Impact: Med. Effort: Med.** _(Missing from the first pass.)_
 
 Every check module already carries id/title/severity/category/owasp as
 exported constants. `CHECKS.md` is currently hand-written and
@@ -665,7 +669,7 @@ read from too.
 
 **Impact: Med. Effort: Low.**
 
-For a *security tool*, no documented vulnerability-disclosure path is a
+For a _security tool_, no documented vulnerability-disclosure path is a
 notable gap — both for bugs in Chaperone itself, and for the subtler
 case of "this check produces a false negative that matters" (arguably a
 security-relevant report in its own right for a scanner). Should state:
@@ -674,13 +678,13 @@ are in scope.
 
 ### 4.4 Automate the packaged-binary smoke test in CI
 
-**Impact: Med. Effort: Low.** *(Missing from the first pass, but referenced by DECISIONS.md.)*
+**Impact: Med. Effort: Low.** _(Missing from the first pass, but referenced by DECISIONS.md.)_
 
 The `npm pack` → install into a scratch dir → run the installed binary
 check that caught the real symlink-entrypoint bug is currently a manual
 step documented in the README's contributing notes. It should run in CI
 on every push (not just before a publish) — it's cheap, and it's the
-*only* check in the whole pipeline that would have caught that bug before
+_only_ check in the whole pipeline that would have caught that bug before
 it reached a real user.
 
 ### 4.5 No coverage reporting
@@ -712,7 +716,7 @@ real-world counterexamples.
 
 ### 4.8 No documented positioning vs. adjacent tools
 
-**Impact: Low. Effort: Low.** *(Missing from the first pass.)*
+**Impact: Low. Effort: Low.** _(Missing from the first pass.)_
 
 Generic secret scanners (gitleaks, trufflehog) and dependency scanners
 (`npm audit`, Snyk) already exist and do parts of what
@@ -728,7 +732,7 @@ to complement those tools, not replace them.
 
 ## Part 5 — Testing & QA process gaps
 
-*(New section — not present in the first pass.)*
+_(New section — not present in the first pass.)_
 
 ### 5.1 No golden-file/snapshot testing of full reporter output
 
@@ -757,7 +761,7 @@ test suite.
 
 No test exercises discovery against a large synthetic install (e.g. 500
 skills, deep source trees) to establish how scan time scales. Not urgent
-at today's usage, but worth having *before* it becomes a real complaint
+at today's usage, but worth having _before_ it becomes a real complaint
 rather than after.
 
 ### 5.4 No mutation testing
@@ -786,7 +790,7 @@ in parallel:
    exact check that caught our real bug), 4.5, 4.6, 4.7, 4.2.
 3. **Close the biggest spec gap**: 1.6 (`.env`/sidecar files) and 1.7
    (persistent memory/state) — both directly expand what the existing
-   secrets-hygiene checks *see*, without needing new architecture, and
+   secrets-hygiene checks _see_, without needing new architecture, and
    1.7 specifically closes a gap against the original spec's own stated
    scope. Ship alongside 2.1/2.2/2.8, the checks these unlock.
 4. **Trust & accuracy (medium-high effort, raises the floor)**: 1.1
@@ -888,7 +892,7 @@ dry run; documented in `DECISIONS.md` as the replacement for the manual
 
 ### Phase 5 — Discovery: sidecar secret files + persistent memory/state
 
-Both expand what discovery *sees*; no new architecture needed, but this
+Both expand what discovery _sees_; no new architecture needed, but this
 is the phase that actually closes the two biggest gaps in Part 1.
 
 - `1.6` Discover `.env`/`.env.local`/`secrets.yaml`/`secrets.json`

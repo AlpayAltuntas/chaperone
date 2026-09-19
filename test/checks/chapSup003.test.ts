@@ -22,6 +22,10 @@ describe('CHAP-SUP-003 — dependency manifest not checked for known vulnerabili
 
     const skillNames = findings.map((f) => f.location.detail).sort();
     expect(skillNames).toEqual(['command-relay', 'file-writer', 'shell-runner', 'web-fetcher']);
+    // Regression test for improvement_plan.md 1.15 (mitigation half): this
+    // signal is too weak to trip --fail-on high or meaningfully move the
+    // posture score on its own.
+    expect(findings.every((f) => f.severity === 'info')).toBe(true);
   });
 
   it('also fires on every skill with a manifest in the clean fixture (documented v1 limitation)', () => {

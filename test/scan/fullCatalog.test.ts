@@ -84,7 +84,9 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-OBS-003': 1,
     });
     expect(findings).toHaveLength(35);
-    // 3*25 (critical) + 17*15 (high) + 14*7 (medium) + 1*3 (low) = 431 -> floored at 0.
+    // 3*25 (critical) + 13*15 (high) + 14*7 (medium) + 1*3 (low) + 4*0
+    // (info — CHAP-SUP-003, demoted per improvement_plan.md 1.15) = 371
+    // -> floored at 0.
     expect(computeScore(findings)).toEqual({ score: 0, band: 'F' });
   });
 });
@@ -103,9 +105,10 @@ describe('full check catalog — clean-agent (chmod 600: locked down)', () => {
 
     expect(internalErrors).toEqual([]);
     expect(countByCheckId(findings)).toEqual({ 'CHAP-SUP-003': 3 });
-    // Illustrates the CHECKS.md caveat: even a hardened install doesn't
-    // score a full 100, purely because of CHAP-SUP-003's deliberately weak
-    // v1 heuristic (3 High findings = 3*15 = 45 deducted).
-    expect(computeScore(findings)).toEqual({ score: 55, band: 'D' });
+    // CHAP-SUP-003 is `info` severity (improvement_plan.md 1.15,
+    // demoted from `high`) precisely so a signal this weak — 3 findings
+    // that only ever say "run npm audit yourself" — can't drag a
+    // genuinely hardened install's score down at all.
+    expect(computeScore(findings)).toEqual({ score: 100, band: 'A' });
   });
 });
