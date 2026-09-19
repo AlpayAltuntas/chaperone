@@ -43,7 +43,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit",
     "docs:checks": "tsx scripts/generateChecksDoc.ts",
-    "docs:checks:check": "tsx scripts/generateChecksDoc.ts --check"
+    "docs:checks:check": "tsx scripts/generateChecksDoc.ts --check",
+    "refresh:vulndb": "tsx scripts/refreshVulnDb.ts"
   },
   "license": "MIT",
   "dependencies": {

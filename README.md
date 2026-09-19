@@ -130,7 +130,7 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 49 findings across all 29 checks):
+the real run reports 44 findings across all 29 checks):
 
 ```
 Chaperone scan report
@@ -153,7 +153,7 @@ CRITICAL (5)
 
   ... 3 more critical-severity findings ...
 
-HIGH (19)
+HIGH (20)
 
   [CHAP-SEC-001] Plaintext secrets in config
     Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
@@ -161,11 +161,11 @@ HIGH (19)
     OWASP: LLM06: Sensitive Information Disclosure
     Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).
 
-  ... 18 more high-severity findings ...
+  ... 19 more high-severity findings ...
 
 MEDIUM (18)  LOW (1)  ...
 
-Summary: 49 findings (5 critical, 19 high, 18 medium, 1 low, 6 info) — posture score 0/100 (F)
+Summary: 44 findings (5 critical, 20 high, 18 medium, 1 low, 0 info) — posture score 0/100 (F)
 Inspected 18 paths, skipped 0.
 ```
 
@@ -359,10 +359,14 @@ do, generically and well:
   secret detection (`CHAP-SEC-001/002`) is narrower (config-file-shaped,
   no history scanning) but knows what an agent config file's fields mean
   (a `gateway.auth.token` vs. an arbitrary string).
-- **`npm audit`** / **[Snyk](https://snyk.io)** — real, live dependency
-  vulnerability databases. `CHAP-SUP-003` deliberately _doesn't_ try to
-  compete here — it points you at `npm audit` rather than reimplementing
-  it, because Chaperone makes no outbound network calls during a scan.
+- **`npm audit`** / **[Snyk](https://snyk.io)** — real, live, comprehensive
+  dependency vulnerability databases. `CHAP-SUP-003` (Phase 18) matches
+  dependencies against a small, bundled, _offline_ snapshot of known
+  advisories for a curated set of well-known packages (refreshed
+  periodically out-of-band, never fetched live during a scan) — a real
+  match against real data, but nowhere near `npm audit`'s live coverage
+  of the whole npm ecosystem. Run `npm audit` too; Chaperone doesn't
+  replace it.
 
 **What none of those tools cover, and what Chaperone actually exists
 for**, is everything agent-specific: whether a skill can run arbitrary
@@ -381,12 +385,13 @@ audit. Worth knowing before you trust its output:
   agents this targets (Clawdbot/Moltbot/OpenClaw-style). The config and
   skill-manifest shape Chaperone expects is a documented, plausible
   convention, not a verified standard — see `DECISIONS.md`.
-- **`CHAP-SUP-003`'s heuristic is deliberately weak.** Chaperone makes no
-  outbound network calls (see below), so it can't check dependencies
-  against a live vulnerability database. It surfaces every dependency
-  manifest it finds and points you at `npm audit` — meaning it fires on a
-  well-hardened install exactly as readily as an insecure one. This is a
-  known, spec-mandated limitation, not a bug.
+- **`CHAP-SUP-003`'s offline vulnerability snapshot is small and
+  curated, not comprehensive.** It only tracks a handful of well-known
+  npm packages (see `src/checks/shared/vulnDb.ts`), refreshed
+  periodically out-of-band via `npm run refresh:vulndb` — never fetched
+  live during a scan (see [Security & ethics](#security--ethics)). A
+  vulnerable dependency outside that list is invisible to it; run `npm
+audit` for real, comprehensive coverage.
 - **A few heuristics are static proxies, not confirmed findings** — most
   notably `CHAP-INJ-002` ("tool output treated as trusted"), which flags
   the _shape_ of a risky pattern (a skill that both ingests external data
@@ -410,8 +415,13 @@ These are hard requirements Chaperone holds itself to, not suggestions:
 1. **Read-only.** Chaperone never writes to, modifies, moves, or deletes
    any file in the target installation.
 2. **No network.** Chaperone makes no outbound network connections during
-   a scan. (This is also why `CHAP-SUP-003` defers to `npm audit` rather
-   than calling an advisory API.)
+   `chaperone scan` — verified by a test that fails if one occurs (see
+   `test/scan/noNetworkCalls.test.ts`). `CHAP-SUP-003` matches
+   dependencies against a small, bundled, offline snapshot rather than a
+   live advisory API for exactly this reason. The one deliberate
+   exception in this whole codebase is `npm run refresh:vulndb` — an
+   explicit, maintainer-run, out-of-band script (never part of `scan`,
+   `test`, `build`, or CI) that refreshes that snapshot from OSV.dev.
 3. **No exfiltration.** Anything Chaperone reads stays local. Reports are
    written only where you direct them. Secrets are masked in all output.
 4. **Defensive framing only.** Chaperone identifies weaknesses in your own
@@ -439,6 +449,13 @@ changes. Every check needs a true-positive fixture (fires) and a
 true-negative fixture (stays silent); see `test/checks/` for the existing
 pattern and `test/fixtures/{vulnerable,clean}-agent/` for the sample
 installs. Update `CHECKS.md` to match.
+
+**Refreshing the offline vulnerability snapshot** (`CHAP-SUP-003`,
+`src/checks/shared/vulnDb.ts`): run `npm run refresh:vulndb`. This is the
+one script in the repo that makes an outbound network call (to
+[OSV.dev](https://osv.dev)) — it is never run by `scan`, `test`, `build`,
+or CI. Review the regenerated file's diff like any other source change
+before committing it.
 
 **Before publishing** (or after any change to `src/cli.ts`), verify the
 actual packaged binary, not just `npm test` — a real bug (the CLI silently

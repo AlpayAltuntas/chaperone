@@ -96,7 +96,7 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-AGY-004': 3,
       'CHAP-SUP-001': 6,
       'CHAP-SUP-002': 6,
-      'CHAP-SUP-003': 6,
+      'CHAP-SUP-003': 1,
       'CHAP-SUP-004': 2,
       'CHAP-SUP-005': 1,
       'CHAP-SUP-006': 1,
@@ -112,10 +112,12 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-OBS-003': 1,
       'CHAP-OBS-004': 1,
     });
-    expect(findings).toHaveLength(49);
-    // 5*25 (critical) + 19*15 (high) + 18*7 (medium) + 1*3 (low) + 6*0
-    // (info — CHAP-SUP-003, demoted per improvement_plan.md 1.15) = 539
-    // -> floored at 0.
+    expect(findings).toHaveLength(44);
+    // 5*25 (critical) + 20*15 (high) + 18*7 (medium) + 1*3 (low) + 0*0
+    // (info) = 554 -> floored at 0. CHAP-SUP-003 (Phase 18) now matches
+    // plugin-loader's lodash@^4.17.15 against the offline vulnerability
+    // snapshot at real `high` severity, instead of firing `info` on
+    // every skill with a manifest.
     expect(computeScore(findings)).toEqual({ score: 0, band: 'F' });
   });
 });
@@ -140,17 +142,17 @@ describe('full check catalog — clean-agent (chmod 600: locked down)', () => {
     vi.unstubAllEnvs();
   });
 
-  it('reports only CHAP-SUP-003 (a documented v1 limitation, not a defect)', () => {
+  it('reports no findings at all — a genuine true negative, unlike CHAP-SUP-003 pre-Phase-18', () => {
     dir = copyFixtureWithPermissions('clean-agent', 0o600);
     const { model } = discoverAgent({ targetPath: dir });
     const { findings, internalErrors } = runChecks(model, ALL_CHECKS);
 
     expect(internalErrors).toEqual([]);
-    expect(countByCheckId(findings)).toEqual({ 'CHAP-SUP-003': 4 });
-    // CHAP-SUP-003 is `info` severity (improvement_plan.md 1.15,
-    // demoted from `high`) precisely so a signal this weak — 3 findings
-    // that only ever say "run npm audit yourself" — can't drag a
-    // genuinely hardened install's score down at all.
+    // Phase 18: CHAP-SUP-003 now matches real dependency versions
+    // against the offline vulnerability snapshot instead of firing on
+    // any manifest — weather's lodash@^4.18.2 is a patched version, so
+    // this check (and therefore the whole fixture) is finally silent.
+    expect(countByCheckId(findings)).toEqual({});
     expect(computeScore(findings)).toEqual({ score: 100, band: 'A' });
   });
 });

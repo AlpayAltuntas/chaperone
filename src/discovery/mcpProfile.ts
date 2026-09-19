@@ -154,7 +154,7 @@ function mcpServerToSkill(
     // the MCP config itself is already the provenance signal above, so
     // CHAP-SUP-002/003/006 (npm-manifest-shaped checks) correctly stay
     // silent rather than being forced onto a shape they don't fit.
-    dependencies: { manifestPath: null, lockfilePath: null, names: [] },
+    dependencies: { manifestPath: null, lockfilePath: null, names: [], versionsByName: {} },
     installScripts: { scripts: [] },
     confirmationRequired: null,
     domainAllowlist: null,

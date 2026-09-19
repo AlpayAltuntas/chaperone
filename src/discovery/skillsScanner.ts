@@ -76,10 +76,18 @@ function scanOneSkill(
   const packageJsonPath = manifestPath?.endsWith('package.json')
     ? manifestPath
     : findFirstExisting(dir, ['package.json']);
+  const declaredDependencies = extractDependencies(
+    packageJsonPath,
+    manifestPath,
+    manifest,
+    inspected,
+    skipped,
+  );
   const dependencies = {
     manifestPath: packageJsonPath,
     lockfilePath: findFirstExisting(dir, LOCKFILE_NAMES),
-    names: extractDependencyNames(packageJsonPath, manifestPath, manifest, inspected, skipped),
+    names: Object.keys(declaredDependencies),
+    versionsByName: declaredDependencies,
   };
   if (dependencies.lockfilePath) {
     inspected.push({ path: dependencies.lockfilePath, kind: 'skill-lockfile' });
@@ -153,28 +161,40 @@ function extractManifestStringArray(
 }
 
 /**
- * Reads package.json's "dependencies" keys — feeds CHAP-SUP-006's
- * typosquat check. Reuses the already-parsed primary manifest when
- * package.json *is* that manifest; otherwise (a skill.json/skill.yaml
- * primary manifest with a separate package.json alongside it) reads
- * package.json specifically, since dependency names only ever come from
- * that file regardless of which manifest format the skill primarily uses.
+ * Reads package.json's "dependencies" object (name -> version specifier
+ * string) — the keys feed CHAP-SUP-006's typosquat check, the values
+ * feed CHAP-SUP-003's offline vulnerability-database match
+ * (improvement_plan.md 1.15/Phase 18). Reuses the already-parsed primary
+ * manifest when package.json *is* that manifest; otherwise (a
+ * skill.json/skill.yaml primary manifest with a separate package.json
+ * alongside it) reads package.json specifically, since dependency info
+ * only ever comes from that file regardless of which manifest format the
+ * skill primarily uses.
  */
-function extractDependencyNames(
+function extractDependencies(
   packageJsonPath: string | null,
   manifestPath: string | null,
   manifest: Record<string, unknown> | null,
   inspected: InspectedEntry[],
   skipped: SkippedEntry[],
-): string[] {
+): Record<string, string> {
   if (packageJsonPath === null) {
-    return [];
+    return {};
   }
   const packageJson =
     packageJsonPath === manifestPath ? manifest : readManifest(packageJsonPath, inspected, skipped);
   const deps =
     packageJson && isRecord(packageJson['dependencies']) ? packageJson['dependencies'] : null;
-  return deps ? Object.keys(deps) : [];
+  if (!deps) {
+    return {};
+  }
+  const result: Record<string, string> = {};
+  for (const [name, specifier] of Object.entries(deps)) {
+    if (typeof specifier === 'string') {
+      result[name] = specifier;
+    }
+  }
+  return result;
 }
 
 function readManifest(
