@@ -807,3 +807,308 @@ in parallel:
    system), 3.14 (guided remediation — deliberately last, given the trust
    and scoping questions it raises), 3.15 (update check, if pursued at
    all).
+
+---
+
+## Implementation Plan
+
+The roadmap above groups work by impact/effort tier; this turns it into
+concrete, ordered phases — the same shape `instruction.md` §12 used for
+the original v1 build. **Each phase is scoped to land as one commit** on
+this branch. Item numbers (e.g. `1.2`, `2.6`) reference the analysis
+above so every phase is traceable back to why it exists.
+
+Phases are listed in a default execution order (mostly: cheap/independent
+fixes first, then foundational work, then whatever it unblocks), but most
+are actually independent of each other — the explicit dependency notes
+below are the exceptions, not the rule. Feel free to reorder/interleave
+in practice.
+
+Each phase ends with the same bar every v1 phase did: build ✅, lint ✅,
+typecheck ✅, tests ✅ (new TP/TN fixtures for any new/changed check), and
+— once Phase 2 lands — a `CHANGELOG.md` entry.
+
+### Phase 1 — Correctness bug fixes
+
+No design decisions required; each is a small, isolated fix with a
+regression test.
+
+- `1.2` Broaden `SECRET_KEY_PATTERN` to catch `*_key` names generally, not
+  just `api_key`
+- `1.3` Fix `CHAP-NET-001` to recognize all of `127.0.0.0/8` and both
+  IPv6 loopback forms, not just the two literals
+- `1.4` Expand `~`/`~/` in config-sourced paths before resolving
+  (`logging.path` today; audit for other path-shaped config fields)
+- `1.5` Recognize `${VAR:-default}`/`${VAR:=default}`/`${VAR:?msg}` as
+  env-references, not literal secrets
+- `1.11` Strip control/ANSI-escape characters from untrusted
+  manifest-derived strings before they reach the console reporter
+- `1.12` Top-level try/catch in `cli.ts`'s scan action distinguishing a
+  tool error (new distinct exit code) from findings meeting `--fail-on`
+- `1.15` (mitigation half only) Demote `CHAP-SUP-003` to `info` severity
+  pending the real offline-DB fix (Phase 18)
+
+**Definition of done:** a failing-first regression test per bug, full
+verification suite green, `DECISIONS.md` entry per fix (same pattern used
+throughout the v1 build).
+
+### Phase 2 — Repo hygiene & documentation
+
+- `4.1` `CHANGELOG.md` (Keep a Changelog format), backfilled with Phase 1
+- `4.3` `SECURITY.md` (disclosure path; explicitly covers both "bug in
+  Chaperone" and "false negative in a check" as in-scope report types)
+- `4.7` Issue template (bug report) + PR template
+- `4.8` "How Chaperone relates to gitleaks/trufflehog/npm audit/Snyk"
+  section in the README
+
+**Definition of done:** files exist, linked from README where relevant;
+no code changes.
+
+### Phase 3 — CI pipeline hardening
+
+- `4.4` Automate the `npm pack` → install → run-the-binary smoke test
+  (currently a manual README step) as a CI job on every push — this is
+  the one check that would have caught the real symlink-entrypoint bug
+  before it shipped
+- `4.6` `.github/dependabot.yml` + an `npm audit`/`npm audit signatures`
+  CI step for Chaperone's own dependencies
+- `4.5` Wire up `@vitest/coverage-v8`, add a coverage badge to the README
+
+**Definition of done:** CI green with all new steps; coverage badge
+renders on the README.
+
+### Phase 4 — Release automation
+
+- `3.6` GitHub Actions OIDC "trusted publishing" release workflow
+  (tag-triggered), `npm publish --provenance`
+
+**Definition of done:** workflow exists and is exercised at least via a
+dry run; documented in `DECISIONS.md` as the replacement for the manual
+2FA/token publish flow used for `0.1.0`.
+
+### Phase 5 — Discovery: sidecar secret files + persistent memory/state
+
+Both expand what discovery *sees*; no new architecture needed, but this
+is the phase that actually closes the two biggest gaps in Part 1.
+
+- `1.6` Discover `.env`/`.env.local`/`secrets.yaml`/`secrets.json`
+  alongside the main config; feed through the existing masking/
+  permission/git-tracking pipeline
+- `1.7` Discover a `memory_dir`/`state_dir`-style config field
+  (mirroring `skills_dir`), add to `AgentModel`
+- `2.2` New check `CHAP-SEC-006` (sidecar secret file exposed) — unlocked
+  by `1.6`
+- `2.8` New check `CHAP-OBS-004` (memory/state store exposed) — unlocked
+  by `1.7`
+
+**Definition of done:** new `AgentModel` fields, two new checks with
+TP/TN fixtures, `CHECKS.md` updated.
+
+### Phase 6 — New standalone checks
+
+Independent of each other and of Phase 5; grouped only because both are
+small, self-contained new checks.
+
+- `2.3` `CHAP-SEC-007` — config references an env var that isn't set
+  (explicitly advisory/best-effort; document the caveat prominently in
+  its own message text, not just `CHECKS.md`)
+- `2.1` `CHAP-SEC-005` — secret already present in existing log content
+
+**Definition of done:** two new checks with TP/TN fixtures, `CHECKS.md`
+updated.
+
+### Phase 7 — CLI UX round 2
+
+- `3.8` `--only-category`/`--skip-category`, `--min-severity` (display
+  filter, distinct from `--fail-on`)
+- `3.11` `--quiet` and `--summary-only` console modes
+- `3.12` Environment-variable support for common flags
+  (`CHAPERONE_FAIL_ON`, `CHAPERONE_FORMAT`, etc.)
+
+**Definition of done:** new flags tested (extending the existing
+`test/cli.options.test.ts` pattern), `--help` output and README's flag
+table updated.
+
+### Phase 8 — Generated docs
+
+- `4.2` Script (`npm run docs:checks`) that regenerates `CHECKS.md`'s
+  catalog table from the `ALL_CHECKS` registry, so the two can't drift
+- `3.7` `chaperone explain <check-id>` subcommand, reading from the same
+  source `4.2` generates from
+
+**Definition of done:** `CHECKS.md` generation is scripted and CI-checked
+(fail if committed `CHECKS.md` is stale vs. the registry); `explain`
+tested.
+
+### Phase 9 — Additional reporters
+
+- `3.9` `--format markdown` (PR-comment-ready), GitHub Actions
+  `::warning file=...::`-style annotation output
+
+**Definition of done:** new format(s) tested against both fixtures,
+README's format table updated.
+
+### Phase 10 — AST-based capability detection (foundation)
+
+The big one. Likely deserves its own sub-planning pass when it's actually
+started, but as a single phase:
+
+- `1.1` Replace regex-based shell/fs/network/destructive-keyword
+  detection in `skillsScanner.ts` with real AST parsing (TypeScript
+  compiler API or a lighter JS parser) for `.js`/`.ts` skills
+
+**Definition of done:** all existing checks that depend on capability
+detection (`CHAP-AGY-001..004`, `CHAP-INJ-002`) still pass against both
+fixtures with equivalent-or-better results; the word-boundary workaround
+in the `file-writer`/`messenger` fixtures (comments instead of real
+standalone-word source) can be removed since a real AST pass doesn't have
+that limitation; trade-offs documented in `DECISIONS.md`.
+
+**Depends on:** nothing, but Phase 11 depends on this.
+
+### Phase 11 — New checks unlocked by AST work
+
+- `2.6` `CHAP-SUP-005` — obfuscated/dynamically-evaluated code
+  (`eval`/`new Function`/`atob`-then-eval chains)
+- `2.7` `CHAP-SUP-006` — typosquat-risk dependency name
+- `1.16` Real data-flow improvement to `CHAP-INJ-002` (does ingested data
+  actually reach the exec call, not just "both capabilities present")
+- `2.9` `CHAP-INJ-005` — per-channel trust-level distinction
+
+**Depends on:** Phase 10.
+
+**Definition of done:** new/improved checks with TP/TN fixtures.
+
+### Phase 12 — Real `.gitignore` semantics
+
+- `1.14` Replace the hand-rolled matcher in
+  `checks/shared/gitignoreMatch.ts` with the `ignore` npm package (`**`,
+  nested `.gitignore` support)
+- `1.13` `CHAP-SEC-002`: account for `.git/info/exclude` and
+  `core.excludesFile`; consider the tracked-vs-untracked nuance (decide
+  explicitly whether this is worth the new `git`-subprocess I/O surface,
+  and document the decision either way)
+
+**Definition of done:** `CHAP-SEC-002` tested against nested-`.gitignore`
+and `**`-pattern cases that were previously known gaps.
+
+### Phase 13 — Line numbers in findings
+
+- `1.17` Wire `YAML.parseDocument`'s source ranges through the masking
+  pass so YAML-config findings can report a line number
+
+**Definition of done:** `Finding.location.line` is non-null for at least
+`CHAP-SEC-001`-style findings against a YAML config; JSON configs remain
+`null` (documented, not silently inconsistent).
+
+### Phase 14 — Suppression config file
+
+- `3.4` `.chaperonerc.json` support: `severityOverrides`,
+  `ignore` (with `expires`), `disabledChecks`; extend to also allow
+  overriding `SEVERITY_SCORE_WEIGHT`
+
+**Definition of done:** all three config shapes tested; an expired
+suppression produces a warning, not a silent pass-through; `--config
+<file>` flag documented.
+
+### Phase 15 — Baseline/diff mode
+
+- `3.5` `--baseline <file>` reports only findings new since a prior saved
+  JSON report
+
+**Depends on:** none technically, but most useful once Phase 14 exists
+(a real install accumulates both suppressions and a baseline over time).
+
+**Definition of done:** tested against a saved report with a known subset
+of findings resolved/added.
+
+### Phase 16 — Non-JS skill support (first cut)
+
+- `1.9` Python capability detection (regex-based first cut: `subprocess`,
+  `os.system`, `eval`, `requests.*`, etc.) — same fragility as the
+  pre-Phase-10 JS approach, explicitly documented as a v1-equivalent
+  limitation for Python, not held to the AST-based bar Phase 10 set for
+  JS/TS
+
+**Definition of done:** new Python fixture skills (vulnerable + clean),
+capability detection extended, `SOURCE_EXTENSIONS`-equivalent broadened.
+
+### Phase 17 — Real agent framework adapter (the strategic bet)
+
+- `3.1` A `--profile` flag selecting between discovery "profiles" (the
+  existing fictional format stays as the default/reference profile); add
+  at least one real target (MCP server config or Open Interpreter)
+
+Large enough that this phase likely needs its own dedicated planning pass
+when it's reached — listed here as a placeholder with its scope, not a
+fully-specified unit of work the way Phases 1–16 are.
+
+**Definition of done:** at minimum, `chaperone scan --profile <real-target>
+<path>` produces meaningful findings against a real (not synthetic)
+config shape, with its own fixture pair.
+
+### Phase 18 — Offline vulnerability database
+
+- `1.15` (real-fix half) Bundle/refresh an offline OSV or npm-advisory
+  snapshot out-of-band (never fetched live during a scan); rewrite
+  `CHAP-SUP-003` to actually match installed versions against it and
+  restore it to `high` severity now that the signal is real
+
+**Definition of done:** `CHAP-SUP-003` produces true-negative results on
+the clean fixture again (unlike today); no network call happens during
+`chaperone scan`, verified by a test that fails if one occurs.
+
+### Phase 19 — HTML reporter
+
+- `3.10` `--format html`, self-contained single-file output, no external
+  JS/CSS dependency
+
+**Definition of done:** tested against both fixtures; opens correctly as
+a static file with no console errors.
+
+### Phase 20 — Multi-root & Docker-aware scanning
+
+- `3.2` `--all <glob>` / workspace-config batch scanning
+- `3.3` `--docker <container>` scanning
+
+**Definition of done:** tested against a multi-install fixture setup and
+(if feasible in CI) a real container.
+
+### Phase 21 — Plugin system
+
+- `3.13` `--plugin <path>` / config-file-array loading of third-party
+  `Check` implementations; explicit trust-boundary documentation ("a
+  plugin is arbitrary code with full `AgentModel` access, no sandboxing")
+
+**Definition of done:** a sample external check module loads and runs
+correctly via the plugin mechanism, with a test.
+
+### Phase 22 — Guided remediation
+
+- `3.14` `chaperone fix <check-id> --dry-run` / `--write`, kept
+  architecturally and namewise distinct from `scan`'s read-only guardrail
+
+**Definition of done:** at least one check (e.g. `CHAP-SEC-001`) has a
+working dry-run diff; nothing is ever written without `--write` and an
+explicit prior `--dry-run` review; guardrail documented in `README.md`'s
+security & ethics section.
+
+### Phase 23 — Testing & QA depth
+
+- `5.1` Golden-file/snapshot tests for full reporter output
+- `5.2` Property-based/fuzz testing (`fast-check`) for the config parser
+  and gitignore matcher
+- `5.3` A performance/scale test fixture (large synthetic install)
+- `5.4` Mutation testing (Stryker) as a non-blocking CI signal
+
+**Definition of done:** each sub-item is independently landable; not a
+single commit.
+
+### Phase 24 — Opt-in update check (if pursued)
+
+- `3.15` `chaperone --check-update`, explicit opt-in only, never run
+  implicitly during `scan`
+
+Listed last deliberately — the lowest-conviction item in this whole plan
+(see the "careful framing" note in Part 3), worth revisiting only if
+there's a clear user need for it.
