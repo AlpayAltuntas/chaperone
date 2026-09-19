@@ -1181,3 +1181,48 @@ true` against a `memory/` pattern).
   bar for the added architectural risk. Revisit if a real install's
   false-positive rate from these specific gaps turns out to matter in
   practice.
+
+## Improvement plan, Phase 13 — Line numbers in findings
+
+- **`YAML.parseDocument` (not `YAML.parse`) is the source of the line
+  number** (`1.17`) — `parseConfigSource`'s existing plain-value parse
+  discards position info entirely, so a second, CST-aware parse
+  (`configParser.ts`'s new `createLineLookup`) runs alongside it rather
+  than replacing it. `YAML.LineCounter` converts a node's byte-offset
+  `.range` into a 1-indexed `{line, col}` — no manual newline-counting.
+  A `keyPath` string like `trust.tool_allowlist[0]` (the same format
+  `maskTree` already produces) is parsed back into the segment array
+  `Document#getIn` expects (`['trust', 'tool_allowlist', 0]`).
+- **A lookup function, not inline computation during masking**:
+  `maskConfig`/`maskTree` stay format-agnostic (always set `line: null`
+  as the base shape) and get no new parameters; `discoverAgent` builds
+  a `LineLookup` from the raw source text _after_ masking and maps over
+  the resulting `secretFields` to fill in real values. Keeps
+  `configParser.ts`'s two parses (plain-value masking vs. CST line
+  lookup) decoupled — either can fail or be skipped independently
+  without threading a lookup callback through the whole recursive
+  `maskTree` walk.
+- **JSON stays `null`, by design, not by oversight** (the plan's own
+  definition of done): `JSON.parse` has no equivalent CST-with-positions
+  in this codebase's chosen parser, and adding a second JSON parser
+  just for source ranges wasn't judged worth it for a `Low` impact/`Med`
+  effort item. `createLineLookup` returns an always-`null` lookup for
+  `'json'` rather than a special case at each call site — one place
+  encodes "JSON has no line info," not scattered null-checks.
+- **Wired through `CHAP-SEC-001` and `CHAP-SEC-007`**, both of which
+  already iterate `model.config.secretFields` per-field — the DoD only
+  required `CHAP-SEC-001`-style findings, but `CHAP-SEC-007` costs
+  nothing extra (identical shape, `field.line` already in scope) and is
+  an honest, proportionate extension. Deliberately **not** wired into
+  `CHAP-SEC-002`/`004` (a single finding represents the whole config
+  file, not one field — no one line would be more "correct" than
+  another) or sidecar secret files (`.env`/`secrets.yaml` via
+  `CHAP-SEC-006`) — same mechanism could extend there later, but it's a
+  distinct enough increment (a different discovery module,
+  `sidecarSecrets.ts`) to defer rather than fold into this phase's
+  scope silently.
+- Console reporter's `formatLocation` already supported `file:line`
+  formatting from the start (written once, exercised for the first time
+  only now that a real line number exists) — no reporter changes needed
+  anywhere; verified end-to-end via both the dev build and a real
+  npm-pack install.

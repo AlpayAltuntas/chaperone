@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createLineLookup,
   extractEnvVarName,
   looksLikeEnvReference,
   looksLikeSecretKeyName,
@@ -139,7 +140,12 @@ describe('maskConfig', () => {
     const { data, secretFields } = maskConfig({ llm: { api_key: 'sk-ant-abcdefghijklmnop' } });
 
     expect(secretFields).toEqual([
-      { keyPath: 'llm.api_key', displayValue: 'sk-…mnop', looksLikeEnvReference: false },
+      {
+        keyPath: 'llm.api_key',
+        displayValue: 'sk-…mnop',
+        looksLikeEnvReference: false,
+        line: null,
+      },
     ]);
     expect(JSON.stringify(data)).not.toContain('abcdefghijklmnop');
   });
@@ -148,7 +154,12 @@ describe('maskConfig', () => {
     const { data, secretFields } = maskConfig({ llm: { api_key: '${ANTHROPIC_API_KEY}' } });
 
     expect(secretFields).toEqual([
-      { keyPath: 'llm.api_key', displayValue: '${ANTHROPIC_API_KEY}', looksLikeEnvReference: true },
+      {
+        keyPath: 'llm.api_key',
+        displayValue: '${ANTHROPIC_API_KEY}',
+        looksLikeEnvReference: true,
+        line: null,
+      },
     ]);
     expect(data).toEqual({ llm: { api_key: '${ANTHROPIC_API_KEY}' } });
   });
@@ -188,5 +199,58 @@ describe('maskConfig', () => {
 
     expect(secretFields).toEqual([]);
     expect(data).toEqual({ llm: { tokenizer_model: 'cl100k_base' } });
+  });
+});
+
+// improvement_plan.md 1.17.
+describe('createLineLookup', () => {
+  const YAML_SOURCE = [
+    'llm:',
+    '  provider: anthropic',
+    '  api_key: sk-ant-test-value',
+    'channels:',
+    '  telegram:',
+    '    bot_token: abc123',
+    'trust:',
+    '  tool_allowlist:',
+    '    - notes.writeNote',
+    '    - weather.fetchForecast',
+    '',
+  ].join('\n');
+
+  it('resolves a top-level key path to its 1-indexed source line', () => {
+    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
+
+    expect(lookup('llm.api_key')).toBe(3);
+  });
+
+  it('resolves a nested key path', () => {
+    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
+
+    expect(lookup('channels.telegram.bot_token')).toBe(6);
+  });
+
+  it('resolves an array-index key path', () => {
+    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
+
+    expect(lookup('trust.tool_allowlist[1]')).toBe(10);
+  });
+
+  it('returns null for a key path that does not exist in the document', () => {
+    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
+
+    expect(lookup('llm.does_not_exist')).toBeNull();
+  });
+
+  it('always returns null for JSON — no CST-with-positions available (documented limitation)', () => {
+    const lookup = createLineLookup('{"llm": {"api_key": "sk-ant-test"}}', 'json');
+
+    expect(lookup('llm.api_key')).toBeNull();
+  });
+
+  it('returns a no-op lookup (never throws) for unparseable YAML', () => {
+    const lookup = createLineLookup('a:\n  - b\n  c: [', 'yaml');
+
+    expect(lookup('a.c')).toBeNull();
   });
 });
