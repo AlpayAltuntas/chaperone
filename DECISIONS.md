@@ -1559,3 +1559,38 @@ PYTHON_SOURCE_EXTENSIONS`) is the "SOURCE_EXTENSIONS-equivalent
   output (49 → 44 vulnerable-agent findings, since 6 old `info` findings
   became 1 `high` finding; clean-agent goes from `{CHAP-SUP-003: 4}` to
   `{}` — a genuinely empty, fully clean scan for the first time).
+
+## Improvement plan, Phase 19 — HTML reporter
+
+- **Zero JavaScript, by design, not just "no CDN"** — `3.10` asks for
+  "no external JS/CSS dependency"; taken to its logical conclusion, the
+  HTML reporter ships no `<script>` tag at all, inline or otherwise. A
+  static document with zero JS has nothing that could ever produce a
+  runtime console error in the first place, which is the strongest
+  possible way to satisfy the DoD's "opens correctly... with no console
+  errors" — verified structurally in tests (no `<script`, no `on*=`
+  inline handler) rather than by launching a real browser (none
+  available in this environment).
+- **No external resource of any kind** — no CDN link, no separate
+  `.css` file, no web font, no image. One inline `<style>` block, same
+  "single self-contained file" spirit as every other reporter (JSON/
+  SARIF/Markdown/GHA all already produce one string with no side files).
+- **Reuses the exact same score/grouping logic as every other
+  reporter** (`computeScore`, `compareSeverity`, the same severity-group
+  ordering) — no new business logic, purely a new presentation layer.
+  `scoreWeights` threading works identically to console/json/markdown.
+- **All interpolated content is HTML-escaped** (`escapeHtml`) — a
+  finding's `message`/`location`/`remediation` text is Chaperone's own
+  generated prose (never raw file content; secrets are already masked
+  upstream — see `configParser.ts`), but a scanned skill/file name
+  could still legitimately contain `<`/`>`/`&`/quotes, and this is
+  output meant to be opened in a real browser, unlike the other
+  reporters' more structured formats.
+- Tested at three levels, matching the DoD's own wording ("tested
+  against both fixtures; opens correctly as a static file"):
+  `test/reporters/html.test.ts` (structural well-formedness — balanced
+  tags, no script/external resources, escaping, score-weight
+  application), `test/cli.exitcode.test.ts` (`--format html` against
+  both fixtures via the real CLI), and a dedicated `--output
+report.html` test that writes a real file to disk and reads it back,
+  the literal "opens correctly as a static file" scenario.

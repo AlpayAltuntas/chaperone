@@ -102,6 +102,7 @@ chaperone scan ~/clawd --format json       # for scripts/automation
 chaperone scan ~/clawd --format sarif      # for GitHub code scanning
 chaperone scan ~/clawd --format markdown   # for a PR comment (gh pr comment --body-file)
 chaperone scan ~/clawd --format gha        # inline GitHub Actions annotations
+chaperone scan ~/clawd --format html --output report.html   # a shareable, self-contained report
 ```
 
 **5. Save it instead of printing it:**
@@ -186,7 +187,7 @@ each):
 
 | Flag                        | Effect                                                                       | Env var                   |
 | --------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| `--format <format>`         | `console` (default, colored), `json`, `sarif`, `markdown`, or `gha`          | `CHAPERONE_FORMAT`        |
+| `--format <format>`         | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`  | `CHAPERONE_FORMAT`        |
 | `--fail-on <severity>`      | Minimum severity for a non-zero exit code (default: `high`)                  | `CHAPERONE_FAIL_ON`       |
 | `--output <file>`           | Write the report to a file instead of stdout                                 | `CHAPERONE_OUTPUT`        |
 | `--only <ids>`              | Run only the listed check IDs (comma-separated)                              |                           |
