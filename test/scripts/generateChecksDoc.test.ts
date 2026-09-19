@@ -31,12 +31,28 @@ describe('generateChecksDoc', () => {
     expect(generated).toContain('LLM01 — Prompt Injection / LLM08 — Excessive Agency');
   });
 
-  it('shows the severityNote override instead of the plain severity for CHAP-SUP-003', async () => {
-    const generated = await generateChecksDoc();
-    const severityNote = ALL_CHECKS.find((c) => c.id === 'CHAP-SUP-003')?.severityNote;
-    if (severityNote === undefined) {
-      throw new Error('CHAP-SUP-003 is expected to have a severityNote');
-    }
+  it('shows the severityNote override instead of the plain severity, when set', async () => {
+    // No check in ALL_CHECKS currently sets severityNote (CHAP-SUP-003
+    // was the only one, until its Phase 18 rewrite restored it to a
+    // plain `high` severity — see DECISIONS.md) — tested against a
+    // synthetic check passed directly to generateChecksDoc (already
+    // exported for exactly this: testing without touching the real
+    // registry or disk).
+    const severityNote = 'Info (demoted from High)';
+    const generated = await generateChecksDoc([
+      {
+        id: 'CHAP-TEST-000',
+        title: 'Synthetic test check',
+        severity: 'info',
+        category: 'secrets',
+        owasp: 'LLM06',
+        detects: 'nothing real',
+        heuristic: 'n/a',
+        remediation: 'n/a',
+        severityNote,
+        run: () => [],
+      },
+    ]);
 
     expect(generated).toContain(`- **Severity:** ${severityNote}`);
   });

@@ -197,6 +197,12 @@ export const SkillDependencyInfoSchema = z.object({
   // Declared dependency names (package.json's "dependencies" keys) — feeds
   // CHAP-SUP-006's typosquat-risk check (improvement_plan.md 2.7).
   names: z.array(z.string()),
+  // Declared dependency name -> its raw version specifier string from
+  // package.json (e.g. "^4.17.15"), not a resolved/installed version —
+  // no lockfile parsing, no node_modules inspection. Feeds CHAP-SUP-003's
+  // offline vulnerability-database match (improvement_plan.md 1.15/Phase
+  // 18).
+  versionsByName: z.record(z.string(), z.string()),
 });
 export type SkillDependencyInfo = z.infer<typeof SkillDependencyInfoSchema>;
 

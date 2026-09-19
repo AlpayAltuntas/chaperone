@@ -2,6 +2,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { ALL_CHECKS } from '../src/checks/index.js';
 import { formatCheckExplanation, formatChecksList, run } from '../src/cli.js';
+import type { Check } from '../src/engine/types.js';
 import { VERSION } from '../src/version.js';
 
 // As with cli.exitcode.test.ts: only paths that don't call commander's
@@ -51,14 +52,25 @@ describe('formatCheckExplanation', () => {
   });
 
   it('uses severityNote instead of the plain severity when set', () => {
-    const check = ALL_CHECKS.find((c) => c.id === 'CHAP-SUP-003');
-    if (check === undefined) {
-      throw new Error('CHAP-SUP-003 missing from ALL_CHECKS');
-    }
-    const { severityNote } = check;
-    if (severityNote === undefined) {
-      throw new Error('CHAP-SUP-003 is expected to have a severityNote');
-    }
+    // No check in ALL_CHECKS currently sets severityNote (CHAP-SUP-003
+    // was the only one, until its Phase 18 rewrite restored it to a
+    // plain `high` severity — see DECISIONS.md) — tested against a
+    // synthetic Check instead, so this stays a test of
+    // formatCheckExplanation's own logic, not incidentally coupled to
+    // whichever real check happens to use the feature.
+    const severityNote = 'Info (demoted from High)';
+    const check: Check = {
+      id: 'CHAP-TEST-000',
+      title: 'Synthetic test check',
+      severity: 'info',
+      category: 'secrets',
+      owasp: 'LLM06',
+      detects: 'nothing real',
+      heuristic: 'n/a',
+      remediation: 'n/a',
+      severityNote,
+      run: () => [],
+    };
 
     const output = formatCheckExplanation(check);
 
@@ -186,13 +198,6 @@ describe('cli scan — --only/--skip/--no-color (in-process, non-throwing paths 
     expect(printed).toContain('Detects:');
     expect(printed).toContain('Heuristic:');
     expect(printed).toContain('Remediation:');
-  });
-
-  it('explain shows the severityNote override instead of the plain severity, when set', () => {
-    run(['node', 'chaperone', 'explain', 'CHAP-SUP-003']);
-
-    const printed = logSpy.mock.calls[0]?.[0] as string;
-    expect(printed).toContain('Severity: Info (demoted from High)');
   });
 
   it('the version subcommand prints just the version (alongside -V/--version)', () => {

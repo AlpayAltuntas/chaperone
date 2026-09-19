@@ -1481,3 +1481,81 @@ PYTHON_SOURCE_EXTENSIONS`) is the "SOURCE_EXTENSIONS-equivalent
   `CHAPERONE_PROFILE` through the real CLI). The invalid-`--profile`-
   value hard-error path was verified manually (same `command.error()`/
   `process.exit()` constraint as every other such path in this suite).
+
+## Improvement plan, Phase 18 — Offline vulnerability database
+
+- **A curated snapshot, not the whole OSV database, and genuinely fetched,
+  not hand-typed** — `1.15`'s "real-fix half" calls for a "bundle/refresh
+  an offline OSV or npm-advisory snapshot", not a live-equivalent
+  replacement. `scripts/refreshVulnDb.ts` queries OSV.dev's real API
+  (`https://api.osv.dev/v1/query`) for a small, explicit list of
+  well-known npm packages (`lodash`, `minimist`) and writes the result to
+  `src/checks/shared/vulnDb.ts` — genuinely fetched data (this script was
+  actually run against the live API while building this phase, not
+  synthesized), not a plausible-looking approximation. Adding a package
+  means editing one array and re-running the script.
+- **Out-of-band means genuinely out-of-band**: the refresh script is
+  never invoked by `scan`, `test`, `build`, or CI — `npm run refresh:vulndb`
+  is the only way it runs, and it's the one deliberate place in this
+  whole codebase that makes an outbound network call. Verified by
+  `test/scan/noNetworkCalls.test.ts`, which spies on every network
+  primitive Node exposes (`fetch`, `http.request`/`.get`,
+  `https.request`/`.get`) with a throwing implementation and runs a real
+  `chaperone scan` through it — not scoped to just `CHAP-SUP-003`, since
+  a future check regressing this guarantee should fail the same test.
+- **A deliberately simple, static version match — documented, not
+  hidden** (`semver.ts`): no `semver` dependency (matches this project's
+  existing small-dependency-footprint philosophy — same reasoning as
+  Levenshtein distance being hand-rolled rather than pulled in). Since
+  this is a static, config-only scan with no lockfile parsing and no
+  node_modules inspection, the actual _resolved_ version a real install
+  would use is never available — `extractBaseVersion` takes the first
+  X.Y.Z-shaped token in the raw package.json specifier as a stand-in. A
+  specifier with no such token (`"latest"`, `"*"`, a git URL, a
+  workspace reference) is skipped, never guessed at. This is a real,
+  acknowledged limitation (a caret range's actual resolution could land
+  on a patched version even when its declared floor looks vulnerable, or
+  vice versa) — but a materially stronger, more honest signal than the
+  check's previous "fires on any manifest, always" behavior.
+- **`SkillDependencyInfo` gained `versionsByName`** (name -> raw
+  specifier string), alongside the existing `names` (which only fed
+  CHAP-SUP-006's typosquat check and discarded version info entirely).
+  `skillsScanner.ts`'s `extractDependencyNames` became
+  `extractDependencies`, returning both from one manifest read instead
+  of two. `mcpProfile.ts` (Phase 17) gained the same field, empty — no
+  npm-manifest concept exists for an MCP server entry, so CHAP-SUP-003
+  correctly finds nothing to match there, same reasoning already
+  documented for CHAP-SUP-002/006 in that phase's entry.
+- **Severity restored to `high`** (from the `info`-severity
+  `severityNote: 'Info (demoted from High)'` the DoD's Phase 15/1.15
+  mitigation half introduced) — the plan's own instruction, now that the
+  signal is a genuine version match rather than "any manifest exists".
+  `severityNote` itself (the mechanism, not this specific use) stays in
+  `engine/types.ts`'s `Check` interface for a future check that needs
+  it; its two tests (`cli.options.test.ts`,
+  `generateChecksDoc.test.ts`) were rewritten against a synthetic
+  `Check` object instead of `CHAP-SUP-003` specifically, so they keep
+  testing the mechanism rather than becoming permanently coupled to
+  whichever real check happens to use the feature.
+- **One finding per (skill, vulnerable dependency), aggregating every
+  matching advisory into a single message** — not one finding per
+  advisory. `plugin-loader`'s `lodash@^4.17.15` matches 6 separate GHSA
+  entries in the snapshot; emitting 6 nearly-identical findings for one
+  dependency would be noisy without being more actionable, and every
+  other check in this codebase already reports one finding per
+  skill/condition rather than per sub-detail (e.g. CHAP-AGY-003 lists
+  every destructive keyword in one finding's message, not one finding
+  per keyword). The finding's severity is the _worst_ matching
+  advisory's; its message names every matching ID so nothing is hidden,
+  just consolidated.
+- **Fixture changes, real end-to-end proof**: `plugin-loader`
+  (vulnerable-agent) gained `"lodash": "^4.17.15"` (matches 6 real
+  advisories); `weather` (clean-agent) gained `"lodash": "^4.18.2"` (a
+  genuinely patched version, above every tracked advisory's `fixed`
+  bound) — a real true-negative against real data, restoring the DoD's
+  literal ask ("CHAP-SUP-003 produces true-negative results on the clean
+  fixture again"), not just "no manifest present". `fullCatalog.test.ts`
+  and every other affected test were updated against real captured CLI
+  output (49 → 44 vulnerable-agent findings, since 6 old `info` findings
+  became 1 `high` finding; clean-agent goes from `{CHAP-SUP-003: 4}` to
+  `{}` — a genuinely empty, fully clean scan for the first time).

@@ -158,13 +158,13 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Heuristic:** The skill has a `package.json` but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it.
 - **Remediation:** Commit a lockfile alongside the manifest and enable integrity checks.
 
-### CHAP-SUP-003 — Dependency manifest not checked for known vulnerabilities
+### CHAP-SUP-003 — Known-vulnerable dependency
 
-- **Severity:** Info (demoted from High)
+- **Severity:** High
 - **OWASP:** LLM05 — Supply Chain
-- **Detects:** Any skill dependency manifest, surfaced for manual review.
-- **Heuristic:** (Deliberately weak, v1.) Chaperone makes no outbound network calls (§14), so it cannot check dependencies against a live advisory database. This check simply fires on any skill with a `package.json` and points the user at `npm audit` — it fires on a hardened install exactly as readily as a vulnerable one. This is a documented v1 limitation, not a bug; see `test/checks/chapSup003.test.ts` and DECISIONS.md. Severity is `Info` rather than the category's usual weight specifically because of that weakness — a real vulnerability match would warrant `High` again (see `improvement_plan.md` Phase 18, the planned offline-vulnerability-database fix).
-- **Remediation:** Run npm audit (or your package manager's equivalent) inside the skill directory; update or remove vulnerable/unused dependencies.
+- **Detects:** A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced).
+- **Heuristic:** Compares each skill's package.json dependency version specifiers against `shared/vulnDb.ts`, a curated, offline snapshot of real advisories for a small set of well-known npm packages, refreshed out-of-band via `npm run refresh:vulndb` (never during a scan — see `scripts/refreshVulnDb.ts`). A specifier's first X.Y.Z-shaped token stands in for the version, since no lockfile/node_modules resolution is available in a static config-only scan; a specifier with no such token (`"latest"`, `"*"`, a git URL) is skipped rather than guessed at. Not exhaustive — only tracks the packages in the bundled snapshot, not the full OSV/npm-advisory database.
+- **Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run `npm audit` for a live, comprehensive check beyond this offline snapshot.
 
 ### CHAP-SUP-004 — Dangerous install pattern
 
