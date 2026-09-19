@@ -20,6 +20,8 @@ export interface ConsoleReportOptions {
   quiet?: boolean;
   /** No per-finding detail at all — just the header and the summary/score line. Takes precedence over quiet. */
   summaryOnly?: boolean;
+  /** Per-severity posture-score weight overrides (improvement_plan.md 3.4, .chaperonerc.json's scoreWeights) — replaces individual weights for this report's score only. */
+  scoreWeights?: Partial<Record<Severity, number>>;
 }
 
 /**
@@ -98,7 +100,7 @@ export function formatConsoleReport(
   }
 
   lines.push('');
-  lines.push(formatSummary(findings, metadata));
+  lines.push(formatSummary(findings, metadata, options.scoreWeights));
 
   return lines.join('\n');
 }
@@ -143,12 +145,16 @@ function groupBySeverity(findings: readonly Finding[]): Map<Severity, Finding[]>
   return map;
 }
 
-function formatSummary(findings: readonly Finding[], metadata: ScanMetadata): string {
+function formatSummary(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  scoreWeights?: Partial<Record<Severity, number>>,
+): string {
   const counts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const finding of findings) {
     counts[finding.severity] += 1;
   }
-  const { score, band } = computeScore(findings);
+  const { score, band } = computeScore(findings, scoreWeights);
   const countLine =
     `Summary: ${String(findings.length)} finding${findings.length === 1 ? '' : 's'} ` +
     `(${String(counts.critical)} critical, ${String(counts.high)} high, ${String(counts.medium)} medium, ` +

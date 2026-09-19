@@ -184,19 +184,20 @@ chaperone scan test/fixtures/clean-agent        # hardened sample
 Full flag reference (see [How to use](#how-to-use) above for examples of
 each):
 
-| Flag                        | Effect                                                                   | Env var                   |
-| --------------------------- | ------------------------------------------------------------------------ | ------------------------- |
-| `--format <format>`         | `console` (default, colored), `json`, `sarif`, `markdown`, or `gha`      | `CHAPERONE_FORMAT`        |
-| `--fail-on <severity>`      | Minimum severity for a non-zero exit code (default: `high`)              | `CHAPERONE_FAIL_ON`       |
-| `--output <file>`           | Write the report to a file instead of stdout                             | `CHAPERONE_OUTPUT`        |
-| `--only <ids>`              | Run only the listed check IDs (comma-separated)                          |                           |
-| `--skip <ids>`              | Skip the listed check IDs (comma-separated)                              |                           |
-| `--only-category <cats>`    | Display filter: only show findings in these categories (comma-separated) | `CHAPERONE_ONLY_CATEGORY` |
-| `--skip-category <cats>`    | Display filter: hide findings in these categories (comma-separated)      | `CHAPERONE_SKIP_CATEGORY` |
-| `--min-severity <severity>` | Display filter: only show findings at or above this severity             | `CHAPERONE_MIN_SEVERITY`  |
-| `--quiet`                   | One compact line per finding (id + severity) instead of full detail      |                           |
-| `--summary-only`            | Print only the summary line and posture score, no per-finding detail     |                           |
-| `--no-color`                | Disable colored console output                                           |                           |
+| Flag                        | Effect                                                                       | Env var                   |
+| --------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
+| `--format <format>`         | `console` (default, colored), `json`, `sarif`, `markdown`, or `gha`          | `CHAPERONE_FORMAT`        |
+| `--fail-on <severity>`      | Minimum severity for a non-zero exit code (default: `high`)                  | `CHAPERONE_FAIL_ON`       |
+| `--output <file>`           | Write the report to a file instead of stdout                                 | `CHAPERONE_OUTPUT`        |
+| `--only <ids>`              | Run only the listed check IDs (comma-separated)                              |                           |
+| `--skip <ids>`              | Skip the listed check IDs (comma-separated)                                  |                           |
+| `--only-category <cats>`    | Display filter: only show findings in these categories (comma-separated)     | `CHAPERONE_ONLY_CATEGORY` |
+| `--skip-category <cats>`    | Display filter: hide findings in these categories (comma-separated)          | `CHAPERONE_SKIP_CATEGORY` |
+| `--min-severity <severity>` | Display filter: only show findings at or above this severity                 | `CHAPERONE_MIN_SEVERITY`  |
+| `--quiet`                   | One compact line per finding (id + severity) instead of full detail          |                           |
+| `--summary-only`            | Print only the summary line and posture score, no per-finding detail         |                           |
+| `--no-color`                | Disable colored console output                                               |                           |
+| `--config <file>`           | Suppression/override config file (default: `./.chaperonerc.json` if present) | `CHAPERONE_CONFIG`        |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -209,6 +210,43 @@ Exit code is `0` when no finding meets the `--fail-on` threshold (and an
 installation was actually found), `1` otherwise — including when Chaperone
 couldn't locate an installation to scan at all, so a CI pipeline never
 mistakes "nothing was scanned" for "nothing was found."
+
+### Suppressions & overrides (`.chaperonerc.json`)
+
+Drop a `.chaperonerc.json` in the current directory (or pass `--config
+<file>` / set `CHAPERONE_CONFIG`) to reclassify or suppress specific
+findings project-wide, instead of repeating `--skip`/`--fail-on` flags on
+every invocation:
+
+```json
+{
+  "severityOverrides": { "CHAP-SUP-003": "low" },
+  "ignore": [
+    { "checkId": "CHAP-NET-002", "reason": "internal-only gateway", "expires": "2026-12-31" }
+  ],
+  "disabledChecks": ["CHAP-OBS-003"],
+  "scoreWeights": { "medium": 10 }
+}
+```
+
+- `severityOverrides` — reclassify a check's severity (e.g. demote a
+  finding you've accepted as lower-risk). Unlike `--only-category`/
+  `--skip-category`/`--min-severity`, this is a **real** reclassification:
+  it feeds `--fail-on` and the posture score, not just what's displayed.
+- `ignore` — suppress a check's findings entirely. An optional `expires`
+  (ISO date) makes the suppression time-limited: once past, the finding
+  reappears and Chaperone prints a warning instead of silently dropping
+  it forever, so a suppression can't outlive the reason it was added for.
+- `disabledChecks` — skip the listed checks entirely (equivalent to
+  `--skip`, merged with any `--skip` flag also passed).
+- `scoreWeights` — override the per-severity posture-score deduction
+  weights (default: critical 25, high 15, medium 7, low 3, info 0).
+
+An unknown check ID in `severityOverrides`/`ignore` prints a warning
+(the suppression is likely stale after an upgrade, not worth failing the
+whole scan over); an unknown ID in `disabledChecks` is treated like an
+unknown `--skip` ID and fails hard, since that's a more likely direct
+typo.
 
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:

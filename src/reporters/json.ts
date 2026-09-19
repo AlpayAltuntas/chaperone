@@ -3,8 +3,12 @@ import type { Finding, Severity } from '../model/types.js';
 import { ScanReportSchema, type ScanReport } from './schema.js';
 import type { ScanMetadata } from './types.js';
 
-export function buildScanReport(findings: readonly Finding[], metadata: ScanMetadata): ScanReport {
-  const { score, band } = computeScore(findings);
+export function buildScanReport(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  scoreWeights?: Partial<Record<Severity, number>>,
+): ScanReport {
+  const { score, band } = computeScore(findings, scoreWeights);
   const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const finding of findings) {
     bySeverity[finding.severity] += 1;
@@ -23,7 +27,11 @@ export function buildScanReport(findings: readonly Finding[], metadata: ScanMeta
 }
 
 /** Renders findings + scan metadata as the schema-validated JSON report (see reporters/schema.ts). */
-export function formatJsonReport(findings: readonly Finding[], metadata: ScanMetadata): string {
-  const report = ScanReportSchema.parse(buildScanReport(findings, metadata));
+export function formatJsonReport(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  scoreWeights?: Partial<Record<Severity, number>>,
+): string {
+  const report = ScanReportSchema.parse(buildScanReport(findings, metadata, scoreWeights));
   return JSON.stringify(report, null, 2);
 }
