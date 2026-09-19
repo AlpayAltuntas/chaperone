@@ -33,7 +33,7 @@ describe('discoverAgent — vulnerable-agent fixture', () => {
   });
 
   it('discovers all skills with their capabilities', () => {
-    expect(model.skills).toHaveLength(4);
+    expect(model.skills).toHaveLength(5);
 
     const shellRunner = model.skills.find((s) => s.name === 'shell-runner');
     expect(shellRunner?.capabilities.shellExec).toBe(true);

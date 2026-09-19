@@ -174,6 +174,22 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Heuristic:** `curl`/`wget` piped into `sh`/`bash`, `sudo`, `apt-get install`, or `brew install`, found in `package.json`'s `preinstall`/`install`/`postinstall` scripts, any `*.sh` file, or any `README*` in the skill directory.
 - **Remediation:** Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps.
 
+### CHAP-SUP-005 — Obfuscated or dynamically-evaluated code
+
+- **Severity:** Critical
+- **OWASP:** LLM05 — Supply Chain
+- **Detects:** A skill using eval(), the Function constructor, or a decode-then-execute chain (e.g. eval(atob(payload))) to run dynamically-constructed code.
+- **Heuristic:** Any call to the `eval`/`Function` globals (bare, or `new Function(...)`) in a skill's source. Flagged unconditionally regardless of what's being evaluated — a real backdoor and a benign use are equally invisible to static review once code is constructed/evaluated at runtime, so there's no confident way to distinguish them from source alone.
+- **Remediation:** Avoid dynamic code evaluation entirely. If genuinely needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing or fetching it at runtime.
+
+### CHAP-SUP-006 — Typosquat-risk dependency name
+
+- **Severity:** Medium
+- **OWASP:** LLM05 — Supply Chain
+- **Detects:** A skill dependency whose name is suspiciously close (small edit distance) to a well-known popular package name (e.g. 'reqeust' vs 'request') — a common typosquatting technique.
+- **Heuristic:** The dependency name isn't itself a well-known package, is at least 4 characters, and has a Levenshtein (edit) distance of 1-2 from a well-known package name in a small bundled reference list (no live registry lookup — Chaperone makes no outbound network calls). Not exhaustive: a name not close to anything on that list is never flagged.
+- **Remediation:** Double check the exact spelling against the real package on the registry before installing, and remove the dependency if it was added by mistake.
+
 ## Category D — Prompt-injection surface
 
 ### CHAP-INJ-001 — Untrusted input flows straight to the model
@@ -188,8 +204,8 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** Medium
 - **OWASP:** LLM02 — Insecure Output Handling
-- **Detects:** A skill whose output could drive another tool with no validation step.
-- **Heuristic:** (A static proxy, not real data-flow analysis.) A skill that both ingests external/tool data (network or filesystem capability) and can execute shell commands — the shape of a tool-output-to-shell-execution chain, since Chaperone has no way to confirm data actually flows between them.
+- **Detects:** A skill whose output could drive another tool with no validation step — either a confirmed data-flow chain (a network/filesystem result traced into a shell-exec call's argument) or, more weakly, just both capabilities being present in the same file.
+- **Heuristic:** A skill that can execute shell commands and also has network or filesystem-read capability. When a bounded intra-file taint trace confirms the network/fs result actually reaches the shell-exec call's argument, this is reported at `high` severity as a confirmed chain; otherwise it's the weaker `medium`-severity shape-match (both capabilities merely present, not traced) — Chaperone still has no cross-function/file data-flow analysis.
 - **Remediation:** Validate/escape a tool's output before it can drive another tool; never auto-execute model or tool output.
 
 ### CHAP-INJ-003 — Actions triggerable by inbound messages without an allowlist
@@ -207,6 +223,14 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Detects:** Config that auto-opens links or auto-runs commands found in inbound messages.
 - **Heuristic:** `trust.auto_execute_links` is `true`.
 - **Remediation:** Disable auto-execution of links/commands found in messages; require explicit confirmation instead.
+
+### CHAP-INJ-005 — Inbound channels do not distinguish trust level
+
+- **Severity:** Medium
+- **OWASP:** LLM01 — Prompt Injection
+- **Detects:** A non-empty global tool allowlist applied uniformly to a mix of public and private inbound channels, with no channel-specific restriction narrowing what a public (untrusted) channel can invoke.
+- **Heuristic:** At least two channels are enabled, the global `trust.tool_allowlist` is non-empty, at least one enabled channel is public (`channels.<name>.public` — missing defaults to `true`/untrusted, same conservative-default posture as CHAP-INJ-001) with no channel-specific `channels.<name>.tool_allowlist` override, and at least one enabled channel is private (`public: false`). Same manifest-convention caveat as CHAP-AGY-003/004 — no real schema exists for these example agents.
+- **Remediation:** Declare a channel-specific tool_allowlist for each public/untrusted channel, narrower than what private/admin-only channels are permitted to invoke.
 
 ## Category E — Exposure & network posture
 

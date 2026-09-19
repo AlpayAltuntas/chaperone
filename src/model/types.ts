@@ -153,6 +153,13 @@ export const SkillCapabilitiesSchema = z.object({
   fileSystemScoped: z.boolean(),
   networkAccess: z.boolean(),
   destructiveKeywords: z.array(z.string()),
+  // eval()/Function() — CHAP-SUP-005 (improvement_plan.md 2.6).
+  dynamicEval: z.boolean(),
+  // True when a bounded, intra-file taint analysis traces a network/fs
+  // read's result into a shell-exec call's argument — a real (if
+  // limited) data-flow signal CHAP-INJ-002 uses to distinguish a
+  // confirmed chain from a mere shape-match (improvement_plan.md 1.16).
+  dataFlowToShellExec: z.boolean(),
 });
 export type SkillCapabilities = z.infer<typeof SkillCapabilitiesSchema>;
 
@@ -166,6 +173,9 @@ export type SkillProvenance = z.infer<typeof SkillProvenanceSchema>;
 export const SkillDependencyInfoSchema = z.object({
   manifestPath: z.string().nullable(),
   lockfilePath: z.string().nullable(),
+  // Declared dependency names (package.json's "dependencies" keys) — feeds
+  // CHAP-SUP-006's typosquat-risk check (improvement_plan.md 2.7).
+  names: z.array(z.string()),
 });
 export type SkillDependencyInfo = z.infer<typeof SkillDependencyInfoSchema>;
 

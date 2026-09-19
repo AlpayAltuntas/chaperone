@@ -21,7 +21,13 @@ describe('CHAP-SUP-003 — dependency manifest not checked for known vulnerabili
     const findings = chapSup003KnownVulnerableDependencies.run(model);
 
     const skillNames = findings.map((f) => f.location.detail).sort();
-    expect(skillNames).toEqual(['command-relay', 'file-writer', 'shell-runner', 'web-fetcher']);
+    expect(skillNames).toEqual([
+      'command-relay',
+      'file-writer',
+      'plugin-loader',
+      'shell-runner',
+      'web-fetcher',
+    ]);
     // Regression test for improvement_plan.md 1.15 (mitigation half): this
     // signal is too weak to trip --fail-on high or meaningfully move the
     // posture score on its own.

@@ -7,6 +7,7 @@ import { chapInj001UntrustedInputUnmarked } from './injection/chapInj001Untruste
 import { chapInj002ToolOutputTrusted } from './injection/chapInj002ToolOutputTrusted.js';
 import { chapInj003NoToolAllowlist } from './injection/chapInj003NoToolAllowlist.js';
 import { chapInj004AutoExecuteFromMessages } from './injection/chapInj004AutoExecuteFromMessages.js';
+import { chapInj005ChannelTrustLevel } from './injection/chapInj005ChannelTrustLevel.js';
 import { chapNet001GatewayExposed } from './network/chapNet001GatewayExposed.js';
 import { chapNet002WeakGatewayAuth } from './network/chapNet002WeakGatewayAuth.js';
 import { chapNet003PlaintextTransport } from './network/chapNet003PlaintextTransport.js';
@@ -25,6 +26,8 @@ import { chapSup001UnverifiedSources } from './supplyChain/chapSup001UnverifiedS
 import { chapSup002NoIntegrityVerification } from './supplyChain/chapSup002NoIntegrityVerification.js';
 import { chapSup003KnownVulnerableDependencies } from './supplyChain/chapSup003KnownVulnerableDependencies.js';
 import { chapSup004DangerousInstallPatterns } from './supplyChain/chapSup004DangerousInstallPatterns.js';
+import { chapSup005ObfuscatedCode } from './supplyChain/chapSup005ObfuscatedCode.js';
+import { chapSup006TyposquatRisk } from './supplyChain/chapSup006TyposquatRisk.js';
 
 // Extending Chaperone with a new check means adding one module under
 // src/checks/<category>/ and registering it here — the engine itself
@@ -48,11 +51,14 @@ export const ALL_CHECKS: readonly Check[] = [
   chapSup002NoIntegrityVerification,
   chapSup003KnownVulnerableDependencies,
   chapSup004DangerousInstallPatterns,
+  chapSup005ObfuscatedCode,
+  chapSup006TyposquatRisk,
   // Prompt-injection surface
   chapInj001UntrustedInputUnmarked,
   chapInj002ToolOutputTrusted,
   chapInj003NoToolAllowlist,
   chapInj004AutoExecuteFromMessages,
+  chapInj005ChannelTrustLevel,
   // Exposure & network posture
   chapNet001GatewayExposed,
   chapNet002WeakGatewayAuth,

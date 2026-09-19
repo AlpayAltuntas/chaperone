@@ -11,9 +11,9 @@ describe('CHAP-AGY-004 — broad network egress from a skill', () => {
 
     const findings = chapAgy004BroadNetworkEgress.run(model);
 
-    expect(findings).toHaveLength(2);
+    expect(findings).toHaveLength(3);
     const skillNames = findings.map((f) => f.location.detail).sort();
-    expect(skillNames).toEqual(['command-relay', 'web-fetcher']);
+    expect(skillNames).toEqual(['command-relay', 'plugin-loader', 'web-fetcher']);
   });
 
   it('stays silent on the clean fixture (weather skill declares a domain allowlist)', () => {
