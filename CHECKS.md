@@ -33,9 +33,8 @@ a letter band:
 | 0–39   |  F   |
 
 Available in the JSON reporter's `summary.score`/`summary.band` (`--format
-json`); the console reporter doesn't print it yet — a per-severity count
-summary instead (score display there is a possible future enhancement, not
-required by the spec).
+json`), and in the console reporter's summary line (`— posture score
+X/100 (band)`, added in Phase 7 alongside `--quiet`/`--summary-only`).
 
 **A note on CHAP-SUP-003:** its deliberately weak v1 heuristic (see below)
 fires on essentially any skill with a `package.json`. It's `Info`

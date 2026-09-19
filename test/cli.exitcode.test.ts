@@ -45,6 +45,43 @@ describe('cli scan — exit codes and output (in-process, non-throwing paths onl
     expect(process.exitCode).toBeUndefined();
   });
 
+  // improvement_plan.md 3.8: --min-severity/--only-category/--skip-category
+  // are display filters only — --fail-on must still evaluate every
+  // finding that actually ran, not just the ones the display filter
+  // chose to show.
+  it('--min-severity filtering the display does not change the --fail-on decision', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      // Display only critical findings, but keep the default --fail-on
+      // (high) — the vulnerable fixture has high-severity findings that
+      // this display filter would hide, so if --fail-on were reading the
+      // filtered set instead of the full one, this would wrongly pass.
+      '--min-severity',
+      'critical',
+    ]);
+
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('--only-category filtering the display to a clean category does not suppress a real failure', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      // CHAP-NET-001 (critical) lives outside the "observability" category
+      // — if --fail-on read the filtered display set, this run would
+      // wrongly report success.
+      '--only-category',
+      'observability',
+    ]);
+
+    expect(process.exitCode).toBe(1);
+  });
+
   it('prints JSON to stdout for --format json', () => {
     run([
       'node',

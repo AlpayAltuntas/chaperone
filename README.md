@@ -160,7 +160,7 @@ HIGH (15)
 
 MEDIUM (15)  LOW (1)  ...
 
-Summary: 38 findings (3 critical, 15 high, 15 medium, 1 low, 4 info)
+Summary: 38 findings (3 critical, 15 high, 15 medium, 1 low, 4 info) — posture score 0/100 (F)
 Inspected 14 paths, skipped 0.
 ```
 
@@ -179,14 +179,26 @@ chaperone scan test/fixtures/clean-agent        # hardened sample
 Full flag reference (see [How to use](#how-to-use) above for examples of
 each):
 
-| Flag                   | Effect                                                      |
-| ---------------------- | ----------------------------------------------------------- |
-| `--format <format>`    | `console` (default, colored), `json`, or `sarif`            |
-| `--fail-on <severity>` | Minimum severity for a non-zero exit code (default: `high`) |
-| `--output <file>`      | Write the report to a file instead of stdout                |
-| `--only <ids>`         | Run only the listed check IDs (comma-separated)             |
-| `--skip <ids>`         | Skip the listed check IDs (comma-separated)                 |
-| `--no-color`           | Disable colored console output                              |
+| Flag                        | Effect                                                                   | Env var                   |
+| --------------------------- | ------------------------------------------------------------------------ | ------------------------- |
+| `--format <format>`         | `console` (default, colored), `json`, or `sarif`                         | `CHAPERONE_FORMAT`        |
+| `--fail-on <severity>`      | Minimum severity for a non-zero exit code (default: `high`)              | `CHAPERONE_FAIL_ON`       |
+| `--output <file>`           | Write the report to a file instead of stdout                             | `CHAPERONE_OUTPUT`        |
+| `--only <ids>`              | Run only the listed check IDs (comma-separated)                          |                           |
+| `--skip <ids>`              | Skip the listed check IDs (comma-separated)                              |                           |
+| `--only-category <cats>`    | Display filter: only show findings in these categories (comma-separated) | `CHAPERONE_ONLY_CATEGORY` |
+| `--skip-category <cats>`    | Display filter: hide findings in these categories (comma-separated)      | `CHAPERONE_SKIP_CATEGORY` |
+| `--min-severity <severity>` | Display filter: only show findings at or above this severity             | `CHAPERONE_MIN_SEVERITY`  |
+| `--quiet`                   | One compact line per finding (id + severity) instead of full detail      |                           |
+| `--summary-only`            | Print only the summary line and posture score, no per-finding detail     |                           |
+| `--no-color`                | Disable colored console output                                           |                           |
+
+`--only-category`/`--skip-category`/`--min-severity` are **display
+filters only** — they change what's printed, never what's checked or
+whether the build fails. `--fail-on` always evaluates every finding that
+actually ran, regardless of any display filter, so a filtered report can
+never accidentally hide a real failure from CI. `--quiet` and
+`--summary-only` are console-only and mutually exclusive.
 
 Exit code is `0` when no finding meets the `--fail-on` threshold (and an
 installation was actually found), `1` otherwise — including when Chaperone

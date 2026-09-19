@@ -141,3 +141,214 @@ describe('cli scan — --only/--skip/--no-color (in-process, non-throwing paths 
     expect(logSpy).toHaveBeenCalledWith(VERSION);
   });
 });
+
+// improvement_plan.md 3.8: category/severity display filters, distinct
+// from --fail-on (verified separately in cli.exitcode.test.ts, since that
+// file already manages process.exitCode around each test).
+describe('cli scan — --only-category/--skip-category/--min-severity (display filters)', () => {
+  let logSpy: MockInstance<typeof console.log>;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it('--only-category shows only findings in the listed categories', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--only-category',
+      'secrets',
+      '--format',
+      'json',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    const report = JSON.parse(printed) as { findings: Array<{ category: string }> };
+    expect(report.findings.length).toBeGreaterThan(0);
+    expect(report.findings.every((f) => f.category === 'secrets')).toBe(true);
+  });
+
+  it('--only-category accepts a comma-separated list', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--only-category',
+      'secrets,network',
+      '--format',
+      'json',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    const report = JSON.parse(printed) as { findings: Array<{ category: string }> };
+    const categories = new Set(report.findings.map((f) => f.category));
+    expect(categories).toEqual(new Set(['secrets', 'network']));
+  });
+
+  it('--skip-category hides findings in the listed categories', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--skip-category',
+      'secrets',
+      '--format',
+      'json',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    const report = JSON.parse(printed) as { findings: Array<{ category: string }> };
+    expect(report.findings.some((f) => f.category === 'secrets')).toBe(false);
+    expect(report.findings.length).toBeGreaterThan(0);
+  });
+
+  it('--min-severity hides findings below the given severity', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--min-severity',
+      'critical',
+      '--format',
+      'json',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    const report = JSON.parse(printed) as { findings: Array<{ severity: string }> };
+    expect(report.findings.length).toBeGreaterThan(0);
+    expect(report.findings.every((f) => f.severity === 'critical')).toBe(true);
+  });
+
+  it('rejects an unrecognized category the same way an unrecognized severity is rejected', () => {
+    expect(() => {
+      run([
+        'node',
+        'chaperone',
+        'scan',
+        path.join('test', 'fixtures', 'vulnerable-agent'),
+        '--only-category',
+        'not-a-real-category',
+      ]);
+    }).toThrow();
+  });
+});
+
+// improvement_plan.md 3.11: console-only presentation modes.
+describe('cli scan — --quiet/--summary-only (console presentation modes)', () => {
+  let logSpy: MockInstance<typeof console.log>;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it('--quiet prints one compact line per finding, still includes the summary/score', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--no-color',
+      '--quiet',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    expect(printed).toContain('[CHAP-SEC-001] HIGH');
+    expect(printed).not.toContain('Plaintext secrets in config');
+    expect(printed).not.toContain('Remediation:');
+    expect(printed).toMatch(/posture score \d+\/100/);
+  });
+
+  it('--summary-only prints no per-finding detail at all', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--no-color',
+      '--summary-only',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    expect(printed).not.toContain('CHAP-SEC-001');
+    expect(printed).not.toContain('CRITICAL (');
+    expect(printed).toMatch(/posture score \d+\/100/);
+    expect(printed).toContain('Summary:');
+  });
+
+  // --quiet and --summary-only both being set goes through commander's
+  // .conflicts() error path, which calls process.exit() directly — same
+  // "verified manually instead" caveat as cli.exitcode.test.ts documents
+  // for invalid --format/--fail-on values. Manually verified: `chaperone
+  // scan ... --quiet --summary-only` exits 1 with "option '--quiet'
+  // cannot be used with option '--summary-only'".
+});
+
+// improvement_plan.md 3.12: environment-variable support for common flags.
+describe('cli scan — environment-variable flag support', () => {
+  let logSpy: MockInstance<typeof console.log>;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it('CHAPERONE_FORMAT sets the default format when --format is not passed', () => {
+    vi.stubEnv('CHAPERONE_FORMAT', 'json');
+
+    run(['node', 'chaperone', 'scan', path.join('test', 'fixtures', 'vulnerable-agent')]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    expect(() => JSON.parse(printed) as unknown).not.toThrow();
+  });
+
+  it('an explicit --format flag overrides CHAPERONE_FORMAT', () => {
+    vi.stubEnv('CHAPERONE_FORMAT', 'json');
+
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--format',
+      'console',
+      '--no-color',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    expect(printed).toContain('Chaperone scan report');
+  });
+
+  it('CHAPERONE_MIN_SEVERITY applies the same display filter as --min-severity', () => {
+    vi.stubEnv('CHAPERONE_MIN_SEVERITY', 'critical');
+
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'vulnerable-agent'),
+      '--format',
+      'json',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    const report = JSON.parse(printed) as { findings: Array<{ severity: string }> };
+    expect(report.findings.every((f) => f.severity === 'critical')).toBe(true);
+  });
+});
