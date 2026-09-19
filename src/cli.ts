@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 import { realpathSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { Command, InvalidArgumentError } from 'commander';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
 import { errorMessage } from './discovery/errors.js';
 import { discoverAgent } from './discovery/index.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
 import type { Check } from './engine/types.js';
-import type { AgentModel, Severity } from './model/types.js';
+import {
+  CheckCategorySchema,
+  type AgentModel,
+  type CheckCategory,
+  type Finding,
+  type Severity,
+} from './model/types.js';
 import { REPORT_FORMATS, renderReport, type ReportFormat } from './reporters/index.js';
 import type { ScanMetadata } from './reporters/types.js';
 import { VERSION } from './version.js';
@@ -20,6 +26,11 @@ interface ScanCommandOptions {
   color: boolean;
   only?: string[];
   skip?: string[];
+  onlyCategory?: CheckCategory[];
+  skipCategory?: CheckCategory[];
+  minSeverity?: Severity;
+  quiet?: boolean;
+  summaryOnly?: boolean;
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -41,6 +52,39 @@ function parseCheckIdList(value: string): string[] {
     .split(',')
     .map((id) => id.trim())
     .filter((id) => id.length > 0);
+}
+
+const CHECK_CATEGORIES = CheckCategorySchema.options;
+
+function parseCategoryList(value: string): CheckCategory[] {
+  const raw = value
+    .split(',')
+    .map((category) => category.trim())
+    .filter((category) => category.length > 0);
+  for (const category of raw) {
+    if (!(CHECK_CATEGORIES as readonly string[]).includes(category)) {
+      throw new InvalidArgumentError(`must be one of: ${CHECK_CATEGORIES.join(', ')}`);
+    }
+  }
+  return raw as CheckCategory[];
+}
+
+/** A display filter over already-run findings — never affects --fail-on, which always evaluates the full, unfiltered result (improvement_plan.md 3.8). */
+function applyDisplayFilters(findings: readonly Finding[], options: ScanCommandOptions): Finding[] {
+  let result = [...findings];
+  if (options.onlyCategory !== undefined) {
+    const set = new Set(options.onlyCategory);
+    result = result.filter((finding) => set.has(finding.category));
+  }
+  if (options.skipCategory !== undefined) {
+    const set = new Set(options.skipCategory);
+    result = result.filter((finding) => !set.has(finding.category));
+  }
+  if (options.minSeverity !== undefined) {
+    const threshold = options.minSeverity;
+    result = result.filter((finding) => severityMeetsThreshold(finding.severity, threshold));
+  }
+  return result;
 }
 
 /** Renders the `checks` subcommand's catalog listing (id, title, severity). */
@@ -90,22 +134,62 @@ export function buildProgram(): Command {
       'agent root/config directory to scan (probes known default locations if omitted)',
     )
     .description('Scan an agent installation and report security findings')
-    .option(
-      '--format <format>',
-      `output format (${REPORT_FORMATS.join('|')})`,
-      parseFormat,
-      'console',
+    .addOption(
+      new Option('--format <format>', `output format (${REPORT_FORMATS.join('|')})`)
+        .argParser(parseFormat)
+        .default('console')
+        .env('CHAPERONE_FORMAT'),
     )
-    .option(
-      '--fail-on <severity>',
-      'minimum severity for a non-zero exit code',
-      parseSeverity,
-      'high',
+    .addOption(
+      new Option('--fail-on <severity>', 'minimum severity for a non-zero exit code')
+        .argParser(parseSeverity)
+        .default('high')
+        .env('CHAPERONE_FAIL_ON'),
     )
-    .option('--output <file>', 'write the report to a file instead of stdout')
+    .addOption(
+      new Option('--output <file>', 'write the report to a file instead of stdout').env(
+        'CHAPERONE_OUTPUT',
+      ),
+    )
     .option('--no-color', 'disable colored console output')
     .option('--only <ids>', 'run only the listed check IDs (comma-separated)', parseCheckIdList)
     .option('--skip <ids>', 'skip the listed check IDs (comma-separated)', parseCheckIdList)
+    .addOption(
+      new Option(
+        '--only-category <categories>',
+        `only display findings in these categories, comma-separated (${CHECK_CATEGORIES.join('|')}) — a display filter, doesn't change which checks run or --fail-on`,
+      )
+        .argParser(parseCategoryList)
+        .env('CHAPERONE_ONLY_CATEGORY'),
+    )
+    .addOption(
+      new Option(
+        '--skip-category <categories>',
+        'hide findings in these categories, comma-separated — a display filter, same caveat as --only-category',
+      )
+        .argParser(parseCategoryList)
+        .env('CHAPERONE_SKIP_CATEGORY'),
+    )
+    .addOption(
+      new Option(
+        '--min-severity <severity>',
+        'only display findings at or above this severity — a display filter, distinct from --fail-on (which always evaluates every finding)',
+      )
+        .argParser(parseSeverity)
+        .env('CHAPERONE_MIN_SEVERITY'),
+    )
+    .addOption(
+      new Option(
+        '--quiet',
+        'print one compact line per finding (id + severity) instead of full detail',
+      ).conflicts('summaryOnly'),
+    )
+    .addOption(
+      new Option(
+        '--summary-only',
+        'print only the summary line and posture score, no findings',
+      ).conflicts('quiet'),
+    )
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
       // Everything below is wrapped so an unexpected bug (e.g. a reporter
       // throwing on some edge-case input) can never be mistaken for
@@ -134,6 +218,10 @@ export function buildProgram(): Command {
         // be about a target that doesn't exist, which is confusing, not
         // helpful.
         const findings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
+        // Category/severity filters are purely presentational — --fail-on
+        // below always evaluates the full `findings`, never this filtered
+        // view (improvement_plan.md 3.8).
+        const displayFindings = applyDisplayFilters(findings, options);
 
         const metadata: ScanMetadata = {
           target: model.targetRoot,
@@ -149,8 +237,12 @@ export function buildProgram(): Command {
         // before writing a saved report file (or when --no-color is
         // passed) so a saved file isn't full of ANSI codes.
         const colorEnabled = output !== undefined ? false : options.color;
-        const report = renderReport(options.format, findings, metadata, {
-          console: { color: colorEnabled },
+        const report = renderReport(options.format, displayFindings, metadata, {
+          console: {
+            color: colorEnabled,
+            ...(options.quiet !== undefined ? { quiet: options.quiet } : {}),
+            ...(options.summaryOnly !== undefined ? { summaryOnly: options.summaryOnly } : {}),
+          },
         });
 
         if (output !== undefined) {

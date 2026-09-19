@@ -106,4 +106,69 @@ describe('formatConsoleReport', () => {
 
     expect(output).not.toContain('Skipped');
   });
+
+  it('shows the posture score and band in the summary line', () => {
+    const output = formatConsoleReport(
+      [makeFinding({ severity: 'critical' }), makeFinding({ severity: 'low' })],
+      METADATA,
+    );
+
+    // 100 - 25 (critical) - 3 (low) = 72 -> band C.
+    expect(output).toContain('posture score 72/100 (C)');
+  });
+
+  it('a clean scan scores 100/A', () => {
+    const output = formatConsoleReport([], METADATA);
+
+    expect(output).toContain('posture score 100/100 (A)');
+  });
+
+  describe('quiet: true', () => {
+    it('prints one compact line per finding instead of the full detail block', () => {
+      const output = formatConsoleReport(
+        [makeFinding({ checkId: 'CHAP-SEC-001', severity: 'high' })],
+        METADATA,
+        { quiet: true },
+      );
+
+      expect(output).toContain('[CHAP-SEC-001] HIGH');
+      expect(output).not.toContain('a secret is exposed');
+      expect(output).not.toContain('Remediation:');
+    });
+
+    it('still shows the summary/score line', () => {
+      const output = formatConsoleReport([makeFinding()], METADATA, { quiet: true });
+
+      expect(output).toMatch(/posture score \d+\/100/);
+    });
+  });
+
+  describe('summaryOnly: true', () => {
+    it('prints no per-finding detail, not even severity group headers', () => {
+      const output = formatConsoleReport([makeFinding({ severity: 'critical' })], METADATA, {
+        summaryOnly: true,
+      });
+
+      expect(output).not.toContain('CRITICAL (');
+      expect(output).not.toContain('[CHAP-SEC-001]');
+      expect(output).toMatch(/posture score \d+\/100/);
+      expect(output).toContain('Summary:');
+    });
+
+    it('takes precedence over quiet when both are set', () => {
+      const output = formatConsoleReport([makeFinding({ severity: 'critical' })], METADATA, {
+        quiet: true,
+        summaryOnly: true,
+      });
+
+      expect(output).not.toContain('[CHAP-SEC-001]');
+    });
+
+    it('suppresses "No findings." too, still shows the summary', () => {
+      const output = formatConsoleReport([], METADATA, { summaryOnly: true });
+
+      expect(output).not.toContain('No findings.');
+      expect(output).toContain('Summary: 0 findings');
+    });
+  });
 });

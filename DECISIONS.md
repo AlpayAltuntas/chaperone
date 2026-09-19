@@ -818,3 +818,38 @@ empty`). Fixed by deriving a directory-appropriate mode (execute bit
   unit tests, same strategy as Phase 5.
 - **README's example output re-verified again**: 24 -> 26 checks, 37 ->
   38 findings, 14 -> 15 high, 14 -> 15 paths inspected.
+
+## Improvement plan, Phase 7 — CLI UX round 2
+
+- **`--only-category`/`--skip-category`/`--min-severity`** (`3.8`) are
+  explicitly _display_ filters — they filter the findings passed into
+  `renderReport`, so the report artifact (console/json/sarif alike) is
+  self-consistent with whatever was filtered, including its own
+  score/summary. `--fail-on` deliberately reads the full, unfiltered
+  `findings` from `runChecks` instead — never the filtered view — so a
+  narrow `--only-category`/`--min-severity` for a quick look can never
+  accidentally mask a real failure from CI. Tested explicitly in
+  `cli.exitcode.test.ts` (filtering the display to a clean category/high
+  severity doesn't change the exit code when a real high/critical finding
+  exists outside that filter).
+- **`--quiet`/`--summary-only`** (`3.11`) are console-reporter-only
+  (accepted regardless of `--format`, but only `console` interprets
+  them — json/sarif are already structured/compact) and declared
+  mutually exclusive via commander's `Option#conflicts()` rather than
+  manual validation in the action body.
+- **Posture score added to the console reporter's summary line** as part
+  of `3.11` (`--summary-only`'s whole point is "summary line + score") —
+  previously JSON-only, noted in CHECKS.md as "a possible future
+  enhancement". Shown in every console-format run now, not just
+  `--summary-only`, since there's no reason to hide it in full-detail
+  mode once it exists.
+- **Environment-variable support** (`3.12`): `CHAPERONE_FORMAT`,
+  `CHAPERONE_FAIL_ON`, `CHAPERONE_OUTPUT`, `CHAPERONE_ONLY_CATEGORY`,
+  `CHAPERONE_SKIP_CATEGORY`, `CHAPERONE_MIN_SEVERITY` via commander's
+  `Option#env()`. Deliberately did _not_ wire env vars for `--only`/
+  `--skip` (check-ID lists — a less common CI-config shape) or the
+  boolean flags (`--quiet`/`--summary-only`/`--no-color` — env-var
+  boolean parsing is its own can of worms commander doesn't handle
+  specially, and none of these were named in the plan's own examples).
+  An explicit CLI flag always overrides its env var (commander's default
+  precedence), verified in `cli.options.test.ts`.
