@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import type { InspectedEntry, Skill, SkippedEntry, SkillProvenance } from '../model/types.js';
+import { detectCapabilities, mergeCapabilities } from './astCapabilities.js';
 import { errorMessage } from './errors.js';
 import { isRecord } from './jsonUtils.js';
 
@@ -11,25 +12,6 @@ const LOCKFILE_NAMES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
 const MAX_SOURCE_FILE_BYTES = 256 * 1024;
 const MAX_SCAN_DEPTH = 4;
 
-const SHELL_EXEC_PATTERNS = [/child_process/, /\bexecSync?\(/, /\bspawnSync?\(/];
-const FS_WRITE_PATTERNS = [
-  /\bfs\.(writeFile|unlink|rm|rmdir|appendFile)/,
-  /require\(['"]fs['"]\)/,
-  /from\s+['"]fs['"]/,
-];
-// Evidence that file access is scoped to a fixed base directory rather than
-// an arbitrary caller-supplied path — the proxy CHAP-AGY-002 uses for "has
-// path scoping".
-const FS_SCOPING_PATTERNS = [
-  /path\.(?:join|resolve)\(\s*__dirname/,
-  /const\s+\w*(?:WORKSPACE|SANDBOX|SCOPED)\w*\s*=/i,
-];
-const NETWORK_PATTERNS = [
-  /\bfetch\(/,
-  /\bhttps?\.request\(/,
-  /require\(['"](?:https?|node-fetch|axios)['"]\)/,
-];
-const DESTRUCTIVE_KEYWORDS = ['delete', 'send', 'transfer', 'purchase', 'deploy', 'remove', 'pay'];
 const DANGEROUS_INSTALL_PATTERNS = [
   /curl[^\n]*\|\s*(?:ba)?sh/i,
   /wget[^\n]*\|\s*(?:ba)?sh/i,
@@ -74,17 +56,10 @@ function scanOneSkill(
   const manifest = manifestPath ? readManifest(manifestPath, inspected, skipped) : null;
 
   const sourceFiles = listSourceFiles(dir);
-  const combinedSource = readSourceFiles(sourceFiles, inspected, skipped);
-
-  const capabilities = {
-    shellExec: SHELL_EXEC_PATTERNS.some((re) => re.test(combinedSource)),
-    fileSystemAccess: FS_WRITE_PATTERNS.some((re) => re.test(combinedSource)),
-    fileSystemScoped: FS_SCOPING_PATTERNS.some((re) => re.test(combinedSource)),
-    networkAccess: NETWORK_PATTERNS.some((re) => re.test(combinedSource)),
-    destructiveKeywords: DESTRUCTIVE_KEYWORDS.filter((kw) =>
-      new RegExp(`\\b${kw}\\b`, 'i').test(combinedSource),
-    ),
-  };
+  const sourceContents = readSourceFiles(sourceFiles, inspected, skipped);
+  const capabilities = mergeCapabilities(
+    sourceContents.map(({ path: filePath, content }) => detectCapabilities(filePath, content)),
+  );
 
   const packageJsonPath = manifestPath?.endsWith('package.json')
     ? manifestPath
@@ -206,12 +181,18 @@ function listSourceFiles(dir: string, depth = 0): string[] {
   return files;
 }
 
+/**
+ * Reads each source file individually (not concatenated into one blob —
+ * each file is parsed as its own AST by astCapabilities.ts, and treating
+ * independent files as one program would be semantically wrong even
+ * though the old regex-over-raw-text approach could get away with it).
+ */
 function readSourceFiles(
   files: string[],
   inspected: InspectedEntry[],
   skipped: SkippedEntry[],
-): string {
-  let combined = '';
+): Array<{ path: string; content: string }> {
+  const results: Array<{ path: string; content: string }> = [];
   for (const file of files) {
     try {
       const stat = statSync(file);
@@ -219,13 +200,13 @@ function readSourceFiles(
         skipped.push({ path: file, reason: 'source file too large to scan (>256KB)' });
         continue;
       }
-      combined += readFileSync(file, 'utf8') + '\n';
+      results.push({ path: file, content: readFileSync(file, 'utf8') });
       inspected.push({ path: file, kind: 'skill-source' });
     } catch (err) {
       skipped.push({ path: file, reason: `unreadable source: ${errorMessage(err)}` });
     }
   }
-  return combined;
+  return results;
 }
 
 function scanInstallScripts(
