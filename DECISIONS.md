@@ -1762,3 +1762,82 @@ report.html` test that writes a real file to disk and reads it back,
   invalid-plugin/collision/missing-plugin-path errors all go through
   `command.error()`/`process.exit()` and were verified manually, same
   convention as every other such path in this suite.
+
+## Improvement plan, Phase 22 — Guided remediation (`chaperone fix`)
+
+- **A separate top-level command, not a `scan` flag** — the plan's own
+  instruction, taken literally: "kept architecturally and namewise
+  distinct from `scan`'s read-only guardrail... named/packaged
+  distinctly enough that 'Chaperone found this' and 'Chaperone changed
+  this' are never confusable." `chaperone scan` has zero write
+  capability, period, regardless of any flag — `fix` is the one place
+  in this entire codebase that writes to the target install, and only
+  under its own separate gate.
+- **`--write` requires `--dry-run` to also be passed, in the same
+  invocation** — the DoD's exact wording ("nothing is written unless
+  the user re-runs with `--write` after reviewing it") reads as two
+  separate invocations, but a cross-invocation "did they actually review
+  it last time" gate would need persistent state and is trivially
+  defeatable (nothing stops someone from running `--dry-run` against a
+  different check, or years ago, or on a different machine, and treating
+  that as "reviewed"). Requiring both flags **together** is a strictly
+  stronger, mechanically enforced guarantee: the proposed change is
+  _always_ printed immediately before the write happens, in that exact
+  order, every single time, with no way to separate the two steps even
+  accidentally. `--write` alone unconditionally refuses, every time,
+  telling the user exactly what to run instead.
+- **The "diff" is a masked, field-level change list, not a raw
+  unified/line diff of file text** — a real unified diff of the file's
+  "before" content would show the actual literal secret on the removed
+  line, directly contradicting the "secrets are masked in all output"
+  guarantee this project holds everywhere else. `renderFixPlan` prints
+  `keyPath: <masked-old-value> -> <new-value>` instead, reusing the
+  exact same `displayValue` the finding itself already computed (see
+  `configParser.ts`'s `maskConfig`) — the fixer never needs to know or
+  re-derive the real old value at all, only the field's _location_
+  (`keyPath`), to overwrite it.
+- **Only `CHAP-SEC-001` has a working fixer** — the DoD's own floor
+  ("at least one check"), not parity with the 29-check catalog; `3.14`
+  itself is framed as "explicitly out of scope for v1... if ever built".
+  `src/fix/index.ts`'s `FIXERS` registry is the obvious place to add
+  another later. The chosen fix (replace a literal secret with a
+  `${SUGGESTED_ENV_VAR_NAME}` reference) is the single most common,
+  least risky, most mechanically obvious remediation in the whole check
+  catalog — a config-file edit with one unambiguous right answer, unlike
+  e.g. "fix an unrestricted shell-exec skill" (no single correct code
+  change exists).
+- **YAML edits preserve formatting/comments via `YAML.Document#setIn`**
+  (a round-trip-preserving edit, the same API family `configParser.ts`'s
+  line-lookup already uses `YAML.parseDocument` for), not a naive
+  parse-and-regenerate-from-scratch — a config file's comments and key
+  order matter to the person who wrote it, and a "fix" that silently
+  reformats the whole file around one line would be a worse experience
+  than the bug it's fixing. JSON has no comments to preserve, so a plain
+  `JSON.parse`/`setInPlainObject`/`stringify` round-trip is fine there —
+  same reasoning `maskConfig` already applies for JSON.
+- **The suggested env-var name uses the full dotted keyPath, not just
+  the leaf key** (`channels.telegram.bot_token` ->
+  `CHANNELS_TELEGRAM_BOT_TOKEN`, not `BOT_TOKEN`) — two different
+  channels' bot tokens (`telegram`/`discord`) would otherwise collide on
+  the same suggested variable name.
+- **`fix` is single-target only** — no `--all`/`--docker`/`--profile`
+  support. Batch remediation across many installs at once is a much
+  higher-blast-radius operation than batch _scanning_, and nothing in
+  the DoD asks for it; a deliberate, documented scope boundary, not an
+  oversight, consistent with keeping this phase's new write capability
+  as narrow and easy to reason about as possible.
+- Tested at three levels: `test/fix/envVarName.test.ts` and
+  `test/fix/chapSec001Fixer.test.ts` (the fixer's `plan()` directly —
+  YAML formatting/comment preservation, JSON support, the null cases,
+  multiple distinct env-var names, and confirming `plan()` itself never
+  writes anything), `test/cli.fix.test.ts` (through the real CLI: the
+  default/`--dry-run` no-write behavior, `--dry-run --write` together
+  actually writing and in the right order, the "nothing to fix" message,
+  and — critically — a dedicated regression test that `chaperone scan`
+  itself still never modifies a file even when fixable findings are
+  present), and manual verification against the real packaged
+  (`npm pack`) binary, including confirming a fixed config file no
+  longer trips `CHAP-SEC-001` on a subsequent `scan`. `--write` without
+  `--dry-run`, an unknown check ID, and an unresolved target all go
+  through `command.error()`/`process.exit()` and were verified manually,
+  same convention as every other such path in this suite.

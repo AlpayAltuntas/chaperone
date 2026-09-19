@@ -119,8 +119,14 @@ function isRangedNode(value: unknown): value is { range: [number, number, number
   return Array.isArray(range) && typeof range[0] === 'number';
 }
 
-/** Splits a masking keyPath like `trust.tool_allowlist[0]` back into the segments `YAML.Document#getIn` expects: `['trust', 'tool_allowlist', 0]`. */
-function parseKeyPathSegments(keyPath: string): Array<string | number> {
+/**
+ * Splits a masking keyPath like `trust.tool_allowlist[0]` back into the
+ * segments `YAML.Document#getIn`/`#setIn` expects: `['trust',
+ * 'tool_allowlist', 0]`. Exported for src/fix/ (improvement_plan.md
+ * 3.14/Phase 22) — guided remediation reuses this exact parse to locate
+ * the field it's about to edit.
+ */
+export function parseKeyPathSegments(keyPath: string): Array<string | number> {
   const segments: Array<string | number> = [];
   const pattern = /([^.[\]]+)|\[(\d+)\]/g;
   let match: RegExpExecArray | null;

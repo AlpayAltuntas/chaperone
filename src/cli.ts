@@ -18,6 +18,7 @@ import { runChecks, type RunChecksResult } from './engine/index.js';
 import { loadPlugins, mergeChecks } from './engine/pluginLoader.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
 import type { Check } from './engine/types.js';
+import { FIXERS, findFixer, renderFixPlan } from './fix/index.js';
 import {
   CheckCategorySchema,
   type AgentModel,
@@ -543,6 +544,87 @@ export function buildProgram(): Command {
       }
       console.log(formatCheckExplanation(check));
     });
+
+  // Guided remediation (improvement_plan.md 3.14/Phase 22) — a SEPARATE
+  // command, deliberately, from `scan` (never run during it), so "scan
+  // found this" and "fix changed this" can never be confused. `scan`'s
+  // own read-only guardrail (§14, test/scan/noNetworkCalls.test.ts's
+  // sibling guarantee) is completely unaffected by this command
+  // existing — `fix` is the one place in this codebase that writes to
+  // the target install at all, and only when --write is explicitly
+  // passed alongside --dry-run.
+  program
+    .command('fix')
+    .argument(
+      '<check-id>',
+      "a check ID with a working fixer (run with no path to see 'nothing to fix' or the available list)",
+    )
+    .argument('[path]', 'agent root/config directory to fix (same resolution as `scan`)')
+    .description(
+      "Guided remediation for one check's findings. Always prints the proposed change; only writes with --write, which itself requires --dry-run.",
+    )
+    .option(
+      '--dry-run',
+      'print the proposed change without writing anything (this already happens by default — explicit for clarity/scripting)',
+    )
+    .option(
+      '--write',
+      'apply the fix — requires --dry-run to also be passed, so the change is always shown immediately before anything is written',
+    )
+    .action(
+      (
+        checkId: string,
+        targetPath: string | undefined,
+        options: { dryRun?: boolean; write?: boolean },
+        command: Command,
+      ) => {
+        try {
+          const fixer = findFixer(checkId);
+          if (fixer === undefined) {
+            command.error(
+              `No fixer available for '${checkId}'. Currently available: ${FIXERS.map((f) => f.checkId).join(', ')}.`,
+            );
+          }
+
+          if (options.write === true && options.dryRun !== true) {
+            command.error(
+              `--write requires --dry-run to also be passed, so the proposed change is always shown immediately before anything is written. Run: chaperone fix ${checkId}${targetPath !== undefined ? ` ${targetPath}` : ''} --dry-run --write`,
+            );
+          }
+
+          const { model, targetRootResolved } = discoverAgent(
+            targetPath === undefined ? {} : { targetPath },
+          );
+          if (!targetRootResolved) {
+            command.error(
+              `Could not locate an installation to fix. Pass an explicit path: chaperone fix ${checkId} <path>`,
+            );
+          }
+
+          const plan = fixer.plan(model);
+          if (plan === null) {
+            console.log(
+              `Nothing to fix for ${checkId} in ${model.targetRoot} — no matching findings (run \`chaperone scan\` first to confirm what's there).`,
+            );
+            return;
+          }
+
+          console.log(renderFixPlan(plan));
+
+          if (options.write === true) {
+            writeFileSync(plan.filePath, plan.newContent);
+            console.log(`\nWrote ${plan.filePath}.`);
+          } else {
+            console.log(
+              '\n(dry run — nothing written. Re-run with --dry-run --write once you have reviewed this.)',
+            );
+          }
+        } catch (err) {
+          console.error(`chaperone: unexpected error: ${errorMessage(err)}`);
+          process.exitCode = 2;
+        }
+      },
+    );
 
   // Alongside the built-in -V/--version flag (from .version() above) — §10
   // lists `chaperone version` as its own subcommand too.
