@@ -107,60 +107,74 @@ export function buildProgram(): Command {
     .option('--only <ids>', 'run only the listed check IDs (comma-separated)', parseCheckIdList)
     .option('--skip <ids>', 'skip the listed check IDs (comma-separated)', parseCheckIdList)
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
-      const knownIds = new Set(ALL_CHECKS.map((check) => check.id));
-      for (const id of [...(options.only ?? []), ...(options.skip ?? [])]) {
-        if (!knownIds.has(id)) {
-          command.error(
-            `Unknown check ID: ${id}. Run \`chaperone checks\` to see available check IDs.`,
-          );
+      // Everything below is wrapped so an unexpected bug (e.g. a reporter
+      // throwing on some edge-case input) can never be mistaken for
+      // "findings met --fail-on" — both would otherwise exit 1
+      // indistinguishably to a CI pipeline reading only the exit code.
+      // command.error() calls (unknown check ID, empty --only/--skip
+      // result, the --output write failure below) are unaffected: without
+      // .exitOverride() configured, commander calls process.exit()
+      // directly rather than throwing, so they never reach this catch.
+      try {
+        const knownIds = new Set(ALL_CHECKS.map((check) => check.id));
+        for (const id of [...(options.only ?? []), ...(options.skip ?? [])]) {
+          if (!knownIds.has(id)) {
+            command.error(
+              `Unknown check ID: ${id}. Run \`chaperone checks\` to see available check IDs.`,
+            );
+          }
         }
-      }
 
-      const { model, targetRootResolved } = discoverAgent(
-        targetPath === undefined ? {} : { targetPath },
-      );
+        const { model, targetRootResolved } = discoverAgent(
+          targetPath === undefined ? {} : { targetPath },
+        );
 
-      // No point evaluating checks against an empty/placeholder model when
-      // no installation was even located — every "finding" would be about
-      // a target that doesn't exist, which is confusing, not helpful.
-      const findings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
+        // No point evaluating checks against an empty/placeholder model
+        // when no installation was even located — every "finding" would
+        // be about a target that doesn't exist, which is confusing, not
+        // helpful.
+        const findings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
 
-      const metadata: ScanMetadata = {
-        target: model.targetRoot,
-        targetRootResolved,
-        timestamp: new Date().toISOString(),
-        toolVersion: VERSION,
-        inspected: model.inspected,
-        skipped: model.skipped,
-      };
+        const metadata: ScanMetadata = {
+          target: model.targetRoot,
+          targetRootResolved,
+          timestamp: new Date().toISOString(),
+          toolVersion: VERSION,
+          inspected: model.inspected,
+          skipped: model.skipped,
+        };
 
-      const { output } = options;
-      // Colors are meant for an interactive terminal; force plain text
-      // before writing a saved report file (or when --no-color is passed)
-      // so a saved file isn't full of ANSI codes.
-      const colorEnabled = output !== undefined ? false : options.color;
-      const report = renderReport(options.format, findings, metadata, {
-        console: { color: colorEnabled },
-      });
+        const { output } = options;
+        // Colors are meant for an interactive terminal; force plain text
+        // before writing a saved report file (or when --no-color is
+        // passed) so a saved file isn't full of ANSI codes.
+        const colorEnabled = output !== undefined ? false : options.color;
+        const report = renderReport(options.format, findings, metadata, {
+          console: { color: colorEnabled },
+        });
 
-      if (output !== undefined) {
-        try {
-          writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
-        } catch (err) {
-          command.error(`Could not write report to '${output}': ${errorMessage(err)}`);
+        if (output !== undefined) {
+          try {
+            writeFileSync(output, report.endsWith('\n') ? report : `${report}\n`);
+          } catch (err) {
+            command.error(`Could not write report to '${output}': ${errorMessage(err)}`);
+          }
+        } else {
+          console.log(report);
         }
-      } else {
-        console.log(report);
-      }
 
-      // A scan that never located an installation is treated the same as
-      // hitting the fail-on threshold — automation should never read a
-      // "nothing was scanned" run as a silent pass.
-      const failed =
-        !targetRootResolved ||
-        findings.some((finding) => severityMeetsThreshold(finding.severity, options.failOn));
-      if (failed) {
-        process.exitCode = 1;
+        // A scan that never located an installation is treated the same
+        // as hitting the fail-on threshold — automation should never
+        // read a "nothing was scanned" run as a silent pass.
+        const failed =
+          !targetRootResolved ||
+          findings.some((finding) => severityMeetsThreshold(finding.severity, options.failOn));
+        if (failed) {
+          process.exitCode = 1;
+        }
+      } catch (err) {
+        console.error(`chaperone: unexpected error: ${errorMessage(err)}`);
+        process.exitCode = 2;
       }
     });
 

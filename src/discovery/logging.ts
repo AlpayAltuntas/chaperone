@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { LoggingModel } from '../model/types.js';
 import { isRecord } from './jsonUtils.js';
+import { expandHome } from './pathUtils.js';
 
 const EMPTY_LOGGING: LoggingModel = {
   present: false,
@@ -22,7 +23,7 @@ export function extractLoggingModel(rawConfig: unknown, targetRoot: string): Log
 
   const level = typeof logging['level'] === 'string' ? logging['level'] : null;
   const rawPath = typeof logging['path'] === 'string' ? logging['path'] : null;
-  const resolvedPath = rawPath !== null ? path.resolve(targetRoot, rawPath) : null;
+  const resolvedPath = rawPath !== null ? path.resolve(targetRoot, expandHome(rawPath)) : null;
 
   const redactSecrets =
     typeof logging['redact_secrets'] === 'boolean'

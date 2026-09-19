@@ -148,7 +148,7 @@ CRITICAL (3)
     OWASP: LLM06 / general
     Remediation: Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.
 
-HIGH (17)
+HIGH (13)
 
   [CHAP-SEC-001] Plaintext secrets in config
     Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
@@ -156,11 +156,11 @@ HIGH (17)
     OWASP: LLM06: Sensitive Information Disclosure
     Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).
 
-  ... 15 more high-severity findings ...
+  ... 12 more high-severity findings ...
 
 MEDIUM (14)  LOW (1)  ...
 
-Summary: 35 findings (3 critical, 17 high, 14 medium, 1 low, 0 info)
+Summary: 35 findings (3 critical, 13 high, 14 medium, 1 low, 4 info)
 Inspected 12 paths, skipped 0.
 ```
 
@@ -219,6 +219,31 @@ remediation guidance.
 See **[CHECKS.md](CHECKS.md)** for the full catalog (what each check
 detects, its exact heuristic, and its severity) and the posture-score
 formula, or run `chaperone checks` for a quick id/title/severity listing.
+
+## How Chaperone relates to other tools
+
+Chaperone isn't trying to replace generic secret/dependency scanners —
+several already do parts of what the `CHAP-SEC-*`/`CHAP-SUP-*` categories
+do, generically and well:
+
+- **[gitleaks](https://github.com/gitleaks/gitleaks)** /
+  **[trufflehog](https://github.com/trufflesecurity/trufflehog)** — generic
+  secret scanning across any codebase, including git history. Chaperone's
+  secret detection (`CHAP-SEC-001/002`) is narrower (config-file-shaped,
+  no history scanning) but knows what an agent config file's fields mean
+  (a `gateway.auth.token` vs. an arbitrary string).
+- **`npm audit`** / **[Snyk](https://snyk.io)** — real, live dependency
+  vulnerability databases. `CHAP-SUP-003` deliberately _doesn't_ try to
+  compete here — it points you at `npm audit` rather than reimplementing
+  it, because Chaperone makes no outbound network calls during a scan.
+
+**What none of those tools cover, and what Chaperone actually exists
+for**, is everything agent-specific: whether a skill can run arbitrary
+shell commands with no allowlist (`CHAP-AGY-*`), whether inbound messages
+can drive tool execution with no trust boundary (`CHAP-INJ-*`), and
+whether the gateway bridging those messages is exposed or weakly
+authenticated (`CHAP-NET-*`/`CHAP-OBS-*`). Run Chaperone _alongside_
+those tools, not instead of them.
 
 ## Known limitations
 

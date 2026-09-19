@@ -102,7 +102,9 @@ function scanOneSkill(
   const confirmationRequired = extractManifestBoolean(manifest, 'confirmationRequired');
   const domainAllowlist = extractManifestStringArray(manifest, 'domainAllowlist');
 
-  const name = manifest && typeof manifest['name'] === 'string' ? manifest['name'] : dirName;
+  const name = stripControlCharacters(
+    manifest && typeof manifest['name'] === 'string' ? manifest['name'] : dirName,
+  );
 
   return {
     name,
@@ -287,6 +289,39 @@ function matchDangerousPatterns(text: string): string[] {
   return matches;
 }
 
+/**
+ * Strips ASCII control characters — including ANSI terminal escape
+ * sequences (ESC, 0x1B) — from untrusted, manifest-derived text before it
+ * enters the model. A skill's `name`/`author` come straight from its own
+ * manifest, which by definition is untrusted once CHAP-SUP-001 ("skill
+ * from an unverified source") exists as a check at all; those strings get
+ * interpolated directly into console-reporter output with no further
+ * escaping. Without this, a malicious manifest could embed terminal
+ * control sequences (clear screen, hide subsequent output, etc.) in a
+ * field a user is likely to actually read (see improvement_plan.md 1.11).
+ * Same "sanitize once, at the trust boundary" principle configParser.ts
+ * already uses for secret masking — applied here regardless of whether
+ * the value came from a manifest or the directory name, since both are
+ * ultimately attacker-influenced for a skill installed from an unverified
+ * source.
+ */
+function stripControlCharacters(value: string): string {
+  return (
+    value
+      // CSI sequences (ESC [ ... final-byte) — cursor movement, screen
+      // clear, color codes, etc.
+      // eslint-disable-next-line no-control-regex -- deliberately matching escape sequences to strip them
+      .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+      // OSC sequences (ESC ] ... terminated by BEL or ESC \) — e.g.
+      // terminal title changes.
+      // eslint-disable-next-line no-control-regex -- deliberately matching escape sequences to strip them
+      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+      // Any remaining raw control bytes (including a lone/malformed ESC).
+      // eslint-disable-next-line no-control-regex -- deliberately matching control characters to strip them
+      .replace(/[\x00-\x1f\x7f]/g, '')
+  );
+}
+
 function extractProvenance(manifest: Record<string, unknown> | null): SkillProvenance {
   if (!manifest) {
     return { sourceUrl: null, pinnedRef: null, author: null };
@@ -305,12 +340,13 @@ function extractProvenance(manifest: Record<string, unknown> | null): SkillProve
             : null;
 
   const authorField = manifest['author'];
-  const author =
+  const rawAuthor =
     typeof authorField === 'string'
       ? authorField
       : isRecord(authorField) && typeof authorField['name'] === 'string'
         ? authorField['name']
         : null;
+  const author = rawAuthor !== null ? stripControlCharacters(rawAuthor) : null;
 
   const version = typeof manifest['version'] === 'string' ? manifest['version'] : null;
   const ref =

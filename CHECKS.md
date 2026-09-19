@@ -35,12 +35,11 @@ json`); the console reporter doesn't print it yet — a per-severity count
 summary instead (score display there is a possible future enhancement, not
 required by the spec).
 
-**A caveat worth knowing:** CHAP-SUP-003's deliberately weak v1 heuristic
-(see below) is High severity and fires on essentially any skill with a
-`package.json`, so even a well-hardened install rarely scores a full 100 —
-see `test/scan/fullCatalog.test.ts` for the clean fixture's real score.
-This is a direct, documented consequence of §7's own heuristic design for
-that check, not a scoring-formula bug.
+**A note on CHAP-SUP-003:** its deliberately weak v1 heuristic (see below)
+fires on essentially any skill with a `package.json`. It's `Info`
+severity, not `High` — demoted so a signal this weak can't drag down a
+genuinely hardened install's score or trip `--fail-on high` on its own
+(see `test/scan/fullCatalog.test.ts`, and `improvement_plan.md` 1.15).
 
 ---
 
@@ -180,7 +179,7 @@ that check, not a scoring-formula bug.
 
 ### CHAP-SUP-003 — Dependency manifest not checked for known vulnerabilities
 
-- **Severity:** High
+- **Severity:** Info (demoted from High — see below)
 - **OWASP:** LLM05 — Supply Chain
 - **Detects:** Any skill dependency manifest, surfaced for manual review.
 - **Heuristic (deliberately weak, v1):** Chaperone makes no outbound
@@ -189,7 +188,10 @@ that check, not a scoring-formula bug.
   `package.json` and points the user at `npm audit` — it fires on a
   hardened install exactly as readily as a vulnerable one. This is a
   documented v1 limitation, not a bug; see `test/checks/chapSup003.test.ts`
-  and DECISIONS.md.
+  and DECISIONS.md. Severity is `Info` rather than the category's usual
+  weight specifically because of that weakness — a real vulnerability
+  match would warrant `High` again (see `improvement_plan.md` Phase 18,
+  the planned offline-vulnerability-database fix).
 - **Remediation:** Run `npm audit` (or your package manager's equivalent)
   inside the skill directory; update or remove vulnerable/unused
   dependencies.

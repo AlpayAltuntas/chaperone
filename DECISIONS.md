@@ -509,3 +509,130 @@ dist/cli.js` directly (every manual test throughout this build) — never
   most rigorous check available: installed the package fresh from the
   live public registry into an isolated scratch directory and ran the
   installed binary (`--version`, `scan`) before calling it done.
+
+## Improvement plan, Phase 1 — Correctness bug fixes
+
+Seven fixes from `improvement_plan.md` Part 1, found by rereading every
+discovery module and check rather than staying at the architecture level.
+Each has a dedicated regression test; see the item numbers below.
+
+- **`1.2`: `SECRET_KEY_PATTERN` replaced with segment-based matching**
+  (`looksLikeSecretKeyName` in `configParser.ts`). The old substring
+  regex only recognized the literal sequence `api_key` for the whole
+  "key" family — `private_key`, `ssh_key`, `encryption_key`, and every
+  other ordinary `*_key` name were invisible to every secrets check —
+  while simultaneously false-positiving on any word merely _containing_
+  "token"/"secret"/etc. (`tokenizer_model`, `secretary`). Fixed by
+  splitting a key into segments on `_`/`-`/camelCase boundaries and
+  checking whole-segment membership in a small word set, which closes
+  both the false-negative and false-positive gap at once rather than
+  patching the regex into something even harder to reason about.
+- **`1.3`: `CHAP-NET-001` now checks the real loopback range**
+  (`isLoopbackAddress` in `chapNet001GatewayExposed.ts`), not a 3-item
+  literal set. All of IPv4 `127.0.0.0/8` is loopback, and IPv6 loopback
+  has multiple valid textual forms (`::1`, `0:0:0:0:0:0:0:1`, ...) — the
+  old check false-positived a critical finding on any of them other than
+  the two canonical spellings. Deliberately not a full RFC-grade IPv6
+  parser (e.g. IPv4-mapped `::ffff:127.0.0.1` isn't recognized) — covers
+  the realistic config-value cases without over-building.
+- **`1.4`: `~`/`~/...` paths in config now expand to the real home
+  directory** (`expandHome` in the new `discovery/pathUtils.ts`), applied
+  to both `logging.path` and `skills_dir`. `path.resolve` has no concept
+  of `~` — it was being treated as a literal subdirectory named "~",
+  meaning a config using that (common) convention pointed permission
+  checks at a path that silently doesn't exist, no error surfaced.
+  `expandHome` takes `homeDir` as an injected, defaulted parameter (same
+  pattern as `isMainModule` in `cli.ts`) specifically so it's unit
+  testable without mocking `os.homedir()`.
+- **`1.5`: env-reference detection recognizes bash/docker-compose default
+  syntax** (`${VAR:-default}`, `${VAR:=default}`, `${VAR:?message}`,
+  `${VAR:+alt}`), not just bare `${VAR}`. That styling is extremely
+  common in real config templating and was previously masked and flagged
+  as a literal secret — a false positive on an entirely safe pattern.
+- **`1.11`: untrusted skill `name`/`author` are sanitized in discovery,
+  not the console reporter** (`stripControlCharacters` in
+  `skillsScanner.ts`) — strips CSI/OSC ANSI escape sequences and any
+  remaining raw control bytes. Deliberately placed at the discovery
+  layer, matching the established "sanitize once, at the trust boundary"
+  precedent secret-masking already uses in `configParser.ts`, rather than
+  in the console reporter as the improvement-plan entry originally
+  suggested: a skill manifest is untrusted content by definition (that's
+  what `CHAP-SUP-001` exists to flag), and its `name`/`author` are
+  interpolated directly into finding messages with no further escaping
+  downstream — sanitizing at the source protects every current and future
+  consumer uniformly, not just the console reporter.
+- **`1.12`: unexpected errors in the scan pipeline get a distinct exit
+  code (`2`)**, not `1` — the same code findings meeting `--fail-on`
+  already used, which made "Chaperone crashed" and "Chaperone found real
+  issues" indistinguishable to a CI pipeline reading only the exit code.
+  The whole `scan` action body is now wrapped in one try/catch. This is
+  safe alongside the existing `command.error()` calls (unknown check ID,
+  empty `--only`/`--skip` result, `--output` write failure): without
+  `.exitOverride()` configured, commander's `.error()` calls
+  `process.exit()` directly rather than throwing, so none of those ever
+  reach the new catch block. Tested via `vi.mock`'ing `renderReport` to
+  throw, in a dedicated test file (`test/cli.unexpectedError.test.ts`) so
+  the module mock doesn't leak into other CLI tests that need the real
+  reporters.
+- **`1.15` (mitigation half): `CHAP-SUP-003` demoted from `High` to
+  `Info`.** The real fix (an offline vulnerability database) is a
+  separate, much larger effort (`improvement_plan.md` Phase 18) — this is
+  the cheap interim step so a check that fires on literally every skill
+  with a `package.json`, hardened or not, can't trip `--fail-on high` or
+  drag down a genuinely hardened install's posture score on its own. This
+  is a deliberate deviation from `instruction.md` §7's stated severity for
+  this check — noted here explicitly rather than silently diverging from
+  the original spec, since `instruction.md` itself is treated as a fixed
+  reference document throughout this project and is never edited. Updated
+  everywhere the old severity was baked in: the check itself,
+  `CHECKS.md`, and the posture-score assertions in
+  `test/scan/fullCatalog.test.ts` (clean fixture: 55/D -> 100/A, since the
+  3 `CHAP-SUP-003` findings there now deduct 0 instead of 45).
+
+## Improvement plan, Phase 2 — Repo hygiene & documentation
+
+Items `4.1`, `4.3`, `4.7`, `4.8` from `improvement_plan.md`. Docs only —
+no code changes.
+
+- **`CHANGELOG.md`** in Keep a Changelog format, with `[Unreleased]`
+  backfilled from Phase 1's seven fixes and a `[0.1.0]` entry
+  reconstructed from what actually shipped (dated from the real npm
+  publish timestamp, `npm view @alpay_altuntas/chaperone time`, not
+  guessed). States the versioning policy explicitly (a new check or a
+  severity change is a minor bump minimum) rather than leaving it
+  implicit.
+- **`SECURITY.md`** names two in-scope report classes explicitly — a bug
+  in Chaperone itself (violating its own read-only/no-network/masking
+  guardrails) and a false negative that matters (a check silently missing
+  something) — since the second is easy to under-value as "just a
+  correctness bug" for a tool whose entire purpose is catching things.
+  Points at GitHub's private vulnerability reporting as the preferred
+  channel; enabled it on the repo (`private-vulnerability-reporting`, was
+  off) so the link in the doc actually works.
+- **Issue template (bug report) + `config.yml`** prompting for the
+  specific fields that actually matter for a heuristic-driven tool (which
+  check, expected vs. actual, a redacted repro snippet) rather than a
+  blank box; `config.yml` redirects security reports to `SECURITY.md`
+  instead of a public issue.
+- **PR template** checklist mirrors the actual definition-of-done this
+  project has used in every phase so far (fixture pair for a check
+  change, `CHECKS.md`/`CHANGELOG.md`/`DECISIONS.md` kept in sync) —
+  encoding it once so it doesn't have to be restated per PR.
+- **README "How Chaperone relates to other tools"** section (item `4.8`)
+  added between "Checks" and "Known limitations". Names gitleaks/
+  trufflehog/npm audit/Snyk explicitly rather than being vague about
+  "other scanners" — the point is to be honest that Chaperone doesn't
+  compete on generic secret/dependency detection, only on the
+  agent-specific categories (`CHAP-AGY-*`/`CHAP-INJ-*`/`CHAP-NET-*`/
+  `CHAP-OBS-*`) nothing else covers.
+- **Caught and fixed a real staleness bug while doing this pass**: the
+  README's "Example output" section had hardcoded real captured CLI
+  output from before Phase 1's `CHAP-SUP-003` severity demotion — still
+  said "17 high, 0 info" and "15 more high-severity findings" (already
+  slightly wrong even before Phase 1 — 1 shown + 15 more = 16, not the
+  claimed 17). Re-ran the actual scan and corrected both to the current
+  real numbers (13 high, 4 info, 12 more). A concrete instance of why
+  `DECISIONS.md`'s Phase 6 note ("the README's example output is real,
+  captured CLI output... so it can't drift") only holds if it's actually
+  re-verified after a change that affects it — noted here so future
+  phases remember to check this file too.

@@ -32,7 +32,7 @@ describe('cli scan — exit codes and output (in-process, non-throwing paths onl
   });
 
   it('exits zero when raising the threshold above every finding severity present', () => {
-    // clean-agent's only findings are CHAP-SUP-003 (high); nothing reaches critical.
+    // clean-agent's only findings are CHAP-SUP-003 (info); nothing reaches critical.
     run([
       'node',
       'chaperone',

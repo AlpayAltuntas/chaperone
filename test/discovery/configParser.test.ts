@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   looksLikeEnvReference,
+  looksLikeSecretKeyName,
   maskConfig,
   maskSecretValue,
   parseConfigSource,
@@ -29,12 +30,71 @@ describe('looksLikeEnvReference', () => {
     },
   );
 
+  // Regression test for improvement_plan.md 1.5: bash/docker-compose-style
+  // parameter expansion with a default/error fallback was previously
+  // treated as a literal secret (false positive).
+  it.each(['${FOO:-default}', '${FOO:=default}', '${FOO:?missing value}', '${FOO:+alt}'])(
+    'recognizes %s (default/error/alt fallback syntax) as an env reference',
+    (value) => {
+      expect(looksLikeEnvReference(value)).toBe(true);
+    },
+  );
+
   it.each(['sk-ant-abc123', 'plainpassword', 'env-FOO', '${FOO'])(
     'does not treat %s as an env reference',
     (value) => {
       expect(looksLikeEnvReference(value)).toBe(false);
     },
   );
+});
+
+// Regression tests for improvement_plan.md 1.2: the old substring regex
+// only recognized the literal sequence "api_key" for the "key" family —
+// a bare `key` segment (private_key, ssh_key, encryption_key, ...) wasn't
+// matched at all — while simultaneously false-positiving on any word that
+// merely *contained* "token"/"secret"/etc. as a substring (tokenizer,
+// secretary-style names). Segment-based whole-word matching fixes both.
+describe('looksLikeSecretKeyName', () => {
+  it.each([
+    'api_key',
+    'apiKey',
+    'API_KEY',
+    'apikey',
+    'api-key',
+    'private_key',
+    'privateKey',
+    'ssh_key',
+    'encryption_key',
+    'signing_key',
+    'master_key',
+    'key',
+    'token',
+    'auth_token',
+    'authToken',
+    'secret',
+    'client_secret',
+    'password',
+    'db_password',
+    'credential',
+    'credentials',
+  ])('recognizes %s as a secret-shaped key name', (key) => {
+    expect(looksLikeSecretKeyName(key)).toBe(true);
+  });
+
+  it.each([
+    'tokenizer_model',
+    'tokenizer',
+    'keyboard_layout',
+    'keyword',
+    'monkey',
+    'turkey',
+    'secretary',
+    'provider',
+    'model',
+    'enabled',
+  ])('does not treat %s as a secret-shaped key name', (key) => {
+    expect(looksLikeSecretKeyName(key)).toBe(false);
+  });
 });
 
 describe('maskSecretValue', () => {
@@ -84,5 +144,22 @@ describe('maskConfig', () => {
     expect(maskConfig('just a string').data).toBeNull();
     expect(maskConfig(null).data).toBeNull();
     expect(maskConfig(42).data).toBeNull();
+  });
+
+  it('masks a private_key field end-to-end (regression for 1.2 — previously invisible)', () => {
+    const { data, secretFields } = maskConfig({
+      tls: { private_key: 'abcdefghijklmnopqrstuvwxyz' },
+    });
+
+    expect(secretFields).toHaveLength(1);
+    expect(secretFields[0]?.keyPath).toBe('tls.private_key');
+    expect(JSON.stringify(data)).not.toContain('abcdefghijklmnopqrstuvwxyz');
+  });
+
+  it('does not mask a field that merely contains "token" as a substring (regression for 1.2)', () => {
+    const { data, secretFields } = maskConfig({ llm: { tokenizer_model: 'cl100k_base' } });
+
+    expect(secretFields).toEqual([]);
+    expect(data).toEqual({ llm: { tokenizer_model: 'cl100k_base' } });
   });
 });
