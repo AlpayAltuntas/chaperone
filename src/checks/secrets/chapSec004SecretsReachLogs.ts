@@ -17,6 +17,12 @@ export const chapSec004SecretsReachLogs: Check = {
   severity: 'medium',
   category: 'secrets',
   owasp: OWASP,
+  detects:
+    "Verbose logging that's likely to capture secrets, or a log file itself exposed to other local users.",
+  heuristic:
+    'Fires when either: the log level is `debug`/`trace`/`verbose` while the config holds a literal secret, or the log file is readable by group/other. Either reason alone is enough; both are reported together when both hold.',
+  remediation:
+    'Raise the log level away from debug/trace, redact secrets before logging, and restrict the log file to owner-only access.',
   run(model) {
     if (!model.logging.present) {
       return [];

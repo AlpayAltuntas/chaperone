@@ -11,6 +11,11 @@ export const chapAgy004BroadNetworkEgress: Check = {
   severity: 'medium',
   category: 'agency',
   owasp: OWASP,
+  detects: 'Skills permitted to call arbitrary external endpoints.',
+  heuristic:
+    "The skill's source shows network capability (`fetch`, `http(s).request`, `axios`/`node-fetch`) and its manifest declares no non-empty `domainAllowlist` array (same manifest-convention caveat as CHAP-AGY-003).",
+  remediation:
+    'Allowlist the specific destination domain(s) the skill needs and log outbound calls.',
   run(model) {
     return model.skills
       .filter(

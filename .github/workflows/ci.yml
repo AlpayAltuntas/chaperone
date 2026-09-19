@@ -22,6 +22,10 @@ jobs:
       # Chaperone auditing its own dependencies (improvement_plan.md 4.6).
       - run: npm audit --audit-level=high
       - run: npm run build
+      # CHECKS.md is generated from the ALL_CHECKS registry
+      # (improvement_plan.md 4.2) — fails if someone hand-edits CHECKS.md
+      # or adds/changes a check without running `npm run docs:checks`.
+      - run: npm run docs:checks:check
 
       # The one check that would have caught the real symlink-entrypoint
       # bug (see DECISIONS.md, "Post-v1 — npm publish prep"): npm test

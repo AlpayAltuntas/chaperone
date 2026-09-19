@@ -853,3 +853,57 @@ empty`). Fixed by deriving a directory-appropriate mode (execute bit
   specially, and none of these were named in the plan's own examples).
   An explicit CLI flag always overrides its env var (commander's default
   precedence), verified in `cli.options.test.ts`.
+
+## Improvement plan, Phase 8 — Generated docs
+
+- **`CHECKS.md` is now generated, not hand-maintained** (`4.2`): every
+  check in `src/checks/*` gained three new required `Check` interface
+  fields (`detects`/`heuristic`/`remediation` — general, non-interpolated
+  doc text, distinct from a `Finding`'s own per-instance `message`/
+  `remediation`) plus an optional `severityNote` (used only by
+  CHAP-SUP-003's "Info, demoted from High" case). `scripts/
+generateChecksDoc.ts` renders the full catalog from `ALL_CHECKS`,
+  formats it through Prettier's own API (`prettier.format`, not just the
+  CLI) so the generated file is guaranteed `prettier --check`-clean
+  without hand-tuning line wraps to match, and writes or (`--check`)
+  diffs against the committed file. `npm run docs:checks:check` is now a
+  CI step — a hand-edit to CHECKS.md or a new/changed check without
+  regenerating fails the build.
+- **This immediately caught a real, pre-existing drift**: CHAP-AGY-003's
+  hand-written CHECKS.md heading said "Destructive/irreversible action
+  without confirmation", but the check's actual `TITLE` constant (used
+  everywhere else — findings, `chaperone checks`) was "Destructive action
+  without confirmation". The generator surfaced and fixed this
+  automatically — exactly the class of bug this phase exists to
+  eliminate, found on the very first real run.
+- **OWASP display transform**: the check's own `owasp` field uses a colon
+  (`'LLM06: Sensitive Information Disclosure'` — the literal string used
+  verbatim in `Finding.owasp` across every report format), but CHECKS.md
+  has always displayed it with an em dash. Handled as a pure display
+  transform in the generator (`replaceAll(': ', ' — ')`, not
+  `replace` — CHAP-INJ-003's OWASP value has two colons to convert, e.g.
+  `LLM01: Prompt Injection / LLM08: Excessive Agency`) rather than
+  changing the underlying data everywhere it's used.
+- **Long single-line paragraphs, not manually 80-col-wrapped prose**: the
+  previous hand-written CHECKS.md had prose manually wrapped at ~80
+  columns; Prettier's default `proseWrap: preserve` doesn't auto-wrap
+  long lines, so the generated file's bullet paragraphs are now single
+  long lines per field. Still fully `prettier --check`-valid (verified),
+  renders identically on GitHub (which always soft-wraps within list
+  items regardless of source line length), and is simpler/more robust to
+  generate than replicating manual wrapping — accepted as the right
+  tradeoff for a generated doc.
+- **`chaperone explain <check-id>`** (`3.7`) reads the exact same
+  `detects`/`heuristic`/`remediation`/`severityNote` fields the generator
+  reads, so the CLI and CHECKS.md literally cannot drift apart — same
+  source, two renderers.
+- **`generateChecksDoc.ts` reuses `isMainModule`** (imported from
+  `src/cli.ts`) for its run-as-script vs. run-as-module guard, rather
+  than reimplementing the same symlink-resolution logic a second time —
+  and exports the pure `generateChecksDoc()` function so
+  `test/scripts/generateChecksDoc.test.ts` can assert against it
+  directly (including a byte-for-byte regression check against the
+  committed `CHECKS.md`) without shelling out or touching disk.
+- **`scripts/` added to `tsconfig.eslint.json`'s `include` and
+  `eslint.config.js`'s `files`** — the new script gets the same
+  typecheck/lint bar as `src/`/`test/`, not a second-class exemption.

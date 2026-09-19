@@ -5,5 +5,5 @@
     "allowJs": true,
     "rootDir": "."
   },
-  "include": ["src", "test", "*.ts", "*.js"]
+  "include": ["src", "test", "scripts", "*.ts", "*.js"]
 }

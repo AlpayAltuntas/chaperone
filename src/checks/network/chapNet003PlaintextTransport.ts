@@ -11,6 +11,10 @@ export const chapNet003PlaintextTransport: Check = {
   severity: 'medium',
   category: 'network',
   owasp: OWASP,
+  detects: 'The gateway explicitly configured without TLS.',
+  heuristic:
+    "`gateway.tls` is explicitly `false`. Silent when TLS isn't mentioned in config at all — v1 doesn't have a confident signal either way in that case.",
+  remediation: 'Enable TLS on the gateway and disable any plaintext fallback.',
   run(model) {
     if (!model.gateway.present || model.gateway.tlsEnabled !== false) {
       return [];
