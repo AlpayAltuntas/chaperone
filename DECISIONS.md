@@ -1347,3 +1347,61 @@ SeveritySchema)` since its keys are arbitrary check IDs, not an enum.
   missing/invalid-`--baseline`-file hard-error path itself was verified
   manually (same `command.error()`/`process.exit()` constraint as every
   other such path in this suite).
+
+## Improvement plan, Phase 16 — Non-JS skill support (first cut)
+
+- **Regex-over-raw-text, deliberately, not a ported AST approach** —
+  matching the plan's own framing (`1.9`: "same fragility as the
+  pre-Phase-10 JS approach"). `src/discovery/pythonCapabilities.ts`
+  mirrors the exact pre-Phase-10 `skillsScanner.ts` shape (an array of
+  `RegExp`s per capability, `Array.some`/`Array.filter`), not
+  `astCapabilities.ts`'s import/binding-resolution machinery — adding a
+  Python parser/tokenizer dependency is a much bigger bet than a "first
+  cut" warrants, and there's no such dependency in this project today.
+- **Dispatched per-file by extension** (`detectCapabilitiesForFile` in
+  `skillsScanner.ts`), not per-skill on concatenated source: JS/TS files
+  still go through the real AST path, `.py` files go through the new
+  regex path, and both funnel into the same `mergeCapabilities` —
+  keeping one merge step rather than a language-specific aggregation
+  branch. `SOURCE_EXTENSIONS` (now `JS_TS_SOURCE_EXTENSIONS ∪
+PYTHON_SOURCE_EXTENSIONS`) is the "SOURCE_EXTENSIONS-equivalent
+  broadened" the DoD asks for.
+- **Field-by-field mapping to Python's own idioms, not a literal
+  transliteration**: `eval()`/`Function()` (JS) maps to `eval()`/
+  `exec()`/`__import__()` (Python) — all three are Python's
+  dynamic-code/dynamic-import primitives, the same semantic category
+  `dynamicEval` represents for JS. `fileSystemScoped`'s proxy signal
+  (`path.join(__dirname, ...)` for JS) maps to
+  `os.path.join(os.path.dirname(__file__), ...)` for Python — same
+  "is file access scoped to a fixed base directory" question, expressed
+  in each language's own idiom for "next to this file".
+- **`dataFlowToShellExec` is always `false` for Python, on purpose** —
+  Phase 16's scope is capability _detection_, not porting CHAP-INJ-002's
+  bounded intra-file taint trace (Phase 10) to a second language. A
+  Python skill can still trip CHAP-INJ-002 at its lower (`medium`,
+  unconfirmed-shape-match) severity via `shellExec` +
+  `networkAccess`/`fileSystemAccess`; it just never reaches that check's
+  `high` (confirmed-data-flow) tier the way a JS skill can.
+- **Caught a real regex bug while building the clean fixture**: the
+  initial `open\([^)]*,\s*['"]a?[wx]b?['"]/` pattern for a write-mode
+  `open()` call stops at the _first_ `)` — a nested call in the path
+  argument (`open(os.path.join(WORKSPACE, name), "w")`, the natural way
+  to write a scoped-workspace path in Python) defeats it entirely, since
+  `os.path.join(...)`'s own closing paren is reached before the mode
+  string. Fixed by bounding the pattern to one line (`[^\n]*` instead of
+  `[^)]*`) rather than requiring no intervening parens — regression-
+  tested directly (`test/discovery/pythonCapabilities.test.ts`).
+- **New fixture skills, not just unit tests** — `py-cache-cleaner`
+  (vulnerable-agent: `subprocess.run(...)` + a destructive `-delete`
+  argument, no manifest `confirmationRequired`) and `py-notes`
+  (clean-agent: `open(..., "w")` scoped to
+  `os.path.dirname(__file__)`-relative `workspace/`) prove the new path
+  end-to-end through `discoverAgent`, not just against
+  `detectPythonCapabilities` directly — real existing checks
+  (`CHAP-AGY-001`, `CHAP-AGY-003`, `CHAP-SUP-001/002/003`) now produce
+  findings against Python source with zero check-level changes, since
+  every check reads `skill.capabilities`, never the source language.
+  `test/scan/fullCatalog.test.ts` and every affected
+  check/discovery test were updated against real captured CLI output
+  (44 → 49 vulnerable-agent findings; 3 → 4 clean-agent `CHAP-SUP-003`
+  findings), never hand-computed.

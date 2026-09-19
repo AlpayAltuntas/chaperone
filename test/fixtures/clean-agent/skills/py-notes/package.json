@@ -1,0 +1,10 @@
+{
+  "name": "py-notes",
+  "version": "1.0.0",
+  "description": "DUMMY fixture skill: reads/writes notes inside its own scoped workspace directory (fixture only, Python).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example-org/py-notes-skill"
+  },
+  "author": "example-author"
+}
