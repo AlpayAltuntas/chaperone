@@ -1954,3 +1954,37 @@ install --save-dev` defaults to one) — the standard TS property-based
   improvement_plan.md 1.14) — fuzzed across a wide generated name space,
   not just the specific examples the existing example-based test suite
   already covers.
+
+## Improvement plan, Phase 23 (5.3) — Performance/scale test fixture
+
+- **Generated at test time, not committed to git** — a 500-skill
+  synthetic install (1,000+ files) has no business bloating the repo's
+  history the way a real fixture pair does; `buildLargeSyntheticInstall`
+  builds it fresh into a temp directory on every test run and cleans up
+  afterward, the same `mkdtempSync`/`afterEach` pattern every other
+  temp-dir-based test in this suite already uses.
+- **A concrete wall-clock ceiling, not a micro-benchmark** — no
+  statistical rigor, no baseline-comparison harness, no `tinybench`-
+  style dependency. A single generous budget (15s, run through
+  `discoverAgent` + the full `runChecks(model, ALL_CHECKS)`) that a real
+  algorithmic regression (an accidental O(n²) somewhere in discovery or
+  the check engine) would blow through loudly, while staying far enough
+  above ordinary CI noise/variance to never be flaky. A real run on a
+  normal development machine currently completes the full 500-skill
+  scan in well under 100ms — the 15s ceiling has enormous headroom
+  specifically so this test's value is "catches a real regression",
+  not "asserts today's exact performance number".
+- **Verifies checks actually ran across the whole set, not just that
+  discovery finished** — every synthetic skill is built to trip
+  `CHAP-AGY-004` (a `fetch()` call with no `domainAllowlist`
+  declared), and the test asserts exactly `SKILL_COUNT` such findings —
+  a cheap correctness sanity check riding along with the timing
+  assertion, catching a scenario where discovery silently truncated the
+  skill list (which would otherwise make the test pass _faster_, for
+  the wrong reason).
+- **A second, smaller case for "deep source trees"** (the plan's other
+  named scenario) — one skill nested 20 directories deep, confirming
+  `skillsScanner.ts`'s existing `MAX_SCAN_DEPTH` bound (already in place
+  before this phase, for an unrelated reason — bounding recursive
+  directory listing) also keeps a pathologically deep tree's scan time
+  bounded, not just its own recursion depth.

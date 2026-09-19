@@ -620,6 +620,15 @@ plan calls out. This already caught two real bugs during development
 handful of edge-case path strings, and a flawed test assumption about
 `-0`'s JSON round-trip) — see `DECISIONS.md`, Phase 23 (5.2).
 
+**A performance/scale test** (`test/scan/performance.test.ts`,
+improvement_plan.md 5.3) generates a synthetic 500-skill install at test
+time and asserts discovery + the full check suite completes within a
+generous wall-clock ceiling — not a micro-benchmark, but a concrete
+floor that would fail loudly on a real algorithmic regression (e.g. an
+accidental O(n²) in discovery or the check engine) rather than only
+being discovered as a real user complaint. A real run currently
+completes in well under a second.
+
 **Refreshing the offline vulnerability snapshot** (`CHAP-SUP-003`,
 `src/checks/shared/vulnDb.ts`): run `npm run refresh:vulndb`. This is the
 one script in the repo that makes an outbound network call (to
