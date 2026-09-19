@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Chaperone's own runtime/dev dependencies (improvement_plan.md 4.6) —
+  # slightly ironic for a security scanner not to audit itself.
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: 'development'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'

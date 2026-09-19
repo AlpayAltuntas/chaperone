@@ -636,3 +636,46 @@ no code changes.
   captured CLI output... so it can't drift") only holds if it's actually
   re-verified after a change that affects it — noted here so future
   phases remember to check this file too.
+
+## Improvement plan, Phase 3 — CI pipeline hardening
+
+- **Coverage tooling** (`4.5`): added `@vitest/coverage-v8` pinned to the
+  exact same version as `vitest` itself (`4.1.11`) — the coverage
+  provider and the runner have to be version-matched or vitest refuses
+  to run. `vitest.config.ts` scopes `include` to `src/**/*.ts` only —
+  `test/fixtures/**` is inert sample data the checks scan, not code this
+  project owns, so it has no business in a coverage number. Real
+  measured numbers on this pass: 96.43% statements / 83.68% branches /
+  98.66% functions / 96.47% lines. `coverage/` added to `.gitignore`
+  (generated output, not source).
+- **Coverage badge deferred**: `4.5`'s literal definition-of-done
+  mentions a README badge. Decided not to wire one up this phase — the
+  standard path (Codecov or similar) means granting an external service
+  access to the repo, which is a decision the account owner should make
+  explicitly rather than one made silently mid-phase. Chose the
+  self-contained alternative instead: CI uploads the `coverage/` HTML
+  report as a build artifact (`actions/upload-artifact`) on every run,
+  so real numbers are inspectable from the Actions tab without a
+  third-party integration. Revisit the badge specifically if/when
+  wanted.
+- **Packaged-binary smoke test in CI** (`4.4`): promotes the manual
+  `npm pack` → install-into-temp-dir → run verification (used ad hoc
+  during the original npm-publish debugging, see "Post-v1 — npm publish
+  prep" above) into an automated CI step that runs on every push/PR.
+  Explicitly asserts `chaperone --version` prints non-empty output —
+  that exact assertion is the regression guard for the symlink
+  entrypoint bug (`isMainModule` comparing `import.meta.url` against
+  `process.argv[1]` without resolving npm's bin symlink first), which
+  `npm test` alone never exercised because it never runs the actual
+  installed binary. Scans `test/fixtures/clean-agent` (not
+  `vulnerable-agent`) as the smoke target deliberately — a scan that
+  intentionally exits non-zero interacts badly with the default GitHub
+  Actions shell (`bash -eo pipefail`), and this step only needs to prove
+  the binary runs, not re-assert scan correctness (already covered by
+  the test suite).
+- **Dependency audit** (`4.6`): `npm audit --audit-level=high` added as
+  its own CI step (fails the build on high/critical advisories, not on
+  every low-severity noise finding) plus `.github/dependabot.yml`
+  covering both the `npm` and `github-actions` ecosystems on a weekly
+  schedule, with dev dependencies grouped into one PR rather than one PR
+  per dev dependency bump.

@@ -39,6 +39,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit"
   },
@@ -54,6 +55,7 @@
     "@types/node": "26.5.1",
     "@typescript-eslint/eslint-plugin": "8.70.0",
     "@typescript-eslint/parser": "8.70.0",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.9.6",
