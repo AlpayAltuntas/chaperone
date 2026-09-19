@@ -3,6 +3,11 @@ import { realpathSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
+import {
+  applyChaperoneConfig,
+  DEFAULT_CONFIG_FILENAME,
+  loadChaperoneConfig,
+} from './config/chaperoneConfig.js';
 import { errorMessage } from './discovery/errors.js';
 import { discoverAgent } from './discovery/index.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
@@ -31,6 +36,7 @@ interface ScanCommandOptions {
   minSeverity?: Severity;
   quiet?: boolean;
   summaryOnly?: boolean;
+  config?: string;
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -216,6 +222,12 @@ export function buildProgram(): Command {
         'print only the summary line and posture score, no findings',
       ).conflicts('quiet'),
     )
+    .addOption(
+      new Option(
+        '--config <file>',
+        `suppression/override config file (default: ./${DEFAULT_CONFIG_FILENAME} if present) — severityOverrides, ignore (with expires), disabledChecks, scoreWeights`,
+      ).env('CHAPERONE_CONFIG'),
+    )
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
       // Everything below is wrapped so an unexpected bug (e.g. a reporter
       // throwing on some edge-case input) can never be mistaken for
@@ -227,6 +239,22 @@ export function buildProgram(): Command {
       // directly rather than throwing, so they never reach this catch.
       try {
         const knownIds = new Set(ALL_CHECKS.map((check) => check.id));
+
+        let rcConfig;
+        try {
+          rcConfig = loadChaperoneConfig(options.config).config;
+        } catch (err) {
+          command.error(errorMessage(err));
+        }
+
+        // disabledChecks (improvement_plan.md 3.4) feeds the same --skip
+        // mechanism a check-ID typo on the command line already goes
+        // through, so an unknown ID here is validated identically.
+        const disabledChecks = rcConfig.disabledChecks ?? [];
+        if (disabledChecks.length > 0) {
+          options.skip = [...(options.skip ?? []), ...disabledChecks];
+        }
+
         for (const id of [...(options.only ?? []), ...(options.skip ?? [])]) {
           if (!knownIds.has(id)) {
             command.error(
@@ -243,10 +271,26 @@ export function buildProgram(): Command {
         // when no installation was even located — every "finding" would
         // be about a target that doesn't exist, which is confusing, not
         // helpful.
-        const findings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
+        const rawFindings = targetRootResolved
+          ? runCheckSuite(model, options, command).findings
+          : [];
+
+        // severityOverrides/ignore are a real reclassification the user
+        // has consciously made, so — unlike the purely cosmetic display
+        // filters just below — this result feeds --fail-on and the score
+        // too, not just what's rendered (improvement_plan.md 3.4).
+        const { findings, warnings: configWarnings } = applyChaperoneConfig(
+          rawFindings,
+          rcConfig,
+          knownIds,
+        );
+        for (const warning of configWarnings) {
+          console.error(`chaperone: warning: ${warning}`);
+        }
+
         // Category/severity filters are purely presentational — --fail-on
-        // below always evaluates the full `findings`, never this filtered
-        // view (improvement_plan.md 3.8).
+        // below always evaluates the full (config-adjusted) `findings`,
+        // never this filtered view (improvement_plan.md 3.8).
         const displayFindings = applyDisplayFilters(findings, options);
 
         const metadata: ScanMetadata = {
@@ -269,6 +313,7 @@ export function buildProgram(): Command {
             ...(options.quiet !== undefined ? { quiet: options.quiet } : {}),
             ...(options.summaryOnly !== undefined ? { summaryOnly: options.summaryOnly } : {}),
           },
+          ...(rcConfig.scoreWeights !== undefined ? { scoreWeights: rcConfig.scoreWeights } : {}),
         });
 
         if (output !== undefined) {

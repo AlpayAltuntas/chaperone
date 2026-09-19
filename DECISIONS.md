@@ -1226,3 +1226,74 @@ true` against a `memory/` pattern).
   only now that a real line number exists) — no reporter changes needed
   anywhere; verified end-to-end via both the dev build and a real
   npm-pack install.
+
+## Improvement plan, Phase 14 — Suppression config file (`.chaperonerc.json`)
+
+- **`z.record(EnumSchema, ValueSchema)` vs. `z.partialRecord` (zod 4)**:
+  discovered mid-implementation that `z.record` treats an enum key type
+  as exhaustive — `z.record(SeveritySchema, z.number()).safeParse({high:
+20})` fails with "expected number, received undefined" for every
+  other severity, and `ZodRecord` has no `.partial()` method to relax
+  it. `z.partialRecord(SeveritySchema, z.number())` is the correct zod-4
+  API for a genuinely partial per-key mapping and is what
+  `scoreWeights` uses; `severityOverrides` stays `z.record(z.string(),
+SeveritySchema)` since its keys are arbitrary check IDs, not an enum.
+- **Pipeline ordering — real reclassification before display filters,
+  both before `--fail-on`/score**: `severityOverrides`/`ignore` are a
+  conscious reclassification the user made (an accepted-risk decision),
+  not cosmetics, so — unlike Phase 7's `--only-category`/
+  `--skip-category`/`--min-severity`, which must never affect
+  `--fail-on` — `applyChaperoneConfig`'s output feeds both the
+  `--fail-on` decision and the posture score. The scan pipeline is now:
+  raw findings → `applyChaperoneConfig` (severity overrides + active
+  suppressions) → adjusted findings (what `--fail-on`/score use) →
+  `applyDisplayFilters` (Phase 7's cosmetic-only filters) → what's
+  actually rendered. `disabledChecks` sits one step earlier still —
+  merged into `runChecks`'s own `skip` list, so those checks never
+  produce findings at all rather than being suppressed after the fact.
+- **Unknown check ID: warn in the config file, hard-fail on the CLI** —
+  a deliberate, debatable split. `severityOverrides`/`ignore` entries
+  referencing an unknown check ID print a warning and are otherwise
+  ignored, matching the DoD's "warn, don't silently fail" precedent
+  already set for expired suppressions (a stale suppression referencing
+  a since-removed/renamed check shouldn't break a CI pipeline on a
+  Chaperone version upgrade). `disabledChecks`, by contrast, is merged
+  into the existing `--skip` mechanism and goes through the same
+  unknown-ID validation `--skip`/`--only` already hard-error on — a
+  direct CLI-adjacent check-ID list is more likely to be an immediate
+  typo worth catching loudly than a config file surviving across
+  upgrades.
+- **`expires` (ISO date string) on an `ignore` entry**: once past, the
+  entry stops suppressing — the finding reappears in output and feeds
+  `--fail-on` again — and a warning is printed naming the check, the
+  expiry date, and the original `reason` (when given), so a suppression
+  can't silently outlive the justification it was added for. An
+  unparseable `expires` value is treated as non-expiring rather than
+  erroring — the field is optional and best-effort, not schema-enforced
+  as a strict date.
+- **`--config <file>` / `CHAPERONE_CONFIG` / default discovery**: an
+  explicit path (flag or env var) must exist and validate or the scan
+  hard-errors via `command.error()` (silently ignoring a typo'd path
+  would be worse than failing loudly — consistent with how other
+  explicit-path flags like `--output` behave on failure). With neither
+  set, `./.chaperonerc.json` is looked up in the current working
+  directory and its absence is treated as "no config," not an error.
+  `LoadedConfig.path` (which file was actually loaded, if any) is
+  computed but not currently surfaced to the user beyond the loaded
+  config's effects — judged unnecessary for the DoD and left for a
+  future `--verbose`-style addition rather than adding scope now.
+- Tested all four config shapes end-to-end through the real CLI
+  (`test/config/cli.chaperonerc.test.ts`): `severityOverrides` changing
+  a finding's severity and therefore `--fail-on`, an active `ignore`
+  suppression removing a finding, an expired `ignore` suppression
+  _not_ removing the finding and printing a warning, `disabledChecks`
+  preventing a check from running, `scoreWeights` changing the computed
+  score across console/json/markdown output, both `--config` and
+  `CHAPERONE_CONFIG`, and default-file auto-discovery. The
+  unknown-check-ID-in-`disabledChecks` hard-error path was verified
+  manually instead (same "would kill the vitest worker via
+  `process.exit()`" caveat as every other `command.error()` path in
+  this codebase — see cli.exitcode.test.ts/cli.options.test.ts).
+  `chaperoneConfig.ts`'s pure functions (`loadChaperoneConfig`,
+  `applyChaperoneConfig`) are also unit-tested directly
+  (`test/config/chaperoneConfig.test.ts`).

@@ -34,11 +34,21 @@ export interface PostureScore {
   band: PostureBand;
 }
 
-export function computeScore(findings: readonly Finding[]): PostureScore {
-  const deduction = findings.reduce(
-    (sum, finding) => sum + SEVERITY_SCORE_WEIGHT[finding.severity],
-    0,
-  );
+/**
+ * `weightOverrides` (improvement_plan.md 3.4, `.chaperonerc.json`'s
+ * `scoreWeights`) replaces individual severity weights for this
+ * computation only — `SEVERITY_SCORE_WEIGHT` itself, the default, is
+ * never mutated.
+ */
+export function computeScore(
+  findings: readonly Finding[],
+  weightOverrides?: Partial<Record<Severity, number>>,
+): PostureScore {
+  const weights =
+    weightOverrides !== undefined
+      ? { ...SEVERITY_SCORE_WEIGHT, ...weightOverrides }
+      : SEVERITY_SCORE_WEIGHT;
+  const deduction = findings.reduce((sum, finding) => sum + weights[finding.severity], 0);
   const score = Math.max(0, 100 - deduction);
   return { score, band: scoreBand(score) };
 }

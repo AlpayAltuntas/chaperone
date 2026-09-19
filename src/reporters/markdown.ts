@@ -17,7 +17,11 @@ const SEVERITY_LABEL: Record<Severity, string> = {
  * `gh pr comment`, improvement_plan.md 3.9). Findings are sorted most
  * severe first, same order the console reporter groups by.
  */
-export function formatMarkdownReport(findings: readonly Finding[], metadata: ScanMetadata): string {
+export function formatMarkdownReport(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  scoreWeights?: Partial<Record<Severity, number>>,
+): string {
   const lines: string[] = [];
 
   lines.push('# Chaperone scan report', '');
@@ -50,7 +54,7 @@ export function formatMarkdownReport(findings: readonly Finding[], metadata: Sca
     lines.push('');
   }
 
-  lines.push(formatSummary(findings, metadata));
+  lines.push(formatSummary(findings, metadata, scoreWeights));
 
   return lines.join('\n');
 }
@@ -77,12 +81,16 @@ function escapeCell(text: string): string {
   return text.replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
-function formatSummary(findings: readonly Finding[], metadata: ScanMetadata): string {
+function formatSummary(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  scoreWeights?: Partial<Record<Severity, number>>,
+): string {
   const counts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const finding of findings) {
     counts[finding.severity] += 1;
   }
-  const { score, band } = computeScore(findings);
+  const { score, band } = computeScore(findings, scoreWeights);
   const countLine =
     `**Summary:** ${String(findings.length)} finding${findings.length === 1 ? '' : 's'} ` +
     `(${String(counts.critical)} critical, ${String(counts.high)} high, ${String(counts.medium)} medium, ` +

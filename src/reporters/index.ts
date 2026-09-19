@@ -1,4 +1,4 @@
-import type { Finding } from '../model/types.js';
+import type { Finding, Severity } from '../model/types.js';
 import { formatConsoleReport, type ConsoleReportOptions } from './console.js';
 import { formatGhaReport } from './gha.js';
 import { formatJsonReport } from './json.js';
@@ -20,6 +20,8 @@ export type ReportFormat = (typeof REPORT_FORMATS)[number];
 
 export interface RenderReportOptions {
   console?: ConsoleReportOptions;
+  /** Per-severity posture-score weight overrides (improvement_plan.md 3.4, .chaperonerc.json's scoreWeights) — applied to every format that reports a score (console/json/markdown; SARIF has no score concept). */
+  scoreWeights?: Partial<Record<Severity, number>>;
 }
 
 /** Dispatches to the reporter for the requested format — the CLI's single entry point for turning findings into output text. */
@@ -31,13 +33,16 @@ export function renderReport(
 ): string {
   switch (format) {
     case 'console':
-      return formatConsoleReport(findings, metadata, options.console);
+      return formatConsoleReport(findings, metadata, {
+        ...options.console,
+        ...(options.scoreWeights !== undefined ? { scoreWeights: options.scoreWeights } : {}),
+      });
     case 'json':
-      return formatJsonReport(findings, metadata);
+      return formatJsonReport(findings, metadata, options.scoreWeights);
     case 'sarif':
       return formatSarifReport(findings, metadata);
     case 'markdown':
-      return formatMarkdownReport(findings, metadata);
+      return formatMarkdownReport(findings, metadata, options.scoreWeights);
     case 'gha':
       return formatGhaReport(findings, metadata);
   }
