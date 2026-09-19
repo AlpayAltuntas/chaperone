@@ -8,6 +8,7 @@ import { errorMessage } from './errors.js';
 import { extractGatewayModel } from './gateway.js';
 import { detectGitContext } from './gitContext.js';
 import { isRecord } from './jsonUtils.js';
+import { scanExistingLogContent } from './logContentScanner.js';
 import { extractLoggingModel } from './logging.js';
 import { extractMemoryModel } from './memory.js';
 import { expandHome } from './pathUtils.js';
@@ -68,9 +69,19 @@ export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   // masking replaces literal secret-looking values (an empty/default auth
   // token is exactly the kind of literal masking would otherwise hide).
   const gateway = extractGatewayModel(rawParsed);
-  const logging = extractLoggingModel(rawParsed, targetRoot);
+  let logging = extractLoggingModel(rawParsed, targetRoot);
   const memory = extractMemoryModel(rawParsed, targetRoot);
   const { data, secretFields } = maskConfig(rawParsed);
+
+  const logPath = logging.path;
+  if (logPath !== null && existsSync(logPath)) {
+    const logScan = scanExistingLogContent(logPath);
+    logging = { ...logging, existingSecretMatches: logScan.matches };
+    inspected.push({ path: logPath, kind: 'log-file' });
+    if (logScan.skippedReason !== null) {
+      skipped.push({ path: logPath, reason: logScan.skippedReason });
+    }
+  }
 
   const sidecarResult = discoverSidecarSecretFiles(targetRoot);
   inspected.push(...sidecarResult.inspected);
@@ -154,6 +165,7 @@ function emptyModel(
       path: null,
       redactSecrets: null,
       auditLogEnabled: null,
+      existingSecretMatches: [],
     },
     memory: { present: false, dir: null },
     recoverability: { killSwitchDocumented: false },

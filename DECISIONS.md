@@ -768,3 +768,53 @@ empty`). Fixed by deriving a directory-appropriate mode (execute bit
   captured CLI output, not hand-computed — see the Phase 2 entry above
   for why this matters): 22 -> 24 checks, 35 -> 37 findings, 13 -> 14
   high, 14 -> 15 medium, 13 inspected paths (was 12).
+
+## Improvement plan, Phase 6 — New standalone checks
+
+- **`CHAP-SEC-005`** (`2.1`/`1.8`): a new `discovery/logContentScanner.ts`
+  reads up to the last 256 KiB of the log file (bounded — this is a
+  security tool auditing files that could themselves be huge or
+  adversarial) and scans it for `key=value`/`"key": "value"`-shaped
+  substrings whose key matches the existing `looksLikeSecretKeyName`
+  heuristic, capped at 20 matches. Reuses `configParser.ts`'s key-name
+  and masking logic rather than the plan's alternative
+  (a generic high-entropy-string scanner) — picking one, documented,
+  same precedent as CHAP-SUP-003's deliberately-simple v1 heuristic.
+  Matched values are masked (`maskSecretValue`) before ever reaching the
+  model; the real value is never retained, same guarantee config secrets
+  already get. Distinct from CHAP-SEC-004/CHAP-OBS-002, which only
+  reason about whether logging _will_ leak going forward — this is
+  evidence something already did.
+- **`CHAP-SEC-007`** (`2.3`): checks whether a bare `${VAR}`/`$VAR`/
+  `env:VAR` config reference resolves to anything in Chaperone's own
+  `process.env` at scan time. Explicitly advisory — the plan calls for
+  the caveat to be "in its own message text, not just CHECKS.md" since
+  Chaperone runs as a separate process and may not share the agent's
+  real environment (e.g. a systemd/launchd `EnvironmentFile`); the
+  finding message states this directly. `low` severity reflects that
+  low confidence. Only bare references are checked — a `:-`/`:=`/`:?`/
+  `:+` fallback/default resolves to something even when the variable
+  itself is unset, so `configParser.ts`'s new `extractEnvVarName`
+  returns `null` for those and the check silently skips them rather
+  than risk a false positive.
+- **A real interaction this surfaced**: `clean-agent`'s config uses
+  indirect env-var references by design (`${ANTHROPIC_API_KEY}`,
+  `env:TELEGRAM_BOT_TOKEN`, `env:GATEWAY_AUTH_TOKEN`) — meaning
+  `CHAP-SEC-007` would fire against it in `fullCatalog.test.ts` in any
+  environment where those three vars happen not to be set (true almost
+  everywhere, but not guaranteed — a real `ANTHROPIC_API_KEY` set in a
+  developer's own shell would have silently changed the test's outcome
+  depending on who ran it). Fixed by having the test explicitly
+  `vi.stubEnv` those three variables as set before running the
+  clean-agent full-catalog scan — the honest scenario for a genuinely
+  hardened install (the operator has these set for the agent process
+  itself), and makes the test fully deterministic regardless of the
+  running environment's ambient state.
+- **Fixture strategy**: appended one dummy leaked-secret log line to
+  `vulnerable-agent/logs/agent.log` (TP for CHAP-SEC-005 in the
+  full-catalog integration test); `clean-agent`'s log stays untouched
+  (TN via absence). Full TP/TN matrix for both new checks — including
+  the "present but safe" cases — lives in dedicated isolated-temp-dir
+  unit tests, same strategy as Phase 5.
+- **README's example output re-verified again**: 24 -> 26 checks, 37 ->
+  38 findings, 14 -> 15 high, 14 -> 15 paths inspected.

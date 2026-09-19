@@ -35,6 +35,7 @@ describe('CHAP-OBS-001 — no audit log of agent actions', () => {
         path: null,
         redactSecrets: null,
         auditLogEnabled: null,
+        existingSecretMatches: [],
       },
     };
 

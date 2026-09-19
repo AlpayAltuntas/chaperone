@@ -53,6 +53,29 @@ export function looksLikeEnvReference(value: string): boolean {
   return ENV_REF_PATTERNS.some((re) => re.test(trimmed));
 }
 
+// Bare-reference forms only (no `:-`/`:=`/`:?`/`:+` fallback/default) —
+// those modifiers mean the reference resolves to *something* even when
+// the variable itself is unset, so CHAP-SEC-007 (which asks "is the var
+// actually set?") deliberately can't say anything useful about them and
+// skips them rather than risk a false positive.
+const BARE_ENV_REF_PATTERNS = [
+  /^\$\{([A-Za-z0-9_]+)\}$/,
+  /^env:([A-Za-z0-9_]+)$/i,
+  /^\$([A-Za-z0-9_]+)$/,
+];
+
+/** Extracts the variable name from a bare `${VAR}`/`$VAR`/`env:VAR` reference, or null if it's not one of those forms. */
+export function extractEnvVarName(value: string): string | null {
+  const trimmed = value.trim();
+  for (const re of BARE_ENV_REF_PATTERNS) {
+    const match = re.exec(trimmed);
+    if (match?.[1] !== undefined) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
 export function maskSecretValue(value: string): string {
   if (value.length <= 8) {
     return '*'.repeat(Math.max(value.length, 3));

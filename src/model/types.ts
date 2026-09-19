@@ -214,12 +214,25 @@ export type GatewayModel = z.infer<typeof GatewayModelSchema>;
 // Logging
 // ---------------------------------------------------------------------------
 
+// A secret-shaped key=value/key:"value" pair found in *existing* log file
+// content (feeds CHAP-SEC-005) — distinct from CHAP-SEC-004/OBS-002, which
+// only reason about whether logging config is likely to leak going
+// forward. `displayValue` is already masked the same way config secrets
+// are (configParser.ts's maskSecretValue); the real value is never
+// retained.
+export const LoggedSecretMatchSchema = z.object({
+  keyName: z.string(),
+  displayValue: z.string(),
+});
+export type LoggedSecretMatch = z.infer<typeof LoggedSecretMatchSchema>;
+
 export const LoggingModelSchema = z.object({
   present: z.boolean(),
   level: z.string().nullable(),
   path: z.string().nullable(),
   redactSecrets: z.boolean().nullable(),
   auditLogEnabled: z.boolean().nullable(),
+  existingSecretMatches: z.array(LoggedSecretMatchSchema),
 });
 export type LoggingModel = z.infer<typeof LoggingModelSchema>;
 

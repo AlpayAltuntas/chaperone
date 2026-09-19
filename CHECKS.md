@@ -101,6 +101,27 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Remediation:** Raise the log level away from debug/trace, redact
   secrets before logging, and restrict the log file to owner-only access.
 
+### CHAP-SEC-005 — Secret already present in existing log content
+
+- **Severity:** High
+- **OWASP:** LLM06 — Sensitive Information Disclosure
+- **Detects:** A secret-shaped value already written into the log file's
+  existing content — distinct from CHAP-SEC-004/CHAP-OBS-002, which only
+  reason about whether logging _config_ is likely to leak going forward,
+  not whether it already has.
+- **Heuristic (deliberately simple, v1):** Scans up to the last 256 KiB of
+  the log file (bounded — see `discovery/logContentScanner.ts`) for
+  `key=value`/`"key": "value"`-shaped substrings where the key looks
+  secret-bearing (the same `looksLikeSecretKeyName` heuristic
+  CHAP-SEC-001 uses) and the value is at least 8 characters. A generic
+  high-entropy-string scanner was the documented alternative
+  (`improvement_plan.md` 2.1); this reuses existing, tested logic
+  instead. Matched values are masked before ever reaching the model —
+  the real value is never retained or printed, same guarantee as config
+  secrets.
+- **Remediation:** Rotate the leaked credential, purge or redact the log
+  file, and fix the logging behavior that caused it to be written.
+
 ### CHAP-SEC-006 — Sidecar secret file exposed
 
 - **Severity:** High
@@ -120,6 +141,25 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Remediation:** Add the file to `.gitignore`, rotate any key that may
   already have been committed, and restrict it to owner-only access
   (`chmod 600`).
+
+### CHAP-SEC-007 — Config references an environment variable that isn't set
+
+- **Severity:** Low
+- **OWASP:** LLM06 — Sensitive Information Disclosure
+- **Detects:** A config field using a bare `${VAR}`/`$VAR`/`env:VAR`
+  reference where `VAR` isn't set (or is empty) in Chaperone's own
+  process environment at scan time.
+- **Heuristic (explicitly advisory/low-confidence):** Chaperone runs as a
+  separate process from the agent and may not share its real environment
+  — e.g. the agent could be launched via `systemd`/`launchd` with its own
+  `EnvironmentFile` Chaperone never sees. **The finding message states
+  this caveat directly**, not just here. Only bare references are
+  checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default
+  resolves to something even when the variable itself is unset, so it's
+  silently skipped rather than risk a false positive.
+- **Remediation:** Confirm the variable is actually set in the
+  environment the agent runs under; an unresolved reference can mean the
+  agent starts with an empty or broken credential.
 
 ## Category B — Excessive agency & permissions
 
