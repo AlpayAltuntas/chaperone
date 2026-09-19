@@ -63,6 +63,7 @@ chaperone checks                # list every check Chaperone runs (id, title, se
 chaperone explain CHAP-SEC-001  # full detail for one check: detects, heuristic, remediation
 chaperone fix CHAP-SEC-001 ~/clawd --dry-run   # guided remediation — see below; NEVER run implicitly by scan
 chaperone version               # print the installed version
+chaperone check-update          # opt-in only — see below; NEVER run implicitly by any other command
 chaperone scan --help           # full flag reference
 ```
 
@@ -432,6 +433,21 @@ field-level summary (`llm.api_key: sk-…wxyz -> ${LLM_API_KEY}`), never a
 raw line diff of file text, so a real secret is never printed even in
 the "before" column.
 
+### Checking for updates (`chaperone check-update`)
+
+**Opt-in only — never run automatically, by `scan` or anything else.**
+
+```bash
+chaperone check-update
+```
+
+Queries the npm registry for the latest published version and compares
+it against the one you're running; prints an install command if you're
+behind, or confirms you're current. This is the one place in the whole
+CLI that makes an outbound network call outside `npm run refresh:vulndb`
+(see [Security & ethics](#security--ethics)) — and even here, only when
+you explicitly ask for it.
+
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:
 
@@ -564,7 +580,10 @@ scan` itself has no write capability at all, regardless of any flag.
    read a container's filesystem — not an outbound connection to the
    internet, the thing this guarantee is actually about — but it is the
    one place `chaperone scan` itself spawns a subprocess at all; see
-   `DECISIONS.md`, Phase 20.
+   `DECISIONS.md`, Phase 20. `chaperone check-update` is the one
+   command that makes a real outbound network call to the internet (the
+   npm registry) — entirely separate from `scan`, opt-in only, and
+   never run automatically by anything.
 3. **No exfiltration.** Anything Chaperone reads stays local. Reports are
    written only where you direct them. Secrets are masked in all output.
 4. **Defensive framing only.** Chaperone identifies weaknesses in your own
