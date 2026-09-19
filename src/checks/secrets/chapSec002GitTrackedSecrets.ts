@@ -20,7 +20,7 @@ export const chapSec002GitTrackedSecrets: Check = {
   detects:
     "A config file holding a literal secret that sits inside a git repository without being covered by that repo's `.gitignore`.",
   heuristic:
-    "An ancestor `.git` directory exists above the config file (discovery-detected), the config holds at least one literal secret (see CHAP-SEC-001), and the config's path relative to the repo root doesn't match any pattern in the repo-root `.gitignore`. Pattern matching supports `*`/`?` wildcards, directory-only and root-anchored patterns, and `!` negation — a deliberately small subset of real gitignore semantics (no `**`, no nested `.gitignore` files); see `checks/shared/gitignoreMatch.ts`.",
+    "An ancestor `.git` directory exists above the config file (discovery-detected), the config holds at least one literal secret (see CHAP-SEC-001), and the config's path relative to the repo root doesn't match any pattern in the repo-root or a nested `.gitignore` between the git root and the scanned target. Matching uses the `ignore` npm package (real gitignore semantics, including `**` and nested `.gitignore` files); see `checks/shared/gitignoreMatch.ts`. Known gap, not solved: `.git/info/exclude` and a user's global `core.excludesFile` aren't read, and \"not gitignored\" isn't the same as \"actually tracked\" (see DECISIONS.md).",
   remediation:
     'Add the config/secret file to .gitignore, and rotate any key that may already have been committed.',
   run(model) {
@@ -37,7 +37,7 @@ export const chapSec002GitTrackedSecrets: Check = {
     if (!hasLiteralSecret) {
       return [];
     }
-    if (isGitignored(model.git.configPathRelativeToGitRoot, model.git.gitignorePatterns)) {
+    if (isGitignored(model.git.configPathRelativeToGitRoot, model.git.gitignoreFiles)) {
       return [];
     }
 

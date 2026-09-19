@@ -117,11 +117,27 @@ export type MemoryModel = z.infer<typeof MemoryModelSchema>;
 // and the raw lines of a `.gitignore` at that repo root, per the read
 // boundary in instruction.md §8. Matching those patterns against the config
 // path is check logic (pure, no I/O), left to CHAP-SEC-002 in a later phase.
+// One `.gitignore` file's raw lines, plus the directory it lives in
+// (relative to the git root, '' for the root's own .gitignore) — feeds
+// checks/shared/gitignoreMatch.ts's nested-.gitignore support
+// (improvement_plan.md 1.14). Patterns are the file's raw, unprocessed
+// lines; scoping a nested file's patterns to its own directory is pure
+// logic with no I/O, so it stays in the check-side matcher, same "I/O in
+// discovery, logic in checks" split CHAP-SEC-002 already established.
+export const GitignoreFileSchema = z.object({
+  dirRelativeToRoot: z.string(),
+  patterns: z.array(z.string()),
+});
+export type GitignoreFile = z.infer<typeof GitignoreFileSchema>;
+
 export const GitContextSchema = z.object({
   hasAncestorGitDir: z.boolean(),
   gitDirPath: z.string().nullable(),
   gitRootPath: z.string().nullable(),
-  gitignorePatterns: z.array(z.string()),
+  // Every `.gitignore` found from the git root down to the scanned
+  // target root (inclusive of both ends) — not just the root one. See
+  // gitContext.ts for exactly how deep this walk goes.
+  gitignoreFiles: z.array(GitignoreFileSchema),
   configPathRelativeToGitRoot: z.string().nullable(),
 });
 export type GitContext = z.infer<typeof GitContextSchema>;
