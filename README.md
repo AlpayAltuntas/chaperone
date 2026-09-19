@@ -198,6 +198,7 @@ each):
 | `--summary-only`            | Print only the summary line and posture score, no per-finding detail         |                           |
 | `--no-color`                | Disable colored console output                                               |                           |
 | `--config <file>`           | Suppression/override config file (default: `./.chaperonerc.json` if present) | `CHAPERONE_CONFIG`        |
+| `--baseline <file>`         | A prior saved JSON report — report (and fail on) only findings new since it  | `CHAPERONE_BASELINE`      |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -247,6 +248,30 @@ An unknown check ID in `severityOverrides`/`ignore` prints a warning
 whole scan over); an unknown ID in `disabledChecks` is treated like an
 unknown `--skip` ID and fails hard, since that's a more likely direct
 typo.
+
+### Baseline / diff mode (`--baseline`)
+
+Adopting Chaperone on an existing, imperfect install usually means
+findings you already know about and aren't fixing today. `--baseline`
+reports (and fails the build on) only what's new since a prior scan,
+instead of making you either fix everything on day one or turn
+`--fail-on` off entirely:
+
+```bash
+# Capture a baseline once...
+chaperone scan ~/clawd --format json --output baseline.json
+
+# ...then every later scan only reports/fails on genuinely new findings.
+chaperone scan ~/clawd --baseline baseline.json
+```
+
+A baseline file is just a saved JSON report (`--format json --output
+<file>`) — the schema already supports this for free, no separate
+baseline format. "Same finding" is matched on check ID, file path,
+location detail, and message, deliberately **not** line number — an
+unrelated edit shifting lines elsewhere in the file shouldn't make an
+unchanged finding look new. As findings actually get fixed, re-capture
+the baseline to keep it current.
 
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:
