@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # Trusted publishing (OIDC) needs npm >= 11.5.1 and Node >= 22.14 —
           # newer than the Node 20 used in ci.yml, which has no such
