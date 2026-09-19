@@ -1688,3 +1688,77 @@ report.html` test that writes a real file to disk and reads it back,
   `--docker` container both go through `command.error()`/
   `process.exit()` and were verified manually, same convention as every
   other such path in this suite.
+
+## Improvement plan, Phase 21 — Plugin system for custom checks
+
+- **Synchronous `require()` (via `createRequire`), not a dynamic
+  `import()`** — the single biggest design decision in this phase, and
+  a real architectural constraint, not a stylistic preference. `run()`
+  (`cli.ts`) calls commander's synchronous `.parse()`, not
+  `.parseAsync()`, and the scan action is itself synchronous; converting
+  either to async to support `import()` would mean every one of the
+  580+ existing tests calling `run(...)` synchronously and immediately
+  asserting on its result would need to become `await run(...)` — a
+  huge, high-risk mechanical change for a feature whose DoD only asks
+  for "a sample external check module loads and runs correctly". Node's
+  `require()` (even via `createRequire` from an ESM module) loads
+  CommonJS synchronously and reliably on every Node ≥20 patch version;
+  `chaperone scan` stays exactly as synchronous as it already was.
+- **The tradeoff, stated plainly**: a plugin module must be loadable as
+  CommonJS — a `.cjs` file (works regardless of context) or a `.js` file
+  in a directory whose nearest `package.json` says `"type": "commonjs"`
+  or has no `type` field at all. A genuine ESM-only plugin isn't
+  supported in this v1. A real, documented limitation, not silently
+  dropped — most plugin authors writing a small, focused check module
+  have no reason to need ESM-only syntax (top-level await, etc.) for
+  this purpose anyway.
+- **The trust boundary is stated as plainly as the plan itself asks
+  for** (`3.13`: "documented as an explicit trust boundary... rather
+  than left implicit") — not just in a doc file nobody reads: loading
+  any plugin prints an unmissable warning to stderr naming exactly which
+  path(s) were loaded and repeating the "no sandboxing" warning every
+  single scan, never just once. `pluginLoader.ts`'s own doc comment,
+  the README's dedicated Plugins section, and a new numbered item in
+  Security & ethics all say the same thing in different words: a plugin
+  is arbitrary code with full `AgentModel` access, loading one is your
+  trust decision, not Chaperone's own read-only/no-network guarantees
+  extending to it.
+- **A `Check`-shaped default export (object or array), validated at
+  load time** — mirrors `ALL_CHECKS`'s own shape (`Check[]`) so nothing
+  about a plugin author's mental model differs from reading the
+  built-in checks' source for reference. Validated with the same zod
+  schema style already used throughout this codebase (`SeveritySchema`/
+  `CheckCategorySchema` reused directly) for every field except `run`
+  (a function, checked by `typeof`, not zod). An invalid shape, a
+  missing field, or a plugin path that fails to load at all is a hard
+  load error (`command.error()`), not a silently-skipped plugin — a
+  plugin the user explicitly asked for failing is worth stopping the
+  scan over, the same reasoning `--config`/`--baseline` already apply
+  to their own explicit-path failures.
+- **A check-ID collision (with a built-in check, or between two
+  plugins) is a hard error, never a silent override** — `mergeChecks`
+  rejects it outright. A plugin silently shadowing `CHAP-SEC-001`
+  (say) would be a uniquely confusing way to lose a real finding with
+  no visible sign anything was wrong.
+- **`--plugin`/`.chaperonerc.json`'s `plugins` merge, config-file
+  entries first** — same "config file as the base, CLI flags layered
+  on top" convention `disabledChecks`→`--skip` already established in
+  Phase 14. `chaperone checks`/`chaperone explain` deliberately do NOT
+  load plugins (v1 scope: plugin checks are scan-only, not listed
+  alongside built-ins in the catalog or explainable by ID) — a
+  reasonable, documented scope boundary distinct from the DoD's actual
+  ask.
+- Tested at three levels: `test/engine/pluginLoader.test.ts`
+  (`loadPlugin`/`loadPlugins`/`mergeChecks` directly — the real sample
+  plugin actually running and producing a finding, array-of-checks
+  exports, every error path), `test/cli.plugin.test.ts` (`--plugin`
+  through the real CLI: repeatable flags, `.chaperonerc.json`'s
+  `plugins` array, the stderr trust-boundary warning, feeding
+  `--fail-on`), and manual verification against the real packaged
+  (`npm pack`) binary. `test/fixtures/plugins/` holds three fixtures:
+  a real working sample (`samplePlugin.cjs`, referenced from the
+  README's own example), a structurally invalid one, and one that
+  deliberately collides with a real built-in check ID. The
+  invalid-plugin/collision/missing-plugin-path errors all go through
+  `command.error()`/`process.exit()` and were verified manually, same
+  convention as every other such path in this suite.

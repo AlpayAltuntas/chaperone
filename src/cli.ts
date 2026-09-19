@@ -15,6 +15,7 @@ import { errorMessage } from './discovery/errors.js';
 import { DISCOVERY_PROFILES, discoverAgent, type DiscoveryProfile } from './discovery/index.js';
 import { expandAllPattern } from './discovery/multiRoot.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
+import { loadPlugins, mergeChecks } from './engine/pluginLoader.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
 import type { Check } from './engine/types.js';
 import {
@@ -51,6 +52,7 @@ interface ScanCommandOptions {
   profile: DiscoveryProfile;
   all?: string;
   docker?: string;
+  plugin?: string[];
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -152,6 +154,7 @@ export function formatCheckExplanation(check: Check): string {
 /** Applies --only/--skip and runs the check suite, erroring out (via `command`) if the filters leave nothing to run. */
 function runCheckSuite(
   model: AgentModel,
+  checks: readonly Check[],
   options: ScanCommandOptions,
   command: Command,
 ): RunChecksResult {
@@ -159,7 +162,7 @@ function runCheckSuite(
     ...(options.only ? { only: options.only } : {}),
     ...(options.skip ? { skip: options.skip } : {}),
   };
-  const result = runChecks(model, ALL_CHECKS, runOptions);
+  const result = runChecks(model, checks, runOptions);
 
   if (result.checksRun.length === 0) {
     command.error(
@@ -196,6 +199,7 @@ interface OneTargetResult {
  */
 function scanOneTarget(
   spec: OneTargetSpec,
+  checks: readonly Check[],
   options: ScanCommandOptions,
   command: Command,
   rcConfig: ChaperoneConfig,
@@ -210,7 +214,9 @@ function scanOneTarget(
   // No point evaluating checks against an empty/placeholder model when
   // no installation was even located — every "finding" would be about a
   // target that doesn't exist, which is confusing, not helpful.
-  const rawFindings = targetRootResolved ? runCheckSuite(model, options, command).findings : [];
+  const rawFindings = targetRootResolved
+    ? runCheckSuite(model, checks, options, command).findings
+    : [];
 
   // severityOverrides/ignore are a real reclassification the user has
   // consciously made, so — unlike the purely cosmetic display filters
@@ -361,6 +367,12 @@ export function buildProgram(): Command {
         .env('CHAPERONE_DOCKER')
         .conflicts('all'),
     )
+    .option(
+      '--plugin <path>',
+      'load a third-party check module (repeatable) — arbitrary code, full AgentModel access, no sandboxing; only load ones you trust',
+      (value: string, previous: string[]) => [...previous, value],
+      [] as string[],
+    )
     .action((targetPath: string | undefined, options: ScanCommandOptions, command: Command) => {
       // Everything below is wrapped so an unexpected bug (e.g. a reporter
       // throwing on some edge-case input) can never be mistaken for
@@ -371,14 +383,34 @@ export function buildProgram(): Command {
       // .exitOverride() configured, commander calls process.exit()
       // directly rather than throwing, so they never reach this catch.
       try {
-        const knownIds = new Set(ALL_CHECKS.map((check) => check.id));
-
         let rcConfig;
         try {
           rcConfig = loadChaperoneConfig(options.config).config;
         } catch (err) {
           command.error(errorMessage(err));
         }
+
+        // Plugin system (improvement_plan.md 3.13) — a plugin is
+        // arbitrary code with full AgentModel access, no sandboxing
+        // (see engine/pluginLoader.ts's own doc comment). Entirely
+        // opt-in: nothing is ever loaded without the user naming it
+        // explicitly, via --plugin and/or .chaperonerc.json's `plugins`
+        // array (merged, config-file entries first).
+        const pluginPaths = [...(rcConfig.plugins ?? []), ...(options.plugin ?? [])];
+        let checks: Check[];
+        try {
+          const pluginChecks = loadPlugins(pluginPaths);
+          if (pluginPaths.length > 0) {
+            console.error(
+              `chaperone: warning: loaded ${String(pluginPaths.length)} plugin${pluginPaths.length === 1 ? '' : 's'} (${pluginPaths.join(', ')}) — plugins run with full access and no sandboxing; only load ones you trust.`,
+            );
+          }
+          checks = mergeChecks(ALL_CHECKS, pluginChecks);
+        } catch (err) {
+          command.error(errorMessage(err));
+        }
+
+        const knownIds = new Set(checks.map((check) => check.id));
 
         let baseline: ScanReport | undefined;
         if (options.baseline !== undefined) {
@@ -437,7 +469,7 @@ export function buildProgram(): Command {
 
         try {
           const results = targetSpecs.map((spec) =>
-            scanOneTarget(spec, options, command, rcConfig, baseline, knownIds),
+            scanOneTarget(spec, checks, options, command, rcConfig, baseline, knownIds),
           );
 
           const { output } = options;

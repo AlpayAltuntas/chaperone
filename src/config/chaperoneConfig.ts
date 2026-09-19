@@ -27,6 +27,12 @@ export const ChaperoneConfigSchema = z.object({
   ignore: z.array(IgnoreEntrySchema).optional(),
   disabledChecks: z.array(z.string()).optional(),
   scoreWeights: z.partialRecord(SeveritySchema, z.number()).optional(),
+  // Plugin system (improvement_plan.md 3.13) — paths to third-party
+  // Check modules, loaded and run with full AgentModel access and no
+  // sandboxing (see engine/pluginLoader.ts). Merged with any --plugin
+  // flags at the CLI layer, not here — this schema only validates the
+  // config file's own shape.
+  plugins: z.array(z.string()).optional(),
 });
 export type ChaperoneConfig = z.infer<typeof ChaperoneConfigSchema>;
 
