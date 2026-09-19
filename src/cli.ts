@@ -3,6 +3,7 @@ import { realpathSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { ALL_CHECKS } from './checks/index.js';
+import { checkForUpdate, renderUpdateCheckResult } from './checkUpdate.js';
 import { findNewFindings, loadBaseline } from './config/baseline.js';
 import {
   applyChaperoneConfig,
@@ -633,6 +634,32 @@ export function buildProgram(): Command {
     .description('Print version')
     .action(() => {
       console.log(VERSION);
+    });
+
+  // Opt-in update check (improvement_plan.md 3.15/Phase 24) — a
+  // separate, manually-invoked subcommand (chosen over the plan's own
+  // illustrative `--check-update` flag syntax, for consistency with
+  // every other top-level utility action in this CLI — version/checks/
+  // explain/fix are all subcommands, none is a bare root-level flag).
+  // Never run implicitly by `scan` or any other command, never on by
+  // default — see DECISIONS.md, Phase 24. The one async subcommand
+  // action in this CLI (a real network call can't be done
+  // synchronously) — deliberately NOT converted the whole program to
+  // `parseAsync()`/an async `run()` for it, the same reasoning Phase 21
+  // applied to plugin loading: Node's event loop naturally stays alive
+  // until the fetch settles, so `program.parse()`'s existing
+  // fire-and-forget synchronous call still completes correctly; only
+  // this one command needed to change, not the whole CLI's sync
+  // contract every other test relies on.
+  program
+    .command('check-update')
+    .description(
+      'Check the npm registry for a newer published version (opt-in only — never run automatically)',
+    )
+    .action(() => {
+      void checkForUpdate().then((result) => {
+        console.log(renderUpdateCheckResult(result));
+      });
     });
 
   return program;

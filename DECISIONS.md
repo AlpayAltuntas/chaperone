@@ -2055,3 +2055,62 @@ install --save-dev` defaults to one) — the standard TS property-based
   `--audit-level=high` threshold this project's own CI audit gate
   already enforces (`npm run` 4.6) — confirmed CI's audit step still
   exits 0 with this dependency present.
+
+## Improvement plan, Phase 24 — Opt-in update check (`chaperone check-update`)
+
+- **Built on explicit user confirmation, not built reflexively** — this
+  is the plan's own lowest-conviction item ("worth revisiting only if
+  there's a clear user need for it", the one phase in the whole document
+  framed as a question rather than a firm recommendation). Rather than
+  either silently skipping it or building it without flagging that
+  distinction, this was surfaced back to the user explicitly before
+  starting; the user chose to build it.
+- **A subcommand (`chaperone check-update`), not the plan's own
+  illustrative `--check-update` flag syntax** — every other top-level
+  utility action in this CLI (`version`, `checks`, `explain`, `fix`) is
+  a subcommand; none is a bare root-level flag (`-V`/`--version` is the
+  one exception, and it's commander's own built-in mechanism, not a
+  custom one). Consistency with the CLI's own established pattern won
+  out over matching the plan's illustrative wording literally — the
+  same kind of judgment call this project makes throughout (see e.g.
+  Phase 17's MCP-vs-Open-Interpreter choice).
+- **The one async subcommand action in this CLI, deliberately not
+  converted into an async `run()`/`parseAsync()`** — a real network
+  call can't be done synchronously, but Phase 21 already established
+  the reasoning for keeping `run()` itself synchronous (`program.parse()`,
+  not `parseAsync()`): converting it would mean every one of this
+  project's 650+ tests that call `run()` synchronously and immediately
+  assert on the result would need to become `await run(...)`, for a
+  single command's sake. Node's event loop naturally stays alive until
+  a pending `fetch()` settles, so the existing synchronous
+  `program.parse()` call still completes this one async action
+  correctly — only `check-update`'s own test needed a different
+  pattern (`vi.waitFor`, since its assertion can't run immediately after
+  `run()` returns the way every other CLI test's can), not the whole
+  program's sync contract.
+- **`fetchImpl` is injectable, defaulting to the real global `fetch`** —
+  the same dependency-injection pattern already used elsewhere in this
+  codebase (`expandHome`'s injectable `homeDir`, `pathUtils.ts`'s own
+  doc comment: "the same pattern used for `isMainModule` in `cli.ts`").
+  `test/checkUpdate.test.ts` and `test/cli.checkUpdate.test.ts` both
+  mock it, so `npm test` never makes a real network call — verified
+  manually instead, once, against the real npm registry (confirmed
+  correctly reporting "You're on the latest version" for this package's
+  actual published state).
+- **Errors are caught and rendered as a plain message, never thrown** —
+  a network failure, timeout (5s, via `AbortSignal.timeout`), non-2xx
+  response, or unexpected response shape all produce a clear
+  `"Could not check for updates: ..."` line rather than crashing; this
+  command has no `--fail-on`-style exit-code contract to honor (unlike
+  `scan`), so there's no reason for it to ever throw past its own
+  boundary.
+- **Version comparison reuses `checks/shared/semver.ts`'s
+  `compareVersions`** (Phase 18) rather than adding a new dependency or
+  writing a second comparator — the exact same "is this version less
+  than that one" question CHAP-SUP-003 already answers for dependency
+  versions.
+- **A dedicated regression test that `chaperone scan` never calls
+  `fetch`** — narrower and more targeted than (but overlapping with)
+  Phase 18's existing `test/scan/noNetworkCalls.test.ts`, specifically
+  guarding against a future regression where `check-update`-style logic
+  accidentally leaks into the scan path.
