@@ -130,14 +130,14 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 44 findings across all 29 checks):
+the real run reports 49 findings across all 29 checks):
 
 ```
 Chaperone scan report
 Target: ~/clawd
-Scanned at 2026-09-15T16:30:35.304Z — chaperone v0.1.0
+Scanned at 2026-09-19T20:23:15.771Z — chaperone v0.1.0
 
-CRITICAL (4)
+CRITICAL (5)
 
   [CHAP-AGY-001] Unrestricted shell execution
     Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
@@ -151,9 +151,9 @@ CRITICAL (4)
     OWASP: LLM06 / general
     Remediation: Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.
 
-  ... 2 more critical-severity findings ...
+  ... 3 more critical-severity findings ...
 
-HIGH (17)
+HIGH (19)
 
   [CHAP-SEC-001] Plaintext secrets in config
     Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
@@ -161,12 +161,12 @@ HIGH (17)
     OWASP: LLM06: Sensitive Information Disclosure
     Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).
 
-  ... 16 more high-severity findings ...
+  ... 18 more high-severity findings ...
 
-MEDIUM (17)  LOW (1)  ...
+MEDIUM (18)  LOW (1)  ...
 
-Summary: 44 findings (4 critical, 17 high, 17 medium, 1 low, 5 info) — posture score 0/100 (F)
-Inspected 16 paths, skipped 0.
+Summary: 49 findings (5 critical, 19 high, 18 medium, 1 low, 6 info) — posture score 0/100 (F)
+Inspected 18 paths, skipped 0.
 ```
 
 Notice the secret value is masked (`sk-…wxyz`) — the real value is never
@@ -362,8 +362,15 @@ audit. Worth knowing before you trust its output:
   notably `CHAP-INJ-002` ("tool output treated as trusted"), which flags
   the _shape_ of a risky pattern (a skill that both ingests external data
   and can run shell commands) rather than tracing real data flow.
-- **`.gitignore` matching (`CHAP-SEC-002`) covers a small subset** of real
-  gitignore semantics — no `**`, no nested `.gitignore` files.
+- **Python skill capability detection is regex-based, not AST-based.**
+  JS/TS skills get real parse-tree analysis (import/require binding
+  resolution, aliased-import tracking — see `CHECKS.md`); `.py` files
+  (Phase 16) get a simpler pattern match over raw source text —
+  `subprocess`/`os.system`/`eval`/`requests.*` and similar. It can
+  false-positive on a pattern inside a comment/string and false-negative
+  on an unconventional spelling (e.g. `delete_file` doesn't match the
+  standalone word `delete`) — a documented v1-equivalent limitation for
+  Python, not held to JS/TS's AST-based bar.
 - **The posture score isn't shown in console output yet** — only in the
   JSON report's `summary.score`/`summary.band`. See `CHECKS.md`.
 

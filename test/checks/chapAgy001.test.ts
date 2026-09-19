@@ -11,14 +11,16 @@ describe('CHAP-AGY-001 — unrestricted shell execution', () => {
 
     const findings = chapAgy001UnrestrictedShell.run(model);
 
-    expect(findings).toHaveLength(2);
+    expect(findings).toHaveLength(3);
     for (const finding of findings) {
       expect(finding.checkId).toBe('CHAP-AGY-001');
       expect(finding.severity).toBe('critical');
       expect(finding.category).toBe('agency');
     }
+    // py-cache-cleaner (Phase 16, Python: subprocess.run, regex-detected)
+    // joins the two existing JS/TS shell-capable skills.
     const skillNames = findings.map((f) => f.location.detail).sort();
-    expect(skillNames).toEqual(['command-relay', 'shell-runner']);
+    expect(skillNames).toEqual(['command-relay', 'py-cache-cleaner', 'shell-runner']);
   });
 
   it('stays silent on the clean fixture (no shell-capable skills)', () => {

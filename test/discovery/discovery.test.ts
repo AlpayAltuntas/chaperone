@@ -33,7 +33,7 @@ describe('discoverAgent — vulnerable-agent fixture', () => {
   });
 
   it('discovers all skills with their capabilities', () => {
-    expect(model.skills).toHaveLength(5);
+    expect(model.skills).toHaveLength(6);
 
     const shellRunner = model.skills.find((s) => s.name === 'shell-runner');
     expect(shellRunner?.capabilities.shellExec).toBe(true);
@@ -44,6 +44,14 @@ describe('discoverAgent — vulnerable-agent fixture', () => {
     const webFetcher = model.skills.find((s) => s.name === 'web-fetcher');
     expect(webFetcher?.capabilities.networkAccess).toBe(true);
     expect(webFetcher?.capabilities.shellExec).toBe(false);
+
+    // Phase 16 (improvement_plan.md 1.9): regex-based Python capability
+    // detection, exercised end-to-end via discovery — not just against
+    // detectPythonCapabilities directly.
+    const pyCacheCleaner = model.skills.find((s) => s.name === 'py-cache-cleaner');
+    expect(pyCacheCleaner?.capabilities.shellExec).toBe(true);
+    expect(pyCacheCleaner?.capabilities.destructiveKeywords).toContain('delete');
+    expect(pyCacheCleaner?.capabilities.networkAccess).toBe(false);
   });
 
   it('flags the config as sitting under an ancestor git repo', () => {
@@ -67,13 +75,21 @@ describe('discoverAgent — clean-agent fixture', () => {
   });
 
   it('discovers the notes skill with no shell/network capability', () => {
-    expect(model.skills).toHaveLength(3);
+    expect(model.skills).toHaveLength(4);
     const notes = model.skills.find((s) => s.name === 'notes');
     expect(notes?.capabilities.shellExec).toBe(false);
     expect(notes?.capabilities.networkAccess).toBe(false);
     expect(notes?.capabilities.fileSystemScoped).toBe(true);
     expect(notes?.dependencies.lockfilePath).not.toBeNull();
     expect(notes?.provenance.pinnedRef).toBe(true);
+
+    // Phase 16: the Python equivalent — writes only inside a scoped
+    // workspace directory, so CHAP-AGY-002 (unrestricted filesystem)
+    // correctly stays silent on it too (see chapAgy002.test.ts).
+    const pyNotes = model.skills.find((s) => s.name === 'py-notes');
+    expect(pyNotes?.capabilities.fileSystemAccess).toBe(true);
+    expect(pyNotes?.capabilities.fileSystemScoped).toBe(true);
+    expect(pyNotes?.capabilities.shellExec).toBe(false);
   });
 });
 

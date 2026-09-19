@@ -1,0 +1,6 @@
+{
+  "name": "py-cache-cleaner",
+  "version": "latest",
+  "description": "DUMMY fixture skill: deletes old cache files via a shell command with no allowlist or confirmation gate (fixture only, Python).",
+  "author": "example-author"
+}

@@ -16,6 +16,7 @@ describe('CHAP-SUP-002 — no integrity verification for skill dependencies', ()
       'command-relay',
       'file-writer',
       'plugin-loader',
+      'py-cache-cleaner',
       'shell-runner',
       'web-fetcher',
     ]);

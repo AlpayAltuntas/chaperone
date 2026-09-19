@@ -2,12 +2,22 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import type { InspectedEntry, Skill, SkippedEntry, SkillProvenance } from '../model/types.js';
-import { detectCapabilities, mergeCapabilities } from './astCapabilities.js';
+import {
+  detectCapabilities,
+  mergeCapabilities,
+  type DetectedCapabilities,
+} from './astCapabilities.js';
 import { errorMessage } from './errors.js';
 import { isRecord } from './jsonUtils.js';
+import { detectPythonCapabilities } from './pythonCapabilities.js';
 
 const MANIFEST_FILENAMES = ['package.json', 'skill.json', 'skill.yaml', 'skill.yml'];
-const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts']);
+// JS/TS get the AST-based detectCapabilities (Phase 10); .py gets the
+// regex-based detectPythonCapabilities (Phase 16, improvement_plan.md
+// 1.9) — dispatched in detectCapabilitiesForFile below.
+const JS_TS_SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts']);
+const PYTHON_SOURCE_EXTENSIONS = new Set(['.py']);
+const SOURCE_EXTENSIONS = new Set([...JS_TS_SOURCE_EXTENSIONS, ...PYTHON_SOURCE_EXTENSIONS]);
 const LOCKFILE_NAMES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
 const MAX_SOURCE_FILE_BYTES = 256 * 1024;
 const MAX_SCAN_DEPTH = 4;
@@ -58,7 +68,9 @@ function scanOneSkill(
   const sourceFiles = listSourceFiles(dir);
   const sourceContents = readSourceFiles(sourceFiles, inspected, skipped);
   const capabilities = mergeCapabilities(
-    sourceContents.map(({ path: filePath, content }) => detectCapabilities(filePath, content)),
+    sourceContents.map(({ path: filePath, content }) =>
+      detectCapabilitiesForFile(filePath, content),
+    ),
   );
 
   const packageJsonPath = manifestPath?.endsWith('package.json')
@@ -181,6 +193,13 @@ function readManifest(
   }
 }
 
+/** Dispatches to the AST-based JS/TS detector or the regex-based Python one (Phase 16), by extension. */
+function detectCapabilitiesForFile(filePath: string, content: string): DetectedCapabilities {
+  return PYTHON_SOURCE_EXTENSIONS.has(path.extname(filePath))
+    ? detectPythonCapabilities(content)
+    : detectCapabilities(filePath, content);
+}
+
 function listSourceFiles(dir: string, depth = 0): string[] {
   if (depth > MAX_SCAN_DEPTH) {
     return [];
@@ -209,9 +228,12 @@ function listSourceFiles(dir: string, depth = 0): string[] {
 
 /**
  * Reads each source file individually (not concatenated into one blob —
- * each file is parsed as its own AST by astCapabilities.ts, and treating
- * independent files as one program would be semantically wrong even
- * though the old regex-over-raw-text approach could get away with it).
+ * each JS/TS file is parsed as its own AST by astCapabilities.ts, and
+ * treating independent files as one program would be semantically wrong.
+ * Python's regex-based detectPythonCapabilities (Phase 16) doesn't
+ * strictly need this — it doesn't care about file boundaries — but stays
+ * on the same per-file path for one consistent merge step via
+ * mergeCapabilities, rather than special-casing Python's aggregation.
  */
 function readSourceFiles(
   files: string[],

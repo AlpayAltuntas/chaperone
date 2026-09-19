@@ -25,6 +25,7 @@ describe('CHAP-SUP-003 — dependency manifest not checked for known vulnerabili
       'command-relay',
       'file-writer',
       'plugin-loader',
+      'py-cache-cleaner',
       'shell-runner',
       'web-fetcher',
     ]);
@@ -40,7 +41,7 @@ describe('CHAP-SUP-003 — dependency manifest not checked for known vulnerabili
     const findings = chapSup003KnownVulnerableDependencies.run(model);
 
     const skillNames = findings.map((f) => f.location.detail).sort();
-    expect(skillNames).toEqual(['messenger', 'notes', 'weather']);
+    expect(skillNames).toEqual(['messenger', 'notes', 'py-notes', 'weather']);
   });
 
   it('stays silent for a skill with no dependency manifest at all', () => {

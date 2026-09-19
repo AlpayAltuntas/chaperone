@@ -16,6 +16,7 @@ describe('CHAP-SUP-001 — skill from an unverified source', () => {
       'command-relay',
       'file-writer',
       'plugin-loader',
+      'py-cache-cleaner',
       'shell-runner',
       'web-fetcher',
     ]);
