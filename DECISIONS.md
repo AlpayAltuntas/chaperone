@@ -947,3 +947,95 @@ generateChecksDoc.ts` renders the full catalog from `ALL_CHECKS`,
   the phase's definition of done), plus dedicated unit tests for each
   reporter module. README's format table, `--format` examples, and the
   CI-usage section (`gh pr comment`/inline-annotation examples) updated.
+
+## Improvement plan, Phase 10 — AST-based capability detection (foundation)
+
+- **TypeScript's own compiler API, not a lighter JS-only parser**
+  (`1.1`, the plan's two named options). `typescript` was already a
+  trusted dependency in this codebase's own tooling (build, typecheck,
+  the docs generator's formatting doesn't need it, but lint/typecheck
+  do) — reusing `ts.createSourceFile`/AST walking avoids introducing an
+  entirely new, unvetted third-party parser (acorn/meriyah) while
+  handling both `.js` and `.ts` skills with the exact same parser
+  (a JS-only parser would still have needed a _second_, TS-capable
+  parser for `.ts` skills — SOURCE_EXTENSIONS already includes `.ts`).
+  `typescript` itself has zero npm dependencies of its own, so this adds
+  no transitive dependency surface.
+- **`typescript` moved from `devDependencies` to `dependencies`** — it's
+  now used at runtime (`skillsScanner.ts` parses skill source on every
+  real scan), not just at build time. Real, honestly-measured cost:
+  ~23 MB added to a consumer's `node_modules` (verified via a real
+  `npm pack` → install → run cycle, not assumed). The published tarball
+  itself is unaffected (still ~84 KB — `typescript` is a separate
+  declared dependency npm installs alongside Chaperone, not bundled into
+  it). Accepted as the right trade-off: the plan explicitly frames this
+  as "nearly everything in the agency/injection categories inherits this
+  layer's confidence" — accuracy here is high-leverage enough to justify
+  the install-size cost, and the alternative (a second, unvetted parser
+  dependency) isn't actually smaller in real terms once a TS-capable
+  parser is included too.
+- **Binding tracking, not text matching**: a first pass over each file's
+  AST collects real `import`/`require` bindings into a small map (local
+  name -> {module, namespace-or-named, original export name}), then a
+  second pass matches `CallExpression`s against those bindings — a bare
+  call (`exec(x)`), a property-access call (`cp.exec(x)`), and a
+  string-literal element-access call (`cp['exec'](x)`, the exact dynamic-
+  access false-negative `improvement_plan.md` 1.1 named) are all
+  resolved back to `{module, functionName}` the same way. An aliased
+  named import (`import { exec as run } from 'child_process'`) resolves
+  through to the _original_ exported name, not the local alias, so `run(x)`
+  is still recognized as `child_process.exec`.
+- **The word-boundary bug is fixed by reusing (not duplicating) the
+  segment-splitter `configParser.ts` already built** for
+  `looksLikeSecretKeyName` (`private_key`/`ssh_key` not matching a bare
+  substring regex). Extracted the shared algorithm into
+  `discovery/wordSegments.ts` (`splitWordSegments`) — both callers had
+  the exact same underlying problem ("does this identifier contain a
+  specific whole word as one of its camelCase/snake_case parts"), so
+  duplicating it a second time for destructive-keyword identifier
+  matching would have been the wrong call. `deleteFile`/`sendMessage`
+  now correctly match `delete`/`send` as real identifier segments.
+- **Comments and string literals are structurally invisible to this
+  detector** — a real, immediate side effect of walking an AST instead
+  of matching text: `// this skill can delete files` no longer trips
+  anything, because a comment isn't a node the walk ever visits. This
+  directly fixes the false-positive class `improvement_plan.md` 1.1
+  named, and is _why_ the `file-writer`/`messenger` fixtures could
+  previously "pass" the destructive-keyword check via a comment
+  containing the word standalone, independent of whether the real code
+  (`deleteFile`/`sendMessage`) would have matched a correct word-boundary
+  check at all — a tell the fixture was accidentally testing the wrong
+  thing. Reworded both comments to remove the coincidental keyword
+  overlap entirely (`deleteFile` "erases" now, `sendMessage` "dispatches"
+  now) and re-ran the full suite to confirm detection still fires from
+  the real function names alone, not fixture prose.
+- **A deliberate behavior tightening, not just a parity port**: the old
+  `NETWORK_PATTERNS` included a plain `require(['"](?:https?|node-fetch|axios)['"])`
+  regex, meaning merely _importing_ `http`/`https`/`axios`/`node-fetch` —
+  with zero actual usage — was already enough to flag `networkAccess`.
+  The AST version requires an actual call _through_ the tracked binding.
+  Stricter, and arguably more correct ("capability" should mean
+  something is exercised, not merely imported) — verified this doesn't
+  regress either fixture (no fixture relies on import-only detection;
+  both real network-capable skills call `fetch(...)` directly), and
+  added an explicit regression test (`does not fire merely from
+importing a network module with no call through it`) to lock in the
+  new, intentional behavior.
+- **Known, documented remaining gaps** (not solved — real data-flow
+  analysis is out of scope for a static single-file AST pass): arbitrary
+  indirection (`const run = exec; run(cmd)` — an identifier reassigned to
+  a tracked binding isn't itself tracked), a capability invoked via a
+  function reference passed across files/modules, and a fully dynamic
+  `require(someVariable)` where the module name isn't a string literal.
+  All three were already blind spots for the old regex approach too
+  (arguably worse ones, since regex has no binding concept at all) — not
+  a regression, just an explicitly acknowledged limit of this
+  foundation rather than a claim of completeness.
+- **All existing agency/injection checks verified equivalent** against
+  both fixtures: the full test suite (357 tests, pre-Phase-10) passed
+  unchanged the moment the AST implementation replaced the regex one —
+  no finding-count assertions needed updating anywhere, including
+  `test/scan/fullCatalog.test.ts`'s exact per-check counts. 42 new tests
+  added (`astCapabilities.test.ts`, `wordSegments.test.ts`) covering
+  every binding shape, the word-boundary fix, comment/string-literal
+  immunity, and the tightened network-import-vs-call distinction.

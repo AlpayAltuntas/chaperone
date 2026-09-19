@@ -1,6 +1,7 @@
 import YAML from 'yaml';
 import type { JsonValue, SecretField } from '../model/types.js';
 import { isRecord } from './jsonUtils.js';
+import { splitWordSegments } from './wordSegments.js';
 
 // Whole-word segments (after splitting a key on `_`/`-`/camelCase
 // boundaries) that mark a field as secret-shaped. Matching whole segments
@@ -22,17 +23,8 @@ const SECRET_KEY_SEGMENTS = new Set([
   'credentials',
 ]);
 
-/** Splits a config key into lowercase segments on `_`, `-`, and camelCase boundaries, e.g. `apiKey` / `api_key` / `API_KEY` -> ['api', 'key']. */
-function keySegments(key: string): string[] {
-  return key
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-    .split(/[_-]+/)
-    .map((segment) => segment.toLowerCase())
-    .filter((segment) => segment.length > 0);
-}
-
 export function looksLikeSecretKeyName(key: string): boolean {
-  return keySegments(key).some((segment) => SECRET_KEY_SEGMENTS.has(segment));
+  return splitWordSegments(key).some((segment) => SECRET_KEY_SEGMENTS.has(segment));
 }
 
 // Conventions for "this value is an indirect reference, not the literal
