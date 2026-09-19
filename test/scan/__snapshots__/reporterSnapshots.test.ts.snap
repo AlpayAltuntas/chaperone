@@ -2725,7 +2725,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "file:///Users/alpayaltuntas/Chaperone/package.json%23scripts.postinstall"
+                  "uri": "<REPO_ROOT_URL>/package.json%23scripts.postinstall"
                 }
               }
             }

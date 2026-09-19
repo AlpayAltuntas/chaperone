@@ -1,6 +1,7 @@
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALL_CHECKS } from '../../src/checks/index.js';
 import { discoverAgent } from '../../src/discovery/index.js';
@@ -37,9 +38,19 @@ function copyFixtureWithPermissions(name: string, mode: number): string {
 }
 
 function normalize(text: string, targetRoot: string): string {
-  return text
-    .replaceAll(targetRoot, '<TARGET_ROOT>')
-    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, '<TIMESTAMP>');
+  return (
+    text
+      .replaceAll(targetRoot, '<TARGET_ROOT>')
+      // CHAP-SUP-004's finding location is a relative-looking
+      // "package.json#scripts.<name>" string (not resolved against the
+      // scanned target the way every other check's location is) —
+      // formatSarifReport's pathToFileURL() resolves that relative path
+      // against the *test process's own* cwd (the repo checkout root),
+      // which differs between machines/CI just as much as a temp dir
+      // does, so it needs the same normalization.
+      .replaceAll(pathToFileURL(process.cwd()).href, '<REPO_ROOT_URL>')
+      .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g, '<TIMESTAMP>')
+  );
 }
 
 describe('reporter output — golden-file snapshots (improvement_plan.md 5.1)', () => {

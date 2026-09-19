@@ -1875,3 +1875,19 @@ report.html` test that writes a real file to disk and reads it back,
 - All six report formats (`console`/`json`/`sarif`/`markdown`/`gha`/
   `html`), both fixtures — 12 snapshots total, committed alongside the
   test in `test/scan/__snapshots__/`.
+- **CI itself caught a real environment-dependent leak in the first PR
+  for this sub-item**, on the very mechanism designed to prevent it:
+  `CHAP-SUP-004`'s finding location is a relative-looking
+  `"package.json#scripts.<name>"` string (unlike every other check,
+  whose location is already an absolute path). `formatSarifReport`'s
+  `pathToFileURL()` resolves that relative string against the _test
+  process's own_ `process.cwd()`, not against the fixture's copied
+  temp directory — so the SARIF snapshot embedded a `file://` URI
+  rooted at wherever the repo happened to be checked out, which
+  differs between a local machine and a GitHub Actions runner exactly
+  as much as a temp directory path does. Passed locally, failed on
+  push. Fixed by normalizing `pathToFileURL(process.cwd()).href` the
+  same way the temp directory itself is normalized — a real example of
+  exactly the class of accidental-environment-dependence bug this
+  whole sub-item exists to catch, just one turn removed (in the test's
+  own normalization logic, not in application behavior).
