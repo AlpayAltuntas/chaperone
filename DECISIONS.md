@@ -679,3 +679,37 @@ no code changes.
   covering both the `npm` and `github-actions` ecosystems on a weekly
   schedule, with dev dependencies grouped into one PR rather than one PR
   per dev dependency bump.
+
+## Improvement plan, Phase 4 — Release automation
+
+- **OIDC "trusted publishing" release workflow** (`3.6`): `.github/
+workflows/release.yml`, tag-triggered (`v*`) for real releases plus a
+  `workflow_dispatch` input (`dry_run`, default `true`) so the whole
+  pipeline — lint/format/typecheck/build/test, then `npm publish
+--dry-run` — can be exercised on demand without cutting a release or
+  needing trusted publishing configured on the npm side yet. Verified by
+  triggering the dry-run path directly.
+- **Node 22, not 20**: trusted publishing needs at least npm 11.5.1 and
+  at least Node 22.14 (confirmed against current npm docs,
+  docs.npmjs.com/trusted-publishers/ — not assumed). `ci.yml` stays on
+  Node 20 since it has no such requirement; only the release workflow
+  needs the newer runtime. Pinned `npm install -g npm@latest` as a
+  belt-and-suspenders step rather than trusting whatever npm version the
+  Node 22 image happens to bundle.
+- **No `--provenance` flag**: per current npm docs, provenance
+  attestation is generated automatically under trusted publishing —
+  passing the flag explicitly is redundant (harmless but redundant, left
+  out for clarity).
+- **Tag/version guard**: a real (tag-push) release fails fast if the
+  pushed tag (`vX.Y.Z`) doesn't match `package.json`'s version, instead
+  of silently publishing a mismatched version.
+- **One remaining manual step, outside CI's reach**: trusted publishing
+  requires linking `@alpay_altuntas/chaperone` to this repo + workflow
+  filename (`release.yml`) via npmjs.com's package settings
+  ("Trusted Publisher") — there's no npm API for this, it's a one-time
+  web UI action only the package owner can take. Until that's done, a
+  real tag-triggered publish will fail at the final `npm publish` step
+  (auth); the dry-run path works regardless since it never contacts the
+  registry's publish endpoint. This replaces the manual 2FA/access-token
+  flow used for the `0.1.0` publish (see "Post-v1 — npm publish prep"
+  above) once configured.
