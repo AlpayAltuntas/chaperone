@@ -11,6 +11,11 @@ export const chapNet002WeakGatewayAuth: Check = {
   severity: 'high',
   category: 'network',
   owasp: OWASP,
+  detects: 'The gateway control API with no auth configured, or a default/empty credential.',
+  heuristic:
+    '`gateway.auth` is absent, or its `token` is empty or a common default value (`changeme`, `admin`, `password`, `default`, `token`, case-insensitive).',
+  remediation:
+    'Require a strong, randomly-generated token for the gateway control API and rotate any default value.',
   run(model) {
     const { gateway } = model;
     if (!gateway.present) {

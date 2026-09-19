@@ -46,6 +46,11 @@ export const chapNet001GatewayExposed: Check = {
   severity: 'critical',
   category: 'network',
   owasp: OWASP,
+  detects:
+    'The gateway daemon listening on an interface other than localhost (e.g. `0.0.0.0`), making it reachable from other hosts.',
+  heuristic: '`gateway.host` in config is present and is not `127.0.0.1`, `localhost`, or `::1`.',
+  remediation:
+    'Bind the gateway to `127.0.0.1`/`localhost`; put anything that must be reachable remotely behind a tunnel with authentication.',
   run(model) {
     const { gateway } = model;
     if (!gateway.present || gateway.bindHost === null || isLoopbackAddress(gateway.bindHost)) {

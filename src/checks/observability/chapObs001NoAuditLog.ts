@@ -11,6 +11,10 @@ export const chapObs001NoAuditLog: Check = {
   severity: 'medium',
   category: 'observability',
   owasp: OWASP,
+  detects: "Tool invocations/actions that aren't logged.",
+  heuristic:
+    '`logging.audit.enabled` is not `true` (covers both an explicitly disabled audit log and no logging config at all).',
+  remediation: 'Enable an append-only audit log of every tool invocation/action the agent takes.',
   run(model) {
     if (model.logging.present && model.logging.auditLogEnabled === true) {
       return [];

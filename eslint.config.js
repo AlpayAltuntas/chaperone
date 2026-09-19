@@ -14,7 +14,7 @@ export default [
   },
   eslint.configs.recommended,
   {
-    files: ['src/**/*.ts', 'test/**/*.ts', '*.ts', '*.js'],
+    files: ['src/**/*.ts', 'test/**/*.ts', 'scripts/**/*.ts', '*.ts', '*.js'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

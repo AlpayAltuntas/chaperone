@@ -20,6 +20,12 @@ export const chapSec006SidecarSecretFileExposed: Check = {
   severity: 'high',
   category: 'secrets',
   owasp: OWASP,
+  detects:
+    "A sidecar secret file (`.env`, `.env.local`, `secrets.yaml`, `secrets.yml`, `secrets.json`) discovered alongside the main config, holding a literal secret that's either git-tracked and not gitignored, or readable by group/other.",
+  heuristic:
+    "Applies the exact same two checks CHAP-SEC-002/CHAP-SEC-003 apply to the main config file, to each discovered sidecar file instead: the file holds at least one literal (non-env-reference) secret field (masked the same way `config.yaml` is — see `discovery/configParser.ts`/`discovery/sidecarSecrets.ts`), and either its path relative to an ancestor git root isn't covered by the repo's `.gitignore`, or its POSIX mode is broader than `0600`. Both reasons are reported together in one finding when both hold.",
+  remediation:
+    'Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600).',
   run(model) {
     const findings = [];
 

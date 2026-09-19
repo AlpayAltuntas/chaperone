@@ -12,6 +12,12 @@ export const chapInj001UntrustedInputUnmarked: Check = {
   severity: 'high',
   category: 'injection',
   owasp: OWASP,
+  detects:
+    'An active inbound message channel with no trust boundary separating untrusted content before it reaches the model.',
+  heuristic:
+    'At least one `channels.*.enabled` is `true` in config, and `trust.mark_untrusted_input` is not `true`.',
+  remediation:
+    'Mark untrusted inbound content explicitly, keep it separated from system instructions in the prompt, and filter it before forwarding to the model.',
   run(model) {
     if (model.config.path === null || !isAnyChannelEnabled(model.config.data)) {
       return [];

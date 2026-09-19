@@ -12,6 +12,10 @@ export const chapInj003NoToolAllowlist: Check = {
   severity: 'high',
   category: 'injection',
   owasp: OWASP,
+  detects: 'Any inbound message being able to invoke any tool.',
+  heuristic:
+    'At least one channel is active and `trust.tool_allowlist` is empty or absent (same manifest-convention caveat as CHAP-AGY-003/004).',
+  remediation: 'Restrict which tools each channel/sender can invoke with an explicit allowlist.',
   run(model) {
     if (model.config.path === null || !isAnyChannelEnabled(model.config.data)) {
       return [];

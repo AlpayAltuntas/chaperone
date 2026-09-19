@@ -11,6 +11,10 @@ export const chapSec003PermissiveFilePermissions: Check = {
   severity: 'medium',
   category: 'secrets',
   owasp: OWASP,
+  detects: 'The config file being readable by group or other.',
+  heuristic:
+    'POSIX file mode broader than `0600` (i.e. any group/other read bit set). Meaningful on macOS/Linux; not a reliable signal on platforms without POSIX permission bits.',
+  remediation: '`chmod 600` the config file (and `chmod 700` its directory).',
   run(model) {
     if (model.config.path === null) {
       return [];

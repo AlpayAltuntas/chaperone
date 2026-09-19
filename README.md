@@ -59,9 +59,10 @@ and similar — see `CHECKS.md`/`DECISIONS.md`) and tells you which one it
 used, or that none were found.
 
 ```bash
-chaperone checks          # list every check Chaperone runs (id, title, severity)
-chaperone version         # print the installed version
-chaperone scan --help     # full flag reference
+chaperone checks                # list every check Chaperone runs (id, title, severity)
+chaperone explain CHAP-SEC-001  # full detail for one check: detects, heuristic, remediation
+chaperone version               # print the installed version
+chaperone scan --help           # full flag reference
 ```
 
 ## How to use
@@ -228,9 +229,11 @@ prompt-injection surface, exposure & network posture, and observability &
 recoverability. Every check maps to an OWASP LLM Top 10 category and ships
 remediation guidance.
 
-See **[CHECKS.md](CHECKS.md)** for the full catalog (what each check
-detects, its exact heuristic, and its severity) and the posture-score
-formula, or run `chaperone checks` for a quick id/title/severity listing.
+See **[CHECKS.md](CHECKS.md)** (generated from the check registry via `npm
+run docs:checks` — see `improvement_plan.md` 4.2) for the full catalog and
+the posture-score formula, `chaperone checks` for a quick id/title/severity
+listing, or `chaperone explain <check-id>` for one check's full detail
+from the terminal.
 
 ## How Chaperone relates to other tools
 
