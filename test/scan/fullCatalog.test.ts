@@ -1,4 +1,12 @@
-import { chmodSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -35,7 +43,23 @@ function copyFixtureWithPermissions(name: string, mode: number): string {
   writeFileSync(path.join(dest, '.gitignore'), 'node_modules/\ndist/\n');
   chmodSync(path.join(dest, 'config.yaml'), mode);
   chmodSync(path.join(dest, 'logs', 'agent.log'), mode);
+  // Sidecar secret file / memory dir (improvement_plan.md Phase 5) only
+  // exist in vulnerable-agent — chmod them too when present, same
+  // rationale as config.yaml/agent.log above. The memory dir needs the
+  // directory-appropriate mode (execute bit wherever a read bit is set,
+  // e.g. 644 -> 755) — chmod'ing a directory to a file mode like 0o644
+  // strips the execute bit and makes it untraversable (breaks even our
+  // own rmSync cleanup, not just the check under test).
+  const dirMode = mode | ((mode & 0o444) >> 2);
+  chmodIfExists(path.join(dest, 'secrets.yaml'), mode);
+  chmodIfExists(path.join(dest, 'memory'), dirMode);
   return dest;
+}
+
+function chmodIfExists(target: string, mode: number): void {
+  if (existsSync(target)) {
+    chmodSync(target, mode);
+  }
 }
 
 function countByCheckId(findings: readonly { checkId: string }[]): Record<string, number> {
@@ -64,6 +88,7 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-SEC-002': 1,
       'CHAP-SEC-003': 1,
       'CHAP-SEC-004': 1,
+      'CHAP-SEC-006': 1,
       'CHAP-AGY-001': 2,
       'CHAP-AGY-002': 1,
       'CHAP-AGY-003': 1,
@@ -82,10 +107,11 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-OBS-001': 1,
       'CHAP-OBS-002': 1,
       'CHAP-OBS-003': 1,
+      'CHAP-OBS-004': 1,
     });
-    expect(findings).toHaveLength(35);
-    // 3*25 (critical) + 13*15 (high) + 14*7 (medium) + 1*3 (low) + 4*0
-    // (info — CHAP-SUP-003, demoted per improvement_plan.md 1.15) = 371
+    expect(findings).toHaveLength(37);
+    // 3*25 (critical) + 14*15 (high) + 15*7 (medium) + 1*3 (low) + 4*0
+    // (info — CHAP-SUP-003, demoted per improvement_plan.md 1.15) = 393
     // -> floored at 0.
     expect(computeScore(findings)).toEqual({ score: 0, band: 'F' });
   });

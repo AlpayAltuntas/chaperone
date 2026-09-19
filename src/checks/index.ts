@@ -13,10 +13,12 @@ import { chapNet003PlaintextTransport } from './network/chapNet003PlaintextTrans
 import { chapObs001NoAuditLog } from './observability/chapObs001NoAuditLog.js';
 import { chapObs002UnredactedLogs } from './observability/chapObs002UnredactedLogs.js';
 import { chapObs003NoKillSwitch } from './observability/chapObs003NoKillSwitch.js';
+import { chapObs004MemoryStoreExposed } from './observability/chapObs004MemoryStoreExposed.js';
 import { chapSec001PlaintextSecrets } from './secrets/chapSec001PlaintextSecrets.js';
 import { chapSec002GitTrackedSecrets } from './secrets/chapSec002GitTrackedSecrets.js';
 import { chapSec003PermissiveFilePermissions } from './secrets/chapSec003PermissiveFilePermissions.js';
 import { chapSec004SecretsReachLogs } from './secrets/chapSec004SecretsReachLogs.js';
+import { chapSec006SidecarSecretFileExposed } from './secrets/chapSec006SidecarSecretFileExposed.js';
 import { chapSup001UnverifiedSources } from './supplyChain/chapSup001UnverifiedSources.js';
 import { chapSup002NoIntegrityVerification } from './supplyChain/chapSup002NoIntegrityVerification.js';
 import { chapSup003KnownVulnerableDependencies } from './supplyChain/chapSup003KnownVulnerableDependencies.js';
@@ -31,6 +33,7 @@ export const ALL_CHECKS: readonly Check[] = [
   chapSec002GitTrackedSecrets,
   chapSec003PermissiveFilePermissions,
   chapSec004SecretsReachLogs,
+  chapSec006SidecarSecretFileExposed,
   // Excessive agency & permissions
   chapAgy001UnrestrictedShell,
   chapAgy002UnrestrictedFilesystem,
@@ -54,4 +57,5 @@ export const ALL_CHECKS: readonly Check[] = [
   chapObs001NoAuditLog,
   chapObs002UnredactedLogs,
   chapObs003NoKillSwitch,
+  chapObs004MemoryStoreExposed,
 ];

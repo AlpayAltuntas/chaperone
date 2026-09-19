@@ -10,6 +10,7 @@ import type { AgentModel } from '../../src/model/types.js';
 const BASE_MODEL: AgentModel = {
   targetRoot: '/fake',
   config: { path: '/fake/config.yaml', format: 'yaml', data: null, secretFields: [] },
+  sidecarSecretFiles: [],
   git: {
     hasAncestorGitDir: false,
     gitDirPath: null,
@@ -28,6 +29,7 @@ const BASE_MODEL: AgentModel = {
     tlsEnabled: true,
   },
   logging: { present: false, level: null, path: null, redactSecrets: null, auditLogEnabled: null },
+  memory: { present: false, dir: null },
   recoverability: { killSwitchDocumented: false },
   inspected: [],
   skipped: [],

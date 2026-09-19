@@ -84,6 +84,32 @@ export const ConfigModelSchema = z.object({
 export type ConfigModel = z.infer<typeof ConfigModelSchema>;
 
 // ---------------------------------------------------------------------------
+// Sidecar secret files (feeds CHAP-SEC-006) — .env/secrets.yaml/
+// secrets.json discovered alongside the main config, fed through the same
+// masking pipeline configParser.ts already applies to config.yaml.
+// ---------------------------------------------------------------------------
+
+export const SidecarSecretFileSchema = z.object({
+  path: z.string(),
+  format: z.enum(['dotenv', 'yaml', 'json']),
+  secretFields: z.array(SecretFieldSchema),
+});
+export type SidecarSecretFile = z.infer<typeof SidecarSecretFileSchema>;
+
+// ---------------------------------------------------------------------------
+// Persistent memory/state (feeds CHAP-OBS-004) — instruction.md §2's fifth
+// discoverable artifact. Mirrors skills_dir's config-field pattern: a
+// memory_dir/state_dir path is resolved, existence/permissions checked, no
+// content ever read (memory can hold arbitrary conversational history).
+// ---------------------------------------------------------------------------
+
+export const MemoryModelSchema = z.object({
+  present: z.boolean(),
+  dir: z.string().nullable(),
+});
+export type MemoryModel = z.infer<typeof MemoryModelSchema>;
+
+// ---------------------------------------------------------------------------
 // Git context (feeds CHAP-SEC-002)
 // ---------------------------------------------------------------------------
 
@@ -213,11 +239,13 @@ export type RecoverabilityModel = z.infer<typeof RecoverabilityModelSchema>;
 export const AgentModelSchema = z.object({
   targetRoot: z.string(),
   config: ConfigModelSchema,
+  sidecarSecretFiles: z.array(SidecarSecretFileSchema),
   git: GitContextSchema,
   permissions: z.array(FilePermissionFactSchema),
   skills: z.array(SkillSchema),
   gateway: GatewayModelSchema,
   logging: LoggingModelSchema,
+  memory: MemoryModelSchema,
   recoverability: RecoverabilityModelSchema,
   inspected: z.array(InspectedEntrySchema),
   skipped: z.array(SkippedEntrySchema),

@@ -713,3 +713,58 @@ workflows/release.yml`, tag-triggered (`v*`) for real releases plus a
   registry's publish endpoint. This replaces the manual 2FA/access-token
   flow used for the `0.1.0` publish (see "Post-v1 — npm publish prep"
   above) once configured.
+
+## Improvement plan, Phase 5 — Discovery: sidecar secret files + persistent memory/state
+
+- **Sidecar secret files** (`1.6`/`2.2`): discovery now looks for `.env`,
+  `.env.local`, `secrets.yaml`, `secrets.yml`, `secrets.json` alongside
+  the main config and feeds each one through the exact same masking
+  pipeline `config.yaml` already gets (`discovery/configParser.ts`'s
+  `maskConfig` — reused as-is, not reimplemented, so the secret-key-name
+  heuristic and env-reference detection stay in one place). Closes the
+  single biggest real-world blind spot from this pass: a config
+  referencing `${API_KEY}` was already safe, but the literal value living
+  in a colocated `.env` was previously invisible to every `CHAP-SEC-*`
+  check. `.env` parsing is a deliberately minimal, documented-gap
+  implementation (`KEY=value`, `#` comments, quote-stripping — no
+  multi-line values, no `export` prefix), same precedent as
+  `gitignoreMatch.ts`'s partial-gitignore-semantics approach.
+- **`CHAP-SEC-006`**: applies CHAP-SEC-002's git-tracking check and
+  CHAP-SEC-003's permission check to each sidecar file holding a literal
+  secret, combined into one finding (same "combine reasons into one
+  message" pattern CHAP-SEC-004 already established) rather than two new
+  separate check IDs — the plan allocated one ID for this.
+- **Persistent memory/state** (`1.7`/`2.8`): `memory_dir`/`state_dir`
+  config field (mirrors `skills_dir`'s existing resolve-and-check
+  pattern) closes a real gap against `instruction.md` §2's own scope —
+  it lists memory/state as one of five discoverable artifacts, and four
+  of five had discovery modules before this; the fifth had none. No
+  content inside the directory is ever read, only existence/permissions/
+  git-tracking — consistent with the read-boundary discipline elsewhere.
+- **`CHAP-OBS-004`**: mirrors CHAP-SEC-002/003 again, applied to the
+  memory/state directory. `medium` severity (not `high`, unlike
+  CHAP-SEC-006) since there's no literal-secret gate here — arbitrary
+  memory content isn't scanned, so this is a general exposure signal, not
+  a confirmed-secret one.
+- **Fixture strategy**: added `secrets.yaml` + `memory_dir`/`memory/` to
+  `vulnerable-agent` only (a true-positive demonstration in the
+  full-catalog integration test), left `clean-agent` without them
+  (absence is itself a legitimate, trivially-safe configuration) rather
+  than fighting this repo's own root `.gitignore` (`.env` is already
+  globally ignored there) to construct a "present but safe" fixture —
+  the "present but safe" TP/TN matrix is instead covered by dedicated
+  isolated-temp-dir unit tests for both new checks (mirroring
+  `chapSec002.test.ts`/`chapSec003.test.ts`'s existing pattern), which
+  don't depend on or interact with this repo's real git context at all.
+- **Caught a test-infra bug while wiring this in**: `chmod`'ing the new
+  `memory` directory to a file-style mode (e.g. `0o644`) in
+  `fullCatalog.test.ts`'s copy helper stripped the execute bit and made
+  the directory untraversable — broke not just the check under test but
+  the test's own `rmSync` cleanup afterward (`EACCES, Directory not
+empty`). Fixed by deriving a directory-appropriate mode (execute bit
+  wherever a read bit is set, e.g. `644` -> `755`) instead of reusing the
+  file mode directly.
+- **README's example output re-verified and updated again** (real
+  captured CLI output, not hand-computed — see the Phase 2 entry above
+  for why this matters): 22 -> 24 checks, 35 -> 37 findings, 13 -> 14
+  high, 14 -> 15 medium, 13 inspected paths (was 12).
