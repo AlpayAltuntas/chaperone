@@ -203,6 +203,7 @@ each):
 | `--profile <profile>`         | Discovery profile: `default` (fictional format) or `mcp` (real MCP config)   | `CHAPERONE_PROFILE`       |
 | `--all <pattern>`             | Scan every immediate subdirectory of a parent, one aggregate report          | `CHAPERONE_ALL`           |
 | `--docker <container[:path]>` | Scan a container's filesystem via `docker cp` (read-only)                    | `CHAPERONE_DOCKER`        |
+| `--plugin <path>`             | Load a third-party check module (repeatable) — no sandboxing, trust it fully |                           |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -343,6 +344,67 @@ of the running process — see `DECISIONS.md`, Phase 20 for what that
 means for env-var-injected secrets (`docker-compose.yml`'s
 `environment:`/`env_file:`) that this doesn't (yet) resolve.
 
+### Plugins (`--plugin`)
+
+**A plugin is arbitrary code with full access to `AgentModel`, loaded
+and run with no sandboxing whatsoever.** Loading one means trusting it
+exactly as much as any other dependency you'd `npm install` and run —
+only load a plugin you've read and trust. This is entirely opt-in:
+nothing is ever loaded without you naming it explicitly, and Chaperone
+prints an unmissable warning to stderr every time one is.
+
+```bash
+chaperone scan ~/clawd --plugin ./my-checks.cjs           # repeatable — pass --plugin more than once
+```
+
+Or via `.chaperonerc.json`'s `plugins` array (merged with any `--plugin`
+flags, config-file entries first):
+
+```json
+{ "plugins": ["./my-checks.cjs"] }
+```
+
+A plugin module's default export must be a single object shaped like
+the `Check` interface (`src/engine/types.ts`) — `id`, `title`,
+`severity`, `category`, `owasp`, `detects`, `heuristic`, `remediation`,
+and a `run(model)` function — or an array of them:
+
+```js
+// my-checks.cjs — plain CommonJS (module.exports), not ESM: plugins are
+// loaded synchronously via require(), so `chaperone scan` never needs to
+// become an async CLI just to support them.
+module.exports = {
+  id: 'CHAP-CUSTOM-001',
+  title: 'Skill name flagged by organization policy',
+  severity: 'medium',
+  category: 'supply-chain',
+  owasp: 'LLM05: Supply Chain',
+  detects: "A skill whose name contains 'experimental'.",
+  heuristic: "Skill name (case-insensitive) contains 'experimental'.",
+  remediation: 'Rename the skill or get security sign-off.',
+  run(model) {
+    return model.skills
+      .filter((skill) => skill.name.toLowerCase().includes('experimental'))
+      .map((skill) => ({
+        checkId: 'CHAP-CUSTOM-001',
+        title: 'Skill name flagged by organization policy',
+        severity: 'medium',
+        category: 'supply-chain',
+        owasp: 'LLM05: Supply Chain',
+        message: `Skill '${skill.name}' matches the 'experimental' naming policy.`,
+        location: { filePath: skill.manifestPath, line: null, detail: skill.name },
+        remediation: 'Rename the skill or get security sign-off.',
+      }));
+  },
+};
+```
+
+See `test/fixtures/plugins/samplePlugin.cjs` for the real version of
+this example. A plugin check runs alongside every built-in one — it
+feeds `--fail-on` and the posture score identically, and a check ID
+colliding with a built-in (or another plugin's) check is a hard error,
+never a silent override.
+
 A minimal CI job that fails the build on high+ findings and uploads results
 to GitHub code scanning:
 
@@ -478,6 +540,12 @@ These are hard requirements Chaperone holds itself to, not suggestions:
    clearly-scoped project, not this one.
 5. **Clear provenance in output.** Every report states what was and
    wasn't inspected, so you don't over-trust an incomplete scan.
+6. **Plugins are a stated exception, not a loophole.** `--plugin` loads
+   and runs arbitrary third-party code with full `AgentModel` access —
+   the guarantees above are what Chaperone _itself_ holds to; a plugin
+   you explicitly load is a separate trust decision you're making, the
+   same as installing any other dependency. Entirely opt-in, with an
+   unmissable warning every time one loads.
 
 ## Contributing
 
