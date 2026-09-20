@@ -12,6 +12,21 @@ pipeline, even though it isn't a breaking API change in the usual sense.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-20
+
+Packaging-metadata-only release — no CLI behavior change.
+
+### Fixed
+
+- `package.json` now declares `main`/`types`/`exports` (pointing at
+  `dist/cli.js`/`dist/cli.d.ts`, safe to import without side effects —
+  the module only runs the CLI when invoked as the actual entry script,
+  never on plain `import`), fixing bundle-size analyzers (e.g. Socket's
+  bundlephobia-style check) that couldn't resolve an entry point for a
+  `bin`-only package before this.
+- Added a missing `author` field, matching the npm registry's existing
+  maintainer record.
+
 ## [0.2.0] - 2026-09-20
 
 The full `improvement_plan.md` build-out (Phases 1-24) — every check,
