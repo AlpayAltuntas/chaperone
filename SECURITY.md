@@ -6,11 +6,17 @@ here — please report both the same way:
 
 1. **A bug in Chaperone itself** — anything that would violate its own
    guardrails (see the README's [Security & ethics](README.md#security--ethics)
-   section): Chaperone writing to, modifying, or deleting anything in a
-   scanned installation; Chaperone making an outbound network call during
-   a scan; a real secret value leaking into console/JSON/SARIF output
-   instead of being masked; or any other way the tool could act on, or
-   expose, more than it should.
+   section): `chaperone scan` writing to, modifying, or deleting anything
+   in a scanned installation, or making an outbound network call; a real
+   secret value leaking into console/JSON/SARIF/markdown/gha/html output
+   instead of being masked; `chaperone fix` writing a change without
+   `--write --dry-run` having been passed; `chaperone check-update`
+   making a network call anywhere outside that one explicit, opt-in
+   command; or any other way the tool could act on, or expose, more than
+   it should. (`chaperone fix --write --dry-run` and `chaperone
+check-update` are the two narrow, documented exceptions to
+   read-only/no-network — see the README section above — not bugs in
+   themselves.)
 2. **A false negative that matters** — a check silently failing to catch
    something it's designed to catch (as opposed to a merely annoying
    false positive). For a scanner, a missed finding is arguably a

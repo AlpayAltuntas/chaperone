@@ -138,7 +138,7 @@ the real run reports 44 findings across all 29 checks):
 ```
 Chaperone scan report
 Target: ~/clawd
-Scanned at 2026-09-19T20:23:15.771Z — chaperone v0.1.0
+Scanned at 2026-09-20T22:16:32.871Z — chaperone v0.2.0
 
 CRITICAL (5)
 
@@ -160,7 +160,7 @@ HIGH (20)
 
   [CHAP-SEC-001] Plaintext secrets in config
     Config field 'llm.api_key' holds a literal secret value (sk-…wxyz) instead of an environment-variable reference.
-    Location: ~/clawd/config.yaml (llm.api_key)
+    Location: ~/clawd/config.yaml:6 (llm.api_key)
     OWASP: LLM06: Sensitive Information Disclosure
     Remediation: Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).
 
@@ -551,8 +551,6 @@ audit` for real, comprehensive coverage.
   on an unconventional spelling (e.g. `delete_file` doesn't match the
   standalone word `delete`) — a documented v1-equivalent limitation for
   Python, not held to JS/TS's AST-based bar.
-- **The posture score isn't shown in console output yet** — only in the
-  JSON report's `summary.score`/`summary.band`. See `CHECKS.md`.
 
 ## Security & ethics
 
