@@ -91,6 +91,42 @@ describe('detectCapabilities — fileSystemAccess / fileSystemScoped', () => {
     expect(result.fileSystemScoped).toBe(true);
   });
 
+  // PROPOSED_FIXES.md 2.6 — ESM modules have no __dirname; these are the
+  // idiomatic replacements, and each used to be flagged as unscoped.
+  it.each([
+    [
+      'import.meta.dirname',
+      "import path from 'node:path';\nconst dir = path.join(import.meta.dirname, 'out');\n",
+    ],
+    [
+      'path.resolve(import.meta.dirname, ...)',
+      "import path from 'node:path';\nconst dir = path.resolve(import.meta.dirname, 'out');\n",
+    ],
+    [
+      'an inline dirname(fileURLToPath(import.meta.url))',
+      "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\nconst dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'out');\n",
+    ],
+    [
+      'a variable derived from import.meta.url',
+      "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst dir = path.join(here, 'out');\n",
+    ],
+    [
+      'a hand-rolled __dirname shim',
+      "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst dir = path.join(__dirname, 'out');\n",
+    ],
+  ])('detects ESM scoping via %s', (_label, code) => {
+    const result = detectCapabilities('skill.mjs', code);
+    expect(result.fileSystemScoped).toBe(true);
+  });
+
+  it('does not treat path.join on a variable unrelated to the module location as scoping', () => {
+    const result = detectCapabilities(
+      'skill.mjs',
+      "import path from 'node:path';\nconst base = process.argv[2];\nconst dir = path.join(base, 'out');\n",
+    );
+    expect(result.fileSystemScoped).toBe(false);
+  });
+
   it('does not treat path.join without __dirname as scoping', () => {
     const result = detectCapabilities(
       'skill.js',
@@ -195,6 +231,40 @@ describe('detectCapabilities — destructiveKeywords (word-boundary fix)', () =>
   it('does not false-positive on a word that merely contains a keyword as a substring (deployment vs deploy is a real segment match, but "sender" is not "send")', () => {
     const result = detectCapabilities('skill.js', 'function sender() {}\nsender();\n');
     expect(result.destructiveKeywords).toEqual([]);
+  });
+
+  // PROPOSED_FIXES.md 2.4 — bare `.send()`/`.delete()`/`.remove()` method
+  // calls are overwhelmingly container/response/DOM APIs (res.send,
+  // Map#delete, Set#delete, socket.send, classList.remove), not a skill's
+  // own irreversible action. They made nearly every real skill "destructive".
+  it.each([
+    ["res.send('ok');", 'Express response'],
+    ['cache.delete(key);', 'Map#delete'],
+    ['seen.delete(id);', 'Set#delete'],
+    ['socket.send(payload);', 'WebSocket#send'],
+    ["el.classList.remove('active');", 'DOMTokenList#remove'],
+    ["params['delete']('q');", 'element-access form'],
+  ])('does NOT fire on a generic member call: %s (%s)', (code) => {
+    const result = detectCapabilities('skill.js', `${code}\n`);
+    expect(result.destructiveKeywords).toEqual([]);
+  });
+
+  it('still fires on a member call whose name is more specific than the bare verb (client.sendEmail)', () => {
+    const result = detectCapabilities('skill.js', 'client.sendEmail(to, body);\n');
+    expect(result.destructiveKeywords).toEqual(['send']);
+  });
+
+  it('still fires on member calls for verbs that are not generic container methods (wallet.transfer, api.deploy)', () => {
+    const result = detectCapabilities('skill.js', 'wallet.transfer(100);\napi.deploy();\n');
+    expect(result.destructiveKeywords).toEqual(['deploy', 'transfer']);
+  });
+
+  it('still fires on a bare (non-member) call to a generic verb (send(x))', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "import { send } from './mailer.js';\nsend(x);\n",
+    );
+    expect(result.destructiveKeywords).toEqual(['send']);
   });
 
   it('collects multiple distinct keywords, sorted and deduplicated', () => {

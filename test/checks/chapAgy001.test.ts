@@ -34,4 +34,46 @@ describe('CHAP-AGY-001 — unrestricted shell execution', () => {
 
     expect(chapAgy001UnrestrictedShell.run(model)).toEqual([]);
   });
+
+  // PROPOSED_FIXES.md 2.9 — a declared confirmation gate is a real (if
+  // self-declared) mitigation: still reported, but downgraded from
+  // critical, and the message no longer claims no gate was found.
+  it('downgrades to high when the skill declares a confirmation gate', () => {
+    const { model } = discoverAgent({
+      targetPath: path.join('test', 'fixtures', 'vulnerable-agent'),
+    });
+    const gatedModel = {
+      ...model,
+      skills: model.skills.map((skill) =>
+        skill.name === 'shell-runner' ? { ...skill, confirmationRequired: true } : skill,
+      ),
+    };
+
+    const findings = chapAgy001UnrestrictedShell.run(gatedModel);
+
+    const gated = findings.find((f) => f.location.detail === 'shell-runner');
+    expect(gated?.severity).toBe('high');
+    expect(gated?.message).toMatch(/declares a confirmation gate/);
+    expect(gated?.message).not.toMatch(/no detected command allowlist or confirmation gate/);
+
+    const ungated = findings.filter((f) => f.location.detail !== 'shell-runner');
+    expect(ungated).toHaveLength(2);
+    for (const finding of ungated) {
+      expect(finding.severity).toBe('critical');
+    }
+  });
+
+  it('treats confirmationRequired: false the same as no declaration (critical)', () => {
+    const { model } = discoverAgent({
+      targetPath: path.join('test', 'fixtures', 'vulnerable-agent'),
+    });
+    const explicitFalse = {
+      ...model,
+      skills: model.skills.map((skill) => ({ ...skill, confirmationRequired: false })),
+    };
+
+    for (const finding of chapAgy001UnrestrictedShell.run(explicitFalse)) {
+      expect(finding.severity).toBe('critical');
+    }
+  });
 });

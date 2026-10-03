@@ -2114,3 +2114,56 @@ install --save-dev` defaults to one) — the standard TS property-based
   Phase 18's existing `test/scan/noNetworkCalls.test.ts`, specifically
   guarding against a future regression where `check-update`-style logic
   accidentally leaks into the scan path.
+
+## PROPOSED_FIXES.md, 0.2.2 batch — False-positive fixes
+
+Seven items (2.2, 2.4, 2.5, 2.6 ESM half, 2.7, 2.8, 2.9), each with a
+failing test written first from the reproductions in
+`PROPOSED_FIXES.md` Appendix A.
+
+- **Only changes that can remove findings go in this batch.** That's the
+  test for a patch release: none of these can turn a passing
+  `--fail-on` run red. The nothing-scanned exit-code fix (2.1) and the
+  camelCase key fix (2.3) can add failures, so they wait for 0.3.0.
+- **`isLoopbackAddress` uses `node:net` instead of a hand-rolled IPv6
+  parser.** `isIP` plus a `BlockList` (127.0.0.0/8, ::1) is exact and
+  needs no dependency. Normalization strips `[...]` and a trailing
+  `:port` first. A bare IPv6 address is never port-stripped: its last
+  group can't be told apart from a port, which is why IPv6-with-port must
+  be bracketed in the first place.
+- **Generic member verbs are a denylist of three words, not receiver
+  type inference.** Working out that `cache` is a `Map` needs type
+  information the AST pass doesn't have. `.send()`, `.delete()`, and
+  `.remove()` as complete member names account for nearly all of the
+  noise. The alternative (ignoring every member call) would have lost
+  `wallet.transfer()` and `client.sendEmail()`, which tests pin as still
+  detected. Python keyword matching is unchanged in this batch: the
+  `py-cache-cleaner` fixture's only destructive signal is `-delete`
+  inside a string, so fixing Python properly means a different fixture
+  too (tracked in `PROPOSED_FIXES.md` 2.4/3.4).
+- **ESM scoping is recognized by any reference to
+  `import.meta.url`/`dirname`/`filename` in the first argument to
+  `path.join`/`path.resolve`, or a variable initialized from one.** The
+  per-call scoping redesign (the other half of 2.6) is deliberately not
+  in this batch, since it can add findings.
+- **AGY-001 with a declared gate is downgraded to high, not silenced.**
+  `confirmationRequired` is self-declared. AGY-003 already trusts it
+  fully. For shell execution, the consequence of a gate that isn't
+  really enforced is severe enough to keep the finding.
+- **Baseline fingerprints drop the message and relativize the path
+  against each report's own target.** No `fingerprintVersion` field was
+  needed: a 0.2.x baseline's `target` is the absolute root its absolute
+  paths are relative to, so old baselines match the new scheme
+  unchanged. Two known edges: `--docker` reports use a display target
+  that isn't a path, so their paths stay absolute (and a fresh temp dir
+  per run never matched anyway). With `--all`, one baseline is applied to
+  every target, so a finding at the same relative path in two targets is
+  now matched by either one. That was already a misuse (baselines are
+  single-target reports) but used to be masked by absolute paths.
+- **Not-applicable checks are reported as a "Skipped" entry, not a new
+  report field.** An entry with path `(profile: mcp)` shows up in every
+  reporter with no schema change. Adding a dedicated `checksNotApplicable`
+  field to the JSON schema and all six reporters would be cleaner but
+  much larger. Revisit if more profiles land (0.4.0). `runChecks` with
+  no `profile` still runs everything, so plugin authors and existing
+  callers see no change.

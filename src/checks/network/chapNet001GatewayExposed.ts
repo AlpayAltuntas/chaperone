@@ -1,3 +1,4 @@
+import { BlockList, isIP } from 'node:net';
 import type { Check } from '../../engine/types.js';
 
 const ID = 'CHAP-NET-001';
@@ -7,39 +8,55 @@ const OWASP = 'LLM06 / general';
 /**
  * Whether `host` is a loopback address — i.e. genuinely reachable only
  * from the same machine, not merely equal to the one canonical spelling
- * of localhost. Previously this only recognized the exact literals
- * '127.0.0.1'/'localhost'/'::1', which false-positived on any other
- * address in the (entirely loopback) IPv4 127.0.0.0/8 block, e.g.
- * '127.0.0.2', and on the IPv6 loopback written in expanded form, e.g.
- * '0:0:0:0:0:0:0:1' (see improvement_plan.md 1.3). Not a full RFC-grade
- * IPv6 parser — e.g. IPv4-mapped IPv6 loopback ('::ffff:127.0.0.1') isn't
- * recognized — but covers the realistic config-value cases.
+ * of localhost. Covers the IPv4 127.0.0.0/8 block, the IPv6 loopback in
+ * any spelling (`::1`, `0:0:0:0:0:0:0:1`), and IPv4-mapped loopback
+ * (`::ffff:127.0.0.1`), after normalizing the forms people actually write
+ * in a `host` field: a trailing `:port`, `[...]` brackets around IPv6,
+ * and a trailing-dot `localhost.`. Each of those used to be a critical
+ * false positive (PROPOSED_FIXES.md 2.2).
  */
 export function isLoopbackAddress(host: string): boolean {
-  const normalized = host.trim();
-  if (normalized.toLowerCase() === 'localhost') {
+  const address = stripPortAndBrackets(host.trim()).toLowerCase();
+  if (address === 'localhost' || address === 'localhost.') {
     return true;
   }
 
-  const ipv4Match = /^(\d{1,3})\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.exec(normalized);
-  if (ipv4Match) {
-    return Number(ipv4Match[1]) === 127;
+  const family = isIP(address);
+  if (family === 4) {
+    return LOOPBACK.check(address, 'ipv4');
   }
-
-  if (normalized.includes(':')) {
-    const nonEmptyGroups = normalized.split(':').filter((group) => group.length > 0);
-    if (nonEmptyGroups.length === 0) {
-      return false; // '::' — the IPv6 "any address" wildcard, not loopback.
+  if (family === 6) {
+    const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(address);
+    if (mapped?.[1] !== undefined) {
+      return isIP(mapped[1]) === 4 && LOOPBACK.check(mapped[1], 'ipv4');
     }
-    const last = nonEmptyGroups[nonEmptyGroups.length - 1] ?? '';
-    const rest = nonEmptyGroups.slice(0, -1);
-    return /^0*1$/.test(last) && rest.every((group) => /^0+$/.test(group));
+    return LOOPBACK.check(address, 'ipv6');
   }
-
   return false;
 }
 
-/** Flags a gateway bind address that isn't localhost, making it reachable from other hosts. */
+const LOOPBACK = new BlockList();
+LOOPBACK.addSubnet('127.0.0.0', 8, 'ipv4');
+LOOPBACK.addAddress('::1', 'ipv6');
+
+/**
+ * `[::1]:8080` -> `::1`, `[::1]` -> `::1`, `127.0.0.1:8080` -> `127.0.0.1`,
+ * `localhost:80` -> `localhost`. A bare IPv6 address (two or more colons,
+ * no brackets) is returned unchanged — its last group can't be told apart
+ * from a port, which is exactly why IPv6-with-port must be bracketed.
+ */
+function stripPortAndBrackets(host: string): string {
+  const bracketed = /^\[([^\]]*)\](?::\d+)?$/.exec(host);
+  if (bracketed?.[1] !== undefined) {
+    return bracketed[1];
+  }
+  const singleColon = /^([^:]+):\d+$/.exec(host);
+  if (singleColon?.[1] !== undefined) {
+    return singleColon[1];
+  }
+  return host;
+}
+
 export const chapNet001GatewayExposed: Check = {
   id: ID,
   title: TITLE,
@@ -48,7 +65,8 @@ export const chapNet001GatewayExposed: Check = {
   owasp: OWASP,
   detects:
     'The gateway daemon listening on an interface other than localhost (e.g. `0.0.0.0`), making it reachable from other hosts.',
-  heuristic: '`gateway.host` in config is present and is not `127.0.0.1`, `localhost`, or `::1`.',
+  heuristic:
+    '`gateway.host` in config is present and is not a loopback address (`localhost`, anything in `127.0.0.0/8`, `::1`, or IPv4-mapped `::ffff:127.x.x.x`). A trailing `:port` and `[...]` IPv6 brackets are stripped before classifying.',
   remediation:
     'Bind the gateway to `127.0.0.1`/`localhost`; put anything that must be reachable remotely behind a tunnel with authentication.',
   run(model) {

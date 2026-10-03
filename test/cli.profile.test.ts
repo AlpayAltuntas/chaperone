@@ -44,6 +44,38 @@ describe('cli scan — --profile (in-process, non-throwing paths only)', () => {
     expect(report.findings.some((f) => f.checkId === 'CHAP-SUP-001')).toBe(true);
   });
 
+  it('--profile mcp does not run checks that read keys an MCP config cannot contain, and says so', () => {
+    run([
+      'node',
+      'chaperone',
+      'scan',
+      path.join('test', 'fixtures', 'mcp-clean'),
+      '--profile',
+      'mcp',
+      '--format',
+      'json',
+    ]);
+
+    const printed = logSpy.mock.calls[0]?.[0] as string;
+    const report = JSON.parse(printed) as {
+      findings: Array<{ checkId: string }>;
+      skipped: Array<{ path: string; reason: string }>;
+    };
+    const ids = report.findings.map((f) => f.checkId);
+    for (const id of [
+      'CHAP-OBS-001',
+      'CHAP-OBS-002',
+      'CHAP-OBS-003',
+      'CHAP-INJ-001',
+      'CHAP-INJ-003',
+    ]) {
+      expect(ids).not.toContain(id);
+    }
+    const note = report.skipped.find((entry) => entry.path === '(profile: mcp)');
+    expect(note?.reason).toContain('CHAP-OBS-001');
+    expect(note?.reason).toContain('not applicable');
+  });
+
   it('defaults to the fictional profile when --profile is omitted', () => {
     run([
       'node',

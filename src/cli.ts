@@ -141,6 +141,9 @@ export function formatCheckExplanation(check: Check): string {
     `Severity: ${severityLabel}`,
     `Category: ${check.category}`,
     `OWASP:    ${check.owasp}`,
+    ...(check.appliesToProfiles !== undefined
+      ? [`Profiles: ${check.appliesToProfiles.join(', ')} only`]
+      : []),
     '',
     'Detects:',
     `  ${check.detects}`,
@@ -163,12 +166,15 @@ function runCheckSuite(
   const runOptions = {
     ...(options.only ? { only: options.only } : {}),
     ...(options.skip ? { skip: options.skip } : {}),
+    profile: options.profile,
   };
   const result = runChecks(model, checks, runOptions);
 
   if (result.checksRun.length === 0) {
     command.error(
-      '--only/--skip left no checks to run. Run `chaperone checks` to see available check IDs.',
+      result.checksNotApplicable.length > 0
+        ? `--only/--skip left no checks that apply to --profile ${options.profile}. Run \`chaperone checks\` to see available check IDs.`
+        : '--only/--skip left no checks to run. Run `chaperone checks` to see available check IDs.',
     );
   }
 
@@ -216,9 +222,20 @@ function scanOneTarget(
   // No point evaluating checks against an empty/placeholder model when
   // no installation was even located — every "finding" would be about a
   // target that doesn't exist, which is confusing, not helpful.
-  const rawFindings = targetRootResolved
-    ? runCheckSuite(model, checks, options, command).findings
-    : [];
+  const suite = targetRootResolved ? runCheckSuite(model, checks, options, command) : null;
+  const rawFindings = suite?.findings ?? [];
+  // Surfaced like any other skipped input so a profile-scoped check is
+  // never silently missing from a report (PROPOSED_FIXES.md 2.8).
+  const skipped =
+    suite !== null && suite.checksNotApplicable.length > 0
+      ? [
+          ...model.skipped,
+          {
+            path: `(profile: ${options.profile})`,
+            reason: `checks not applicable to this profile: ${suite.checksNotApplicable.join(', ')}`,
+          },
+        ]
+      : model.skipped;
 
   // severityOverrides/ignore are a real reclassification the user has
   // consciously made, so — unlike the purely cosmetic display filters
@@ -239,7 +256,7 @@ function scanOneTarget(
   // hide old ones from the printed report.
   const findings =
     baseline !== undefined
-      ? findNewFindings(configAdjustedFindings, baseline)
+      ? findNewFindings(configAdjustedFindings, baseline, model.targetRoot)
       : configAdjustedFindings;
 
   // Category/severity filters are purely presentational — --fail-on
@@ -253,7 +270,7 @@ function scanOneTarget(
     timestamp: new Date().toISOString(),
     toolVersion: VERSION,
     inspected: model.inspected,
-    skipped: model.skipped,
+    skipped,
   };
 
   return { metadata, findings, displayFindings, targetRootResolved };

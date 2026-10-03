@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { errorMessage } from '../discovery/errors.js';
 import type { Finding } from '../model/types.js';
 import { ScanReportSchema, type ScanReport } from '../reporters/schema.js';
@@ -21,16 +22,18 @@ import { ScanReportSchema, type ScanReport } from '../reporters/schema.js';
  * a much easier mistake to make unnoticed than a missing suppression
  * config.
  */
-export function loadBaseline(path: string): ScanReport {
-  if (!existsSync(path)) {
-    throw new Error(`baseline file not found: ${path}`);
+export function loadBaseline(baselinePath: string): ScanReport {
+  if (!existsSync(baselinePath)) {
+    throw new Error(`baseline file not found: ${baselinePath}`);
   }
 
   let raw: unknown;
   try {
-    raw = JSON.parse(readFileSync(path, 'utf8'));
+    raw = JSON.parse(readFileSync(baselinePath, 'utf8'));
   } catch (err) {
-    throw new Error(`could not parse ${path} as JSON: ${errorMessage(err)}`, { cause: err });
+    throw new Error(`could not parse ${baselinePath} as JSON: ${errorMessage(err)}`, {
+      cause: err,
+    });
   }
 
   const result = ScanReportSchema.safeParse(raw);
@@ -38,31 +41,59 @@ export function loadBaseline(path: string): ScanReport {
     const issues = result.error.issues
       .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('; ');
-    throw new Error(`invalid baseline file ${path}: ${issues}`);
+    throw new Error(`invalid baseline file ${baselinePath}: ${issues}`);
   }
   return result.data;
 }
 
 /**
- * Identifies "the same finding" across two scans. Deliberately excludes
- * `location.line`: unrelated edits shifting line numbers elsewhere in a
- * file would otherwise make an unchanged finding look "new" on every
- * diff. `checkId` + `filePath` + `detail` + `message` is what's left —
- * specific enough that two genuinely different findings essentially
- * never collide, without being so specific that harmless line drift
- * defeats the whole point of a baseline.
+ * Identifies "the same finding" across two scans, as
+ * `checkId` + file path relative to the scan target + `detail`.
+ *
+ * - `location.line` is excluded: unrelated edits shifting lines elsewhere
+ *   in a file would otherwise make an unchanged finding look new.
+ * - `message` is excluded: wording changes between Chaperone releases,
+ *   and some messages embed variable data, would otherwise resurface
+ *   every finding after an upgrade.
+ * - The file path is made relative to `targetRoot` when it lies inside
+ *   it, so a baseline captured at `/Users/me/clawd` still matches a scan
+ *   of the same install at `/home/runner/work/clawd`. A path outside the
+ *   target stays absolute rather than becoming a `../..` chain.
+ *
+ * Before PROPOSED_FIXES.md 2.7 this used the absolute path and the
+ * message, so moving an install made every finding "new". Old (v0.2)
+ * baselines still match: their `target` field is the absolute root their
+ * paths are relative to.
  */
-export function findingFingerprint(finding: Finding): string {
+export function findingFingerprint(finding: Finding, targetRoot: string): string {
   return JSON.stringify([
     finding.checkId,
-    finding.location.filePath,
+    relativeToTarget(finding.location.filePath, targetRoot),
     finding.location.detail,
-    finding.message,
   ]);
 }
 
-/** Findings present in `findings` but not in `baseline` — i.e. new since the baseline was captured. */
-export function findNewFindings(findings: readonly Finding[], baseline: ScanReport): Finding[] {
-  const baselineFingerprints = new Set(baseline.findings.map(findingFingerprint));
-  return findings.filter((finding) => !baselineFingerprints.has(findingFingerprint(finding)));
+function relativeToTarget(filePath: string | null, targetRoot: string): string | null {
+  if (filePath === null || !path.isAbsolute(filePath) || !path.isAbsolute(targetRoot)) {
+    return filePath;
+  }
+  const relative = path.relative(targetRoot, filePath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    return filePath;
+  }
+  return relative.split(path.sep).join('/');
+}
+
+/** The findings in `findings` (scanned at `targetRoot`) that aren't in `baseline` (scanned at `baseline.target`). */
+export function findNewFindings(
+  findings: readonly Finding[],
+  baseline: ScanReport,
+  targetRoot: string,
+): Finding[] {
+  const baselineFingerprints = new Set(
+    baseline.findings.map((finding) => findingFingerprint(finding, baseline.target)),
+  );
+  return findings.filter(
+    (finding) => !baselineFingerprints.has(findingFingerprint(finding, targetRoot)),
+  );
 }

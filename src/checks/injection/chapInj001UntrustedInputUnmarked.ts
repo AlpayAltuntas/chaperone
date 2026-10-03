@@ -11,6 +11,7 @@ export const chapInj001UntrustedInputUnmarked: Check = {
   title: TITLE,
   severity: 'high',
   category: 'injection',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects:
     'An active inbound message channel with no trust boundary separating untrusted content before it reaches the model.',

@@ -1,16 +1,21 @@
 import { errorMessage } from '../discovery/errors.js';
+import type { DiscoveryProfile } from '../discovery/index.js';
 import type { AgentModel, Finding } from '../model/types.js';
 import type { Check } from './types.js';
 
 export interface RunChecksOptions {
   only?: readonly string[];
   skip?: readonly string[];
+  /** When set, checks whose `appliesToProfiles` excludes it are not run. Omitted (plugin/test callers): every check runs. */
+  profile?: DiscoveryProfile;
 }
 
 export interface RunChecksResult {
   findings: Finding[];
   checksRun: string[];
   checksSkipped: string[];
+  /** Checks not run because they don't apply to `options.profile` — distinct from user-requested --only/--skip exclusions. */
+  checksNotApplicable: string[];
   internalErrors: Array<{ checkId: string; message: string }>;
 }
 
@@ -30,11 +35,20 @@ export function runChecks(
   const findings: Finding[] = [];
   const checksRun: string[] = [];
   const checksSkipped: string[] = [];
+  const checksNotApplicable: string[] = [];
   const internalErrors: Array<{ checkId: string; message: string }> = [];
 
   for (const check of checks) {
     if ((only !== null && !only.has(check.id)) || (skip !== null && skip.has(check.id))) {
       checksSkipped.push(check.id);
+      continue;
+    }
+    if (
+      options.profile !== undefined &&
+      check.appliesToProfiles !== undefined &&
+      !check.appliesToProfiles.includes(options.profile)
+    ) {
+      checksNotApplicable.push(check.id);
       continue;
     }
 
@@ -58,5 +72,5 @@ export function runChecks(
     }
   }
 
-  return { findings, checksRun, checksSkipped, internalErrors };
+  return { findings, checksRun, checksSkipped, checksNotApplicable, internalErrors };
 }

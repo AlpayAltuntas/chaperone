@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { runChecks } from '../../src/engine/index.js';
 import type { Check } from '../../src/engine/types.js';
 import type { AgentModel, Finding } from '../../src/model/types.js';
@@ -128,5 +128,45 @@ describe('runChecks', () => {
 
     expect(result.findings).toEqual([]);
     expect(result.checksRun).toEqual([]);
+  });
+
+  // PROPOSED_FIXES.md 2.8 — a check that reads keys only one profile's
+  // config format can contain is not applicable under any other profile.
+  it('reports a check outside its appliesToProfiles as not applicable instead of running it', () => {
+    const run = vi.fn(() => [makeFinding('DEFAULT_ONLY')]);
+    const checks: Check[] = [
+      { ...makeCheck('DEFAULT_ONLY', run), appliesToProfiles: ['default'] },
+      makeCheck('ANY', () => [makeFinding('ANY')]),
+    ];
+
+    const result = runChecks(EMPTY_MODEL, checks, { profile: 'mcp' });
+
+    expect(run).not.toHaveBeenCalled();
+    expect(result.checksRun).toEqual(['ANY']);
+    expect(result.checksNotApplicable).toEqual(['DEFAULT_ONLY']);
+    expect(result.checksSkipped).toEqual([]);
+    expect(result.findings.map((f) => f.checkId)).toEqual(['ANY']);
+  });
+
+  it('runs a profile-scoped check under a profile it lists', () => {
+    const checks: Check[] = [
+      {
+        ...makeCheck('DEFAULT_ONLY', () => [makeFinding('DEFAULT_ONLY')]),
+        appliesToProfiles: ['default'],
+      },
+    ];
+
+    const result = runChecks(EMPTY_MODEL, checks, { profile: 'default' });
+
+    expect(result.checksRun).toEqual(['DEFAULT_ONLY']);
+    expect(result.checksNotApplicable).toEqual([]);
+  });
+
+  it('runs every check when no profile is given (plugin/test callers)', () => {
+    const checks: Check[] = [
+      { ...makeCheck('DEFAULT_ONLY', () => []), appliesToProfiles: ['default'] },
+    ];
+
+    expect(runChecks(EMPTY_MODEL, checks).checksRun).toEqual(['DEFAULT_ONLY']);
   });
 });

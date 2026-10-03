@@ -11,6 +11,7 @@ export const chapInj003NoToolAllowlist: Check = {
   title: TITLE,
   severity: 'high',
   category: 'injection',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects: 'Any inbound message being able to invoke any tool.',
   heuristic:

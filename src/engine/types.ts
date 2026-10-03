@@ -1,3 +1,4 @@
+import type { DiscoveryProfile } from '../discovery/index.js';
 import type { AgentModel, CheckCategory, Finding, Severity } from '../model/types.js';
 
 /**
@@ -23,5 +24,13 @@ export interface Check {
   remediation: string;
   /** Overrides the plain severity label in generated docs, e.g. "Info (demoted from High — see below)". Rare — only used where a check's own severity needs a documented caveat. */
   severityNote?: string;
+  /**
+   * Discovery profiles this check is meaningful under; omitted means all.
+   * A check that only reads keys from the default profile's config format
+   * (`trust.*`, `logging.*`, ...) can't say anything true about an MCP
+   * config, which has no such keys, so the engine reports it as not
+   * applicable there instead of running it (PROPOSED_FIXES.md 2.8).
+   */
+  appliesToProfiles?: readonly DiscoveryProfile[];
   run(model: AgentModel): Finding[];
 }

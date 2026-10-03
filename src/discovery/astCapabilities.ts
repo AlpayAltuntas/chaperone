@@ -109,6 +109,14 @@ const DESTRUCTIVE_KEYWORDS = new Set([
   'pay',
 ]);
 
+// A *member* call whose whole name is one of these bare verbs (`res.send`,
+// `cache.delete`, `classList.remove`) is almost always a container,
+// response, socket, or DOM method rather than the skill's own irreversible
+// action, so it doesn't count toward destructiveKeywords. A more specific
+// member name (`client.sendEmail`), a bare call (`send(x)`), or a declared
+// function name (`function deleteFile`) still does — PROPOSED_FIXES.md 2.4.
+const GENERIC_MEMBER_VERBS = new Set(['delete', 'remove', 'send']);
+
 type BindingKind = 'namespace' | 'named';
 
 interface Binding {
@@ -148,6 +156,7 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
 
   const bindings = new Map<string, Binding>();
   collectBindings(sourceFile, bindings);
+  const moduleDirAliases = collectModuleDirAliases(sourceFile);
 
   let shellExec = false;
   let fileSystemAccess = false;
@@ -193,7 +202,7 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
         if (
           PATH_MODULES.has(target.module) &&
           PATH_SCOPING_FUNCTIONS.has(target.functionName) &&
-          isDirnameArgument(node.arguments[0])
+          isModuleDirArgument(node.arguments[0], moduleDirAliases)
         ) {
           fileSystemScoped = true;
         }
@@ -203,7 +212,7 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
       }
 
       const calleeName = getCalleeSimpleName(callee);
-      if (calleeName !== null) {
+      if (calleeName !== null && !isGenericMemberVerbCall(callee, calleeName)) {
         recordDestructive(calleeName);
       }
     }
@@ -384,8 +393,59 @@ function getExtension(filename: string): string {
   return dot === -1 ? '' : filename.slice(dot).toLowerCase();
 }
 
-function isDirnameArgument(arg: ts.Expression | undefined): boolean {
-  return arg !== undefined && ts.isIdentifier(arg) && arg.text === '__dirname';
+/**
+ * Whether `arg` names the skill module's own directory: CommonJS
+ * `__dirname`, ESM `import.meta.dirname`, any expression built from
+ * `import.meta.url`/`import.meta.dirname`/`import.meta.filename` (e.g.
+ * `path.dirname(fileURLToPath(import.meta.url))`), or a variable holding
+ * one of those. The ESM forms used to be missed, so an ESM skill scoped
+ * to its own directory was flagged as unscoped (PROPOSED_FIXES.md 2.6).
+ */
+function isModuleDirArgument(
+  arg: ts.Expression | undefined,
+  aliases: ReadonlySet<string>,
+): boolean {
+  if (arg === undefined) {
+    return false;
+  }
+  if (ts.isIdentifier(arg)) {
+    return arg.text === '__dirname' || aliases.has(arg.text);
+  }
+  return referencesImportMetaLocation(arg);
+}
+
+/** Variables initialized from the module's own location (`const here = path.dirname(fileURLToPath(import.meta.url))`). */
+function collectModuleDirAliases(root: ts.Node): Set<string> {
+  const aliases = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer !== undefined &&
+      referencesImportMetaLocation(node.initializer)
+    ) {
+      aliases.add(node.name.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return aliases;
+}
+
+const IMPORT_META_LOCATION_PROPERTIES = new Set(['url', 'dirname', 'filename']);
+
+function referencesImportMetaLocation(node: ts.Node): boolean {
+  if (
+    ts.isPropertyAccessExpression(node) &&
+    ts.isMetaProperty(node.expression) &&
+    node.expression.keywordToken === ts.SyntaxKind.ImportKeyword &&
+    IMPORT_META_LOCATION_PROPERTIES.has(node.name.text)
+  ) {
+    return true;
+  }
+  return (
+    ts.forEachChild(node, (child) => referencesImportMetaLocation(child) || undefined) ?? false
+  );
 }
 
 function collectBindings(root: ts.Node, bindings: Map<string, Binding>): void {
@@ -534,6 +594,12 @@ function getCalleeSimpleName(callee: ts.Expression): string | null {
     return callee.argumentExpression.text;
   }
   return null;
+}
+
+function isGenericMemberVerbCall(callee: ts.Expression, calleeName: string): boolean {
+  const isMemberCall =
+    ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee);
+  return isMemberCall && GENERIC_MEMBER_VERBS.has(calleeName.toLowerCase());
 }
 
 function isNamedFunctionLike(node: ts.Node): boolean {

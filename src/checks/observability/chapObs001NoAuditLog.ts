@@ -10,6 +10,7 @@ export const chapObs001NoAuditLog: Check = {
   title: TITLE,
   severity: 'medium',
   category: 'observability',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects: "Tool invocations/actions that aren't logged.",
   heuristic:

@@ -11,6 +11,7 @@ export const chapInj004AutoExecuteFromMessages: Check = {
   title: TITLE,
   severity: 'high',
   category: 'injection',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects: 'Config that auto-opens links or auto-runs commands found in inbound messages.',
   heuristic: '`trust.auto_execute_links` is `true`.',
