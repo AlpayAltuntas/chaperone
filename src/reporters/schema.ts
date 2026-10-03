@@ -19,6 +19,8 @@ export const ScanReportSchema = z.object({
   }),
   target: z.string(),
   targetRootResolved: z.boolean(),
+  // The discovery profile, and whether it was auto-detected (PROPOSED_FIXES.md 6.3).
+  profile: z.object({ name: z.string(), detected: z.boolean() }).optional(),
   timestamp: z.string(),
   summary: z.object({
     totalFindings: z.number(),

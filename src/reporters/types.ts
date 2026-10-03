@@ -30,6 +30,9 @@ export interface ScanMetadata {
    * maps results against), else the scan target.
    */
   sourceRoot?: string;
+  /** The discovery profile used, and whether it was auto-detected (PROPOSED_FIXES.md 6.3). */
+  profile?: string;
+  profileDetected?: boolean;
 }
 
 export interface RuleDescription {

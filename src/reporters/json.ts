@@ -18,6 +18,9 @@ export function buildScanReport(
     tool: { name: 'chaperone', version: metadata.toolVersion },
     target: metadata.target,
     targetRootResolved: metadata.targetRootResolved,
+    ...(metadata.profile !== undefined
+      ? { profile: { name: metadata.profile, detected: metadata.profileDetected === true } }
+      : {}),
     timestamp: metadata.timestamp,
     summary: { totalFindings: findings.length, bySeverity, score, band },
     findings: [...findings],

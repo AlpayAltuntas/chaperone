@@ -21,6 +21,8 @@ const BASE_MODEL: AgentModel = {
   },
   permissions: [],
   skills: [],
+  containers: [],
+  claudeCodeSettings: [],
   gateway: {
     present: true,
     bindHost: '0.0.0.0',

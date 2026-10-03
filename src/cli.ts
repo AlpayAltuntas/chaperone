@@ -14,6 +14,7 @@ import {
 import { extractDockerSource } from './discovery/dockerSource.js';
 import { errorMessage } from './discovery/errors.js';
 import { DISCOVERY_PROFILES, discoverAgent, type DiscoveryProfile } from './discovery/index.js';
+import { detectProfile } from './discovery/profileDetection.js';
 import { expandAllPattern } from './discovery/multiRoot.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
 import { loadPlugins, mergeChecks } from './engine/pluginLoader.js';
@@ -51,7 +52,8 @@ interface ScanCommandOptions {
   summaryOnly?: boolean;
   config?: string;
   baseline?: string;
-  profile: DiscoveryProfile;
+  /** Unset means auto-detect per target (PROPOSED_FIXES.md 6.3). */
+  profile?: DiscoveryProfile;
   all?: string;
   docker?: string;
   plugin?: string[];
@@ -161,19 +163,20 @@ function runCheckSuite(
   model: AgentModel,
   checks: readonly Check[],
   options: ScanCommandOptions,
+  profile: DiscoveryProfile,
   command: Command,
 ): RunChecksResult {
   const runOptions = {
     ...(options.only ? { only: options.only } : {}),
     ...(options.skip ? { skip: options.skip } : {}),
-    profile: options.profile,
+    profile,
   };
   const result = runChecks(model, checks, runOptions);
 
   if (result.checksRun.length === 0) {
     command.error(
       result.checksNotApplicable.length > 0
-        ? `--only/--skip left no checks that apply to --profile ${options.profile}. Run \`chaperone checks\` to see available check IDs.`
+        ? `--only/--skip left no checks that apply to --profile ${profile}. Run \`chaperone checks\` to see available check IDs.`
         : '--only/--skip left no checks to run. Run `chaperone checks` to see available check IDs.',
     );
   }
@@ -214,15 +217,30 @@ function scanOneTarget(
   baseline: ScanReport | undefined,
   knownIds: ReadonlySet<string>,
 ): OneTargetResult {
+  // With no --profile, pick the profile from the files the target holds
+  // (PROPOSED_FIXES.md 6.3); the report says it was detected.
+  let profile: DiscoveryProfile;
+  let profileDetected = false;
+  if (options.profile !== undefined) {
+    profile = options.profile;
+  } else {
+    const detection = detectProfile(spec.targetPath);
+    if ('error' in detection) {
+      command.error(detection.error);
+    }
+    profile = detection.profile;
+    profileDetected = detection.detected;
+  }
+
   const { model, targetRootResolved } = discoverAgent({
-    profile: options.profile,
+    profile,
     ...(spec.targetPath === undefined ? {} : { targetPath: spec.targetPath }),
   });
 
   // No point evaluating checks against an empty/placeholder model when
   // no installation was even located — every "finding" would be about a
   // target that doesn't exist, which is confusing, not helpful.
-  const suite = targetRootResolved ? runCheckSuite(model, checks, options, command) : null;
+  const suite = targetRootResolved ? runCheckSuite(model, checks, options, profile, command) : null;
   const rawFindings = suite?.findings ?? [];
   // Surfaced like any other skipped input so a profile-scoped check is
   // never silently missing from a report (PROPOSED_FIXES.md 2.8).
@@ -231,7 +249,7 @@ function scanOneTarget(
       ? [
           ...model.skipped,
           {
-            path: `(profile: ${options.profile})`,
+            path: `(profile: ${profile})`,
             reason: `checks not applicable to this profile: ${suite.checksNotApplicable.join(', ')}`,
           },
         ]
@@ -273,6 +291,8 @@ function scanOneTarget(
     inspected: model.inspected,
     skipped,
     checks: checks.filter((check) => checksRun.has(check.id)),
+    profile,
+    profileDetected,
     sourceRoot: model.git.gitRootPath ?? model.targetRoot,
   };
 
@@ -367,10 +387,9 @@ export function buildProgram(): Command {
     .addOption(
       new Option(
         '--profile <profile>',
-        `discovery profile (${DISCOVERY_PROFILES.join('|')}) — 'default' is the fictional Clawdbot/Moltbot/OpenClaw-style format, 'mcp' reads a real MCP server config (.mcp.json/mcp.json/claude_desktop_config.json)`,
+        `discovery profile (${DISCOVERY_PROFILES.join('|')}) — 'default' is the documented Clawdbot/Moltbot/OpenClaw-style format, 'mcp' reads an MCP server config (.mcp.json, .vscode/mcp.json, claude_desktop_config.json, ...), 'claude-code' reads Claude Code's .claude/settings*.json and .mcp.json`,
       )
         .argParser(parseProfile)
-        .default('default')
         .env('CHAPERONE_PROFILE'),
     )
     .addOption(

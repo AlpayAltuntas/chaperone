@@ -18,6 +18,7 @@ import {
 import { errorMessage } from './errors.js';
 import { isRecord } from './jsonUtils.js';
 import { detectPythonCapabilities } from './pythonCapabilities.js';
+import { PYTHON_LOCKFILES, readPythonDependencies } from './pythonDependencies.js';
 
 const MANIFEST_FILENAMES = ['package.json', 'skill.json', 'skill.yaml', 'skill.yml'];
 // JS/TS get the AST-based detectCapabilities (Phase 10); .py gets the
@@ -160,13 +161,34 @@ function scanOneSkill(
     inspected,
     skipped,
   );
-  const dependencies = {
-    manifestPath: packageJsonPath,
-    lockfilePath: findFirstExisting(dir, LOCKFILE_NAMES),
-    names: Object.keys(declaredDependencies),
-    versionsByName: declaredDependencies,
-  };
-  if (dependencies.lockfilePath) {
+  // npm wins when a skill has both; a Python skill's requirements.txt or
+  // pyproject.toml is read otherwise (PROPOSED_FIXES.md 3.4).
+  const python = packageJsonPath === null ? readPythonDependencies(dir) : null;
+  if (python !== null) {
+    inspected.push({ path: python.manifestPath, kind: 'skill-manifest' });
+  }
+  const dependencies =
+    python !== null
+      ? {
+          ecosystem: 'pypi' as const,
+          manifestPath: python.manifestPath,
+          lockfilePath: python.hashPinned
+            ? python.manifestPath
+            : findFirstExisting(dir, PYTHON_LOCKFILES),
+          names: Object.keys(python.versionsByName),
+          versionsByName: python.versionsByName,
+        }
+      : {
+          ecosystem: packageJsonPath === null ? null : ('npm' as const),
+          manifestPath: packageJsonPath,
+          lockfilePath: findFirstExisting(dir, LOCKFILE_NAMES),
+          names: Object.keys(declaredDependencies),
+          versionsByName: declaredDependencies,
+        };
+  if (
+    dependencies.lockfilePath !== null &&
+    dependencies.lockfilePath !== dependencies.manifestPath
+  ) {
     inspected.push({ path: dependencies.lockfilePath, kind: 'skill-lockfile' });
   }
 
@@ -189,6 +211,7 @@ function scanOneSkill(
     installScripts,
     confirmationRequired,
     domainAllowlist,
+    launch: null,
   };
 }
 
@@ -518,7 +541,7 @@ function scanInstallScripts(
   return { scripts: results };
 }
 
-function matchDangerousPatterns(text: string, isInstallScript: boolean): string[] {
+export function matchDangerousPatterns(text: string, isInstallScript: boolean): string[] {
   const matches: string[] = [];
   for (const { regex, installScriptOnly } of DANGEROUS_INSTALL_PATTERNS) {
     if (installScriptOnly && !isInstallScript) {

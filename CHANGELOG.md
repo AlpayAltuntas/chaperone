@@ -12,6 +12,63 @@ pipeline, even though it isn't a breaking API change in the usual sense.
 
 ## [Unreleased]
 
+Real-world coverage from `PROPOSED_FIXES.md` (the 0.4.0 batch).
+
+### May change CI results
+
+- `--profile mcp` now analyzes how each server is launched instead of
+  treating every server as capability-free (`PROPOSED_FIXES.md` 3.9). A
+  shell run with `-c` reports `CHAP-AGY-001` (and `CHAP-SUP-004` for a
+  piped download in its command), the filesystem server rooted at `/`,
+  `~`, or a drive root reports `CHAP-AGY-002`, and a remote server on
+  plaintext `http://` reports `CHAP-NET-003`. A config with no servers is
+  now nothing scanned (exit 1).
+- New check `CHAP-AGY-005` (critical), "Container launched with
+  host-level privileges": an MCP server started with `docker run`/
+  `podman run`, or a `docker-compose.yml`/`compose.yaml` service in the
+  install directory, using `--privileged`, `--cap-add=ALL`/`SYS_ADMIN`,
+  a host PID/network/IPC/user namespace, or a bind mount of `/`, the
+  Docker socket, or `$HOME`.
+
+- New `--profile claude-code` with six checks for Claude Code settings
+  (`PROPOSED_FIXES.md` 6.1): `CHAP-AGY-006` (bypassPermissions mode),
+  `CHAP-AGY-007` (shell commands pre-approved too broadly),
+  `CHAP-AGY-008` (web fetches pre-approved for every domain),
+  `CHAP-SEC-009` (no deny rule for `.env`/`~/.ssh`), `CHAP-SUP-008`
+  (`enableAllProjectMcpServers`), and `CHAP-SUP-009` (a hook or helper
+  command that runs downloaded code). `CHAP-SEC-001` also covers
+  literal secrets in a settings file's `env` block.
+- **The profile is auto-detected when `--profile` isn't given**
+  (`PROPOSED_FIXES.md` 6.3). A directory holding only an MCP config or
+  Claude Code settings is now scanned with that profile instead of
+  failing as "nothing scanned" under the default profile, and a
+  directory matching both the default format and another profile stops
+  with an error asking for `--profile`.
+- Python skills (`PROPOSED_FIXES.md` 3.4): calls are resolved through
+  `import x as y` / `from x import y` aliases; comments and strings no
+  longer count; `cursor.exec(...)` is no longer mistaken for `exec`;
+  `asyncio`/`pty` subprocesses, `httpx`/`aiohttp`/`urllib3`, pathlib
+  writes, and unsafe deserialization (`pickle`/`marshal`/`dill` loads,
+  `yaml.load` without a safe loader) are detected. `requirements.txt`
+  and `pyproject.toml` dependencies are read, so `CHAP-SUP-002` reports
+  a Python skill with no `poetry.lock`/`uv.lock`/`Pipfile.lock`/
+  `pdm.lock` (a fully hashed `requirements.txt` counts as its own lock).
+
+### Added
+
+- Reports show the discovery profile when it was detected or isn't
+  `default` (console/markdown header, and a `profile` field in JSON).
+- MCP discovery reads VS Code's `servers` key, probes `.vscode/mcp.json`
+  and `.cursor/mcp.json`, reads the per-project servers in Claude Code's
+  `~/.claude.json`, accepts a path to any MCP config file, and, with no
+  path and nothing in the current directory, falls back to the
+  user-level Claude Desktop, Cursor, and Claude Code configs.
+- MCP skills carry a `launch` block (command with masked args and env
+  key names, or masked URL and header key names; never values), and the
+  model has a `containers` list.
+
+## [0.3.0] - Unreleased
+
 Detection-accuracy fixes from `PROPOSED_FIXES.md` (the 0.3.0 batch).
 
 ### May change CI results

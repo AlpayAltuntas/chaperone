@@ -48,6 +48,10 @@ export const chapSup003KnownVulnerableDependencies: Check = {
   run(model) {
     const findings: Finding[] = [];
     for (const skill of model.skills) {
+      // The offline database is npm-only (PROPOSED_FIXES.md 3.4).
+      if (skill.dependencies.ecosystem !== 'npm') {
+        continue;
+      }
       for (const [depName, specifier] of Object.entries(skill.dependencies.versionsByName)) {
         const baseVersion = extractBaseVersion(specifier);
         if (baseVersion === null) {

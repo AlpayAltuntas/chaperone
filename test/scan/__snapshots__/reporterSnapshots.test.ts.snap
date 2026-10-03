@@ -396,6 +396,34 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
               }
             },
             {
+              "id": "CHAP-SEC-009",
+              "name": "Secret files readable by Claude Code",
+              "shortDescription": {
+                "text": "Secret files readable by Claude Code"
+              },
+              "fullDescription": {
+                "text": "Claude Code settings with no deny rule keeping its file tools away from common secret files: \`.env\` files in the project and SSH keys in \`~/.ssh\`."
+              },
+              "help": {
+                "text": "Claude Code settings with no deny rule keeping its file tools away from common secret files: \`.env\` files in the project and SSH keys in \`~/.ssh\`.\\n\\nHow it's detected: Across every settings file read, no \`permissions.deny\` rule for \`Read\` (bare, or with a path containing \`.env\`, or a recursive \`**\` pattern) covers \`.env\` files, or none (containing \`.ssh\`, or \`~/**\`/\`//**\`) covers \`~/.ssh\`. Only reported when at least one settings file exists. Path coverage is approximate: it checks for the file name in the rule, not full glob matching.\\n\\nRemediation: Add \`Read\` deny rules for secret files, e.g. \`\\"deny\\": [\\"Read(./.env)\\", \\"Read(./.env.*)\\", \\"Read(~/.ssh/**)\\"]\`. Claude Code reads files in the working directory without asking, and a \`.claudeignore\` file has no effect.",
+                "markdown": "Claude Code settings with no deny rule keeping its file tools away from common secret files: \`.env\` files in the project and SSH keys in \`~/.ssh\`.\\n\\n**How it's detected:** Across every settings file read, no \`permissions.deny\` rule for \`Read\` (bare, or with a path containing \`.env\`, or a recursive \`**\` pattern) covers \`.env\` files, or none (containing \`.ssh\`, or \`~/**\`/\`//**\`) covers \`~/.ssh\`. Only reported when at least one settings file exists. Path coverage is approximate: it checks for the file name in the rule, not full glob matching.\\n\\n**Remediation:** Add \`Read\` deny rules for secret files, e.g. \`\\"deny\\": [\\"Read(./.env)\\", \\"Read(./.env.*)\\", \\"Read(~/.ssh/**)\\"]\`. Claude Code reads files in the working directory without asking, and a \`.claudeignore\` file has no effect."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sec-009--secret-files-readable-by-claude-code",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "medium",
+                "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "secrets"
+                ]
+              }
+            },
+            {
               "id": "CHAP-AGY-001",
               "name": "Unrestricted shell execution",
               "shortDescription": {
@@ -508,6 +536,118 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
               }
             },
             {
+              "id": "CHAP-AGY-005",
+              "name": "Container launched with host-level privileges",
+              "shortDescription": {
+                "text": "Container launched with host-level privileges"
+              },
+              "fullDescription": {
+                "text": "A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with \`docker run\`/\`podman run\`, or a \`docker-compose.yml\`/\`compose.yaml\` service in the install directory."
+              },
+              "help": {
+                "text": "A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with \`docker run\`/\`podman run\`, or a \`docker-compose.yml\`/\`compose.yaml\` service in the install directory.\\n\\nHow it's detected: \`--privileged\` / \`privileged: true\`; \`--cap-add\` of \`ALL\` or \`SYS_ADMIN\`; host PID, network, IPC, or user namespace (\`--pid=host\`, \`network_mode: host\`, ...); or a bind mount whose source is \`/\`, \`/var/run/docker.sock\`, \`~\`, or \`$HOME\`. Any one of these makes the container no sandbox: the Docker socket alone is root on the host.\\n\\nRemediation: Drop the host-level options: no --privileged, no --cap-add=ALL/SYS_ADMIN, no host PID/network/IPC namespaces, and no bind mounts of /, the Docker socket, or the home directory. Mount only the specific directories the tool needs, read-only where possible.",
+                "markdown": "A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with \`docker run\`/\`podman run\`, or a \`docker-compose.yml\`/\`compose.yaml\` service in the install directory.\\n\\n**How it's detected:** \`--privileged\` / \`privileged: true\`; \`--cap-add\` of \`ALL\` or \`SYS_ADMIN\`; host PID, network, IPC, or user namespace (\`--pid=host\`, \`network_mode: host\`, ...); or a bind mount whose source is \`/\`, \`/var/run/docker.sock\`, \`~\`, or \`$HOME\`. Any one of these makes the container no sandbox: the Docker socket alone is root on the host.\\n\\n**Remediation:** Drop the host-level options: no --privileged, no --cap-add=ALL/SYS_ADMIN, no host PID/network/IPC namespaces, and no bind mounts of /, the Docker socket, or the home directory. Mount only the specific directories the tool needs, read-only where possible."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-005--container-launched-with-host-level-privileges",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical",
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-AGY-006",
+              "name": "Claude Code runs every tool without asking",
+              "shortDescription": {
+                "text": "Claude Code runs every tool without asking"
+              },
+              "fullDescription": {
+                "text": "Claude Code settings that start every session in \`bypassPermissions\` mode, where every tool call, including any shell command, runs without a permission prompt."
+              },
+              "help": {
+                "text": "Claude Code settings that start every session in \`bypassPermissions\` mode, where every tool call, including any shell command, runs without a permission prompt.\\n\\nHow it's detected: \`permissions.defaultMode\` is \`\\"bypassPermissions\\"\`. In user settings this applies to every project: critical. Current Claude Code (v2.1.257+) ignores the value in project and local settings, so there it is reported as low (it still applied on older versions, and it signals intent). \`skipDangerousModePermissionPrompt: true\` is mentioned when set.\\n\\nRemediation: Remove \`permissions.defaultMode: \\"bypassPermissions\\"\` and pre-approve only the specific commands the project needs with \`permissions.allow\` rules. To stop anyone entering the mode, set \`permissions.disableBypassPermissionsMode\`.",
+                "markdown": "Claude Code settings that start every session in \`bypassPermissions\` mode, where every tool call, including any shell command, runs without a permission prompt.\\n\\n**How it's detected:** \`permissions.defaultMode\` is \`\\"bypassPermissions\\"\`. In user settings this applies to every project: critical. Current Claude Code (v2.1.257+) ignores the value in project and local settings, so there it is reported as low (it still applied on older versions, and it signals intent). \`skipDangerousModePermissionPrompt: true\` is mentioned when set.\\n\\n**Remediation:** Remove \`permissions.defaultMode: \\"bypassPermissions\\"\` and pre-approve only the specific commands the project needs with \`permissions.allow\` rules. To stop anyone entering the mode, set \`permissions.disableBypassPermissionsMode\`."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-006--claude-code-runs-every-tool-without-asking",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical",
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-AGY-007",
+              "name": "Shell commands pre-approved too broadly",
+              "shortDescription": {
+                "text": "Shell commands pre-approved too broadly"
+              },
+              "fullDescription": {
+                "text": "Claude Code \`permissions.allow\` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking."
+              },
+              "help": {
+                "text": "Claude Code \`permissions.allow\` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking.\\n\\nHow it's detected: A bare \`Bash\`/\`PowerShell\` rule, or one whose pattern is only a wildcard (\`Bash(*)\`, \`Bash(:*)\`), is critical. A rule whose command is an interpreter or one that runs, fetches, deletes, or escalates (\`sh\`, \`python\`, \`node\`, \`npx\`, \`curl\`, \`wget\`, \`rm\`, \`sudo\`, \`xargs\`, ...), with a trailing wildcard, is high: \`Bash(python:*)\` approves \`python -c \\"<anything>\\"\`.\\n\\nRemediation: Replace the rule with the specific commands the project needs (e.g. \`Bash(npm run test *)\`), and leave interpreters, downloads, deletes, and privilege escalation to a prompt.",
+                "markdown": "Claude Code \`permissions.allow\` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking.\\n\\n**How it's detected:** A bare \`Bash\`/\`PowerShell\` rule, or one whose pattern is only a wildcard (\`Bash(*)\`, \`Bash(:*)\`), is critical. A rule whose command is an interpreter or one that runs, fetches, deletes, or escalates (\`sh\`, \`python\`, \`node\`, \`npx\`, \`curl\`, \`wget\`, \`rm\`, \`sudo\`, \`xargs\`, ...), with a trailing wildcard, is high: \`Bash(python:*)\` approves \`python -c \\"<anything>\\"\`.\\n\\n**Remediation:** Replace the rule with the specific commands the project needs (e.g. \`Bash(npm run test *)\`), and leave interpreters, downloads, deletes, and privilege escalation to a prompt."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-007--shell-commands-pre-approved-too-broadly",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical",
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-AGY-008",
+              "name": "Web fetches pre-approved for every domain",
+              "shortDescription": {
+                "text": "Web fetches pre-approved for every domain"
+              },
+              "fullDescription": {
+                "text": "A Claude Code \`permissions.allow\` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages."
+              },
+              "help": {
+                "text": "A Claude Code \`permissions.allow\` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages.\\n\\nHow it's detected: A bare \`WebFetch\` allow rule, or \`WebFetch(domain:*)\`. A domain-scoped rule (\`WebFetch(domain:example.com)\`, \`WebFetch(domain:*.example.com)\`) is fine.\\n\\nRemediation: Allow only the domains the project needs, e.g. \`WebFetch(domain:docs.example.com)\`. Fetched pages are untrusted input, so each new domain is a new prompt-injection source.",
+                "markdown": "A Claude Code \`permissions.allow\` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages.\\n\\n**How it's detected:** A bare \`WebFetch\` allow rule, or \`WebFetch(domain:*)\`. A domain-scoped rule (\`WebFetch(domain:example.com)\`, \`WebFetch(domain:*.example.com)\`) is fine.\\n\\n**Remediation:** Allow only the domains the project needs, e.g. \`WebFetch(domain:docs.example.com)\`. Fetched pages are untrusted input, so each new domain is a new prompt-injection source."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-008--web-fetches-pre-approved-for-every-domain",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "medium",
+                "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
               "id": "CHAP-SUP-001",
               "name": "Skill from an unverified source",
               "shortDescription": {
@@ -545,8 +685,8 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
                 "text": "Skill dependencies installed with no lockfile."
               },
               "help": {
-                "text": "Skill dependencies installed with no lockfile.\\n\\nHow it's detected: The skill has a \`package.json\` that declares at least one runtime \`dependencies\` entry, but no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\nRemediation: Commit a lockfile alongside the manifest and enable integrity checks.",
-                "markdown": "Skill dependencies installed with no lockfile.\\n\\n**How it's detected:** The skill has a \`package.json\` that declares at least one runtime \`dependencies\` entry, but no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\n**Remediation:** Commit a lockfile alongside the manifest and enable integrity checks."
+                "text": "Skill dependencies installed with no lockfile.\\n\\nHow it's detected: The skill declares at least one runtime dependency with no lockfile alongside it. npm: a \`package.json\` \`dependencies\` entry and no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\`. Python (when there is no \`package.json\`): a \`requirements.txt\` or \`pyproject.toml\` dependency and no \`poetry.lock\`/\`uv.lock\`/\`Pipfile.lock\`/\`pdm.lock\`; a \`requirements.txt\` whose every entry has a \`--hash=\` counts as its own lockfile. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\nRemediation: Commit a lockfile alongside the manifest and enable integrity checks.",
+                "markdown": "Skill dependencies installed with no lockfile.\\n\\n**How it's detected:** The skill declares at least one runtime dependency with no lockfile alongside it. npm: a \`package.json\` \`dependencies\` entry and no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\`. Python (when there is no \`package.json\`): a \`requirements.txt\` or \`pyproject.toml\` dependency and no \`poetry.lock\`/\`uv.lock\`/\`Pipfile.lock\`/\`pdm.lock\`; a \`requirements.txt\` whose every entry has a \`--hash=\` counts as its own lockfile. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\n**Remediation:** Commit a lockfile alongside the manifest and enable integrity checks."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-002--no-integrity-verification-for-skill-dependencies",
               "defaultConfiguration": {
@@ -669,6 +809,62 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
                 "owasp": "LLM05: Supply Chain",
                 "severity": "medium",
                 "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "supply-chain"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-SUP-008",
+              "name": "Project MCP servers approved without review",
+              "shortDescription": {
+                "text": "Project MCP servers approved without review"
+              },
+              "fullDescription": {
+                "text": "Claude Code configured to start every server in a project's \`.mcp.json\` without asking: any repository it's opened in can launch its own processes."
+              },
+              "help": {
+                "text": "Claude Code configured to start every server in a project's \`.mcp.json\` without asking: any repository it's opened in can launch its own processes.\\n\\nHow it's detected: \`enableAllProjectMcpServers\` is \`true\` in any settings file. In user settings it applies to every repository you open, including ones you just cloned.\\n\\nRemediation: Remove \`enableAllProjectMcpServers\` and approve servers by name with \`enabledMcpjsonServers\`, after reviewing each one.",
+                "markdown": "Claude Code configured to start every server in a project's \`.mcp.json\` without asking: any repository it's opened in can launch its own processes.\\n\\n**How it's detected:** \`enableAllProjectMcpServers\` is \`true\` in any settings file. In user settings it applies to every repository you open, including ones you just cloned.\\n\\n**Remediation:** Remove \`enableAllProjectMcpServers\` and approve servers by name with \`enabledMcpjsonServers\`, after reviewing each one."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-008--project-mcp-servers-approved-without-review",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "high",
+                "security-severity": "8.0",
+                "tags": [
+                  "security",
+                  "supply-chain"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-SUP-009",
+              "name": "Claude Code hook runs downloaded code",
+              "shortDescription": {
+                "text": "Claude Code hook runs downloaded code"
+              },
+              "fullDescription": {
+                "text": "A command Claude Code runs on its own (a hook, \`statusLine\`, \`fileSuggestion\`, or \`apiKeyHelper\`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger."
+              },
+              "help": {
+                "text": "A command Claude Code runs on its own (a hook, \`statusLine\`, \`fileSuggestion\`, or \`apiKeyHelper\`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger.\\n\\nHow it's detected: The same patterns as CHAP-SUP-004: \`curl\`/\`wget\` piped into a shell, \`bash <(curl …)\`, \`iwr … | iex\`, \`base64 -d … | sh\`, \`sudo\`, and package installs.\\n\\nRemediation: Vendor the script into the repository (and review it) instead of piping a download into a shell, and avoid \`sudo\` in commands Claude Code runs automatically.",
+                "markdown": "A command Claude Code runs on its own (a hook, \`statusLine\`, \`fileSuggestion\`, or \`apiKeyHelper\`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger.\\n\\n**How it's detected:** The same patterns as CHAP-SUP-004: \`curl\`/\`wget\` piped into a shell, \`bash <(curl …)\`, \`iwr … | iex\`, \`base64 -d … | sh\`, \`sudo\`, and package installs.\\n\\n**Remediation:** Vendor the script into the repository (and review it) instead of piping a download into a shell, and avoid \`sudo\` in commands Claude Code runs automatically."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-009--claude-code-hook-runs-downloaded-code",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "high",
+                "security-severity": "8.0",
                 "tags": [
                   "security",
                   "supply-chain"
@@ -878,11 +1074,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
                 "text": "Plaintext transport on the gateway"
               },
               "fullDescription": {
-                "text": "The gateway explicitly configured without TLS."
+                "text": "The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext \`http://\` URL."
               },
               "help": {
-                "text": "The gateway explicitly configured without TLS.\\n\\nHow it's detected: \`gateway.tls\` is explicitly \`false\`. Silent when TLS isn't mentioned in config at all — v1 doesn't have a confident signal either way in that case.\\n\\nRemediation: Enable TLS on the gateway and disable any plaintext fallback.",
-                "markdown": "The gateway explicitly configured without TLS.\\n\\n**How it's detected:** \`gateway.tls\` is explicitly \`false\`. Silent when TLS isn't mentioned in config at all — v1 doesn't have a confident signal either way in that case.\\n\\n**Remediation:** Enable TLS on the gateway and disable any plaintext fallback."
+                "text": "The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext \`http://\` URL.\\n\\nHow it's detected: \`gateway.tls\` is explicitly \`false\` (silent when TLS isn't mentioned in config at all: there's no confident signal either way), or a remote MCP server's \`url\` uses \`http://\`/\`ws://\` with a host that isn't loopback (\`localhost\`, \`127.0.0.0/8\`, \`::1\`).\\n\\nRemediation: Enable TLS on the gateway and disable any plaintext fallback.",
+                "markdown": "The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext \`http://\` URL.\\n\\n**How it's detected:** \`gateway.tls\` is explicitly \`false\` (silent when TLS isn't mentioned in config at all: there's no confident signal either way), or a remote MCP server's \`url\` uses \`http://\`/\`ws://\` with a host that isn't loopback (\`localhost\`, \`127.0.0.0/8\`, \`::1\`).\\n\\n**Remediation:** Enable TLS on the gateway and disable any plaintext fallback."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-net-003--plaintext-transport-on-the-gateway",
               "defaultConfiguration": {
@@ -2600,6 +2796,34 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
               }
             },
             {
+              "id": "CHAP-SEC-009",
+              "name": "Secret files readable by Claude Code",
+              "shortDescription": {
+                "text": "Secret files readable by Claude Code"
+              },
+              "fullDescription": {
+                "text": "Claude Code settings with no deny rule keeping its file tools away from common secret files: \`.env\` files in the project and SSH keys in \`~/.ssh\`."
+              },
+              "help": {
+                "text": "Claude Code settings with no deny rule keeping its file tools away from common secret files: \`.env\` files in the project and SSH keys in \`~/.ssh\`.\\n\\nHow it's detected: Across every settings file read, no \`permissions.deny\` rule for \`Read\` (bare, or with a path containing \`.env\`, or a recursive \`**\` pattern) covers \`.env\` files, or none (containing \`.ssh\`, or \`~/**\`/\`//**\`) covers \`~/.ssh\`. Only reported when at least one settings file exists. Path coverage is approximate: it checks for the file name in the rule, not full glob matching.\\n\\nRemediation: Add \`Read\` deny rules for secret files, e.g. \`\\"deny\\": [\\"Read(./.env)\\", \\"Read(./.env.*)\\", \\"Read(~/.ssh/**)\\"]\`. Claude Code reads files in the working directory without asking, and a \`.claudeignore\` file has no effect.",
+                "markdown": "Claude Code settings with no deny rule keeping its file tools away from common secret files: \`.env\` files in the project and SSH keys in \`~/.ssh\`.\\n\\n**How it's detected:** Across every settings file read, no \`permissions.deny\` rule for \`Read\` (bare, or with a path containing \`.env\`, or a recursive \`**\` pattern) covers \`.env\` files, or none (containing \`.ssh\`, or \`~/**\`/\`//**\`) covers \`~/.ssh\`. Only reported when at least one settings file exists. Path coverage is approximate: it checks for the file name in the rule, not full glob matching.\\n\\n**Remediation:** Add \`Read\` deny rules for secret files, e.g. \`\\"deny\\": [\\"Read(./.env)\\", \\"Read(./.env.*)\\", \\"Read(~/.ssh/**)\\"]\`. Claude Code reads files in the working directory without asking, and a \`.claudeignore\` file has no effect."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sec-009--secret-files-readable-by-claude-code",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "category": "secrets",
+                "owasp": "LLM06: Sensitive Information Disclosure",
+                "severity": "medium",
+                "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "secrets"
+                ]
+              }
+            },
+            {
               "id": "CHAP-AGY-001",
               "name": "Unrestricted shell execution",
               "shortDescription": {
@@ -2712,6 +2936,118 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
               }
             },
             {
+              "id": "CHAP-AGY-005",
+              "name": "Container launched with host-level privileges",
+              "shortDescription": {
+                "text": "Container launched with host-level privileges"
+              },
+              "fullDescription": {
+                "text": "A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with \`docker run\`/\`podman run\`, or a \`docker-compose.yml\`/\`compose.yaml\` service in the install directory."
+              },
+              "help": {
+                "text": "A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with \`docker run\`/\`podman run\`, or a \`docker-compose.yml\`/\`compose.yaml\` service in the install directory.\\n\\nHow it's detected: \`--privileged\` / \`privileged: true\`; \`--cap-add\` of \`ALL\` or \`SYS_ADMIN\`; host PID, network, IPC, or user namespace (\`--pid=host\`, \`network_mode: host\`, ...); or a bind mount whose source is \`/\`, \`/var/run/docker.sock\`, \`~\`, or \`$HOME\`. Any one of these makes the container no sandbox: the Docker socket alone is root on the host.\\n\\nRemediation: Drop the host-level options: no --privileged, no --cap-add=ALL/SYS_ADMIN, no host PID/network/IPC namespaces, and no bind mounts of /, the Docker socket, or the home directory. Mount only the specific directories the tool needs, read-only where possible.",
+                "markdown": "A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with \`docker run\`/\`podman run\`, or a \`docker-compose.yml\`/\`compose.yaml\` service in the install directory.\\n\\n**How it's detected:** \`--privileged\` / \`privileged: true\`; \`--cap-add\` of \`ALL\` or \`SYS_ADMIN\`; host PID, network, IPC, or user namespace (\`--pid=host\`, \`network_mode: host\`, ...); or a bind mount whose source is \`/\`, \`/var/run/docker.sock\`, \`~\`, or \`$HOME\`. Any one of these makes the container no sandbox: the Docker socket alone is root on the host.\\n\\n**Remediation:** Drop the host-level options: no --privileged, no --cap-add=ALL/SYS_ADMIN, no host PID/network/IPC namespaces, and no bind mounts of /, the Docker socket, or the home directory. Mount only the specific directories the tool needs, read-only where possible."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-005--container-launched-with-host-level-privileges",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical",
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-AGY-006",
+              "name": "Claude Code runs every tool without asking",
+              "shortDescription": {
+                "text": "Claude Code runs every tool without asking"
+              },
+              "fullDescription": {
+                "text": "Claude Code settings that start every session in \`bypassPermissions\` mode, where every tool call, including any shell command, runs without a permission prompt."
+              },
+              "help": {
+                "text": "Claude Code settings that start every session in \`bypassPermissions\` mode, where every tool call, including any shell command, runs without a permission prompt.\\n\\nHow it's detected: \`permissions.defaultMode\` is \`\\"bypassPermissions\\"\`. In user settings this applies to every project: critical. Current Claude Code (v2.1.257+) ignores the value in project and local settings, so there it is reported as low (it still applied on older versions, and it signals intent). \`skipDangerousModePermissionPrompt: true\` is mentioned when set.\\n\\nRemediation: Remove \`permissions.defaultMode: \\"bypassPermissions\\"\` and pre-approve only the specific commands the project needs with \`permissions.allow\` rules. To stop anyone entering the mode, set \`permissions.disableBypassPermissionsMode\`.",
+                "markdown": "Claude Code settings that start every session in \`bypassPermissions\` mode, where every tool call, including any shell command, runs without a permission prompt.\\n\\n**How it's detected:** \`permissions.defaultMode\` is \`\\"bypassPermissions\\"\`. In user settings this applies to every project: critical. Current Claude Code (v2.1.257+) ignores the value in project and local settings, so there it is reported as low (it still applied on older versions, and it signals intent). \`skipDangerousModePermissionPrompt: true\` is mentioned when set.\\n\\n**Remediation:** Remove \`permissions.defaultMode: \\"bypassPermissions\\"\` and pre-approve only the specific commands the project needs with \`permissions.allow\` rules. To stop anyone entering the mode, set \`permissions.disableBypassPermissionsMode\`."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-006--claude-code-runs-every-tool-without-asking",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical",
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-AGY-007",
+              "name": "Shell commands pre-approved too broadly",
+              "shortDescription": {
+                "text": "Shell commands pre-approved too broadly"
+              },
+              "fullDescription": {
+                "text": "Claude Code \`permissions.allow\` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking."
+              },
+              "help": {
+                "text": "Claude Code \`permissions.allow\` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking.\\n\\nHow it's detected: A bare \`Bash\`/\`PowerShell\` rule, or one whose pattern is only a wildcard (\`Bash(*)\`, \`Bash(:*)\`), is critical. A rule whose command is an interpreter or one that runs, fetches, deletes, or escalates (\`sh\`, \`python\`, \`node\`, \`npx\`, \`curl\`, \`wget\`, \`rm\`, \`sudo\`, \`xargs\`, ...), with a trailing wildcard, is high: \`Bash(python:*)\` approves \`python -c \\"<anything>\\"\`.\\n\\nRemediation: Replace the rule with the specific commands the project needs (e.g. \`Bash(npm run test *)\`), and leave interpreters, downloads, deletes, and privilege escalation to a prompt.",
+                "markdown": "Claude Code \`permissions.allow\` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking.\\n\\n**How it's detected:** A bare \`Bash\`/\`PowerShell\` rule, or one whose pattern is only a wildcard (\`Bash(*)\`, \`Bash(:*)\`), is critical. A rule whose command is an interpreter or one that runs, fetches, deletes, or escalates (\`sh\`, \`python\`, \`node\`, \`npx\`, \`curl\`, \`wget\`, \`rm\`, \`sudo\`, \`xargs\`, ...), with a trailing wildcard, is high: \`Bash(python:*)\` approves \`python -c \\"<anything>\\"\`.\\n\\n**Remediation:** Replace the rule with the specific commands the project needs (e.g. \`Bash(npm run test *)\`), and leave interpreters, downloads, deletes, and privilege escalation to a prompt."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-007--shell-commands-pre-approved-too-broadly",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "critical",
+                "security-severity": "9.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-AGY-008",
+              "name": "Web fetches pre-approved for every domain",
+              "shortDescription": {
+                "text": "Web fetches pre-approved for every domain"
+              },
+              "fullDescription": {
+                "text": "A Claude Code \`permissions.allow\` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages."
+              },
+              "help": {
+                "text": "A Claude Code \`permissions.allow\` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages.\\n\\nHow it's detected: A bare \`WebFetch\` allow rule, or \`WebFetch(domain:*)\`. A domain-scoped rule (\`WebFetch(domain:example.com)\`, \`WebFetch(domain:*.example.com)\`) is fine.\\n\\nRemediation: Allow only the domains the project needs, e.g. \`WebFetch(domain:docs.example.com)\`. Fetched pages are untrusted input, so each new domain is a new prompt-injection source.",
+                "markdown": "A Claude Code \`permissions.allow\` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages.\\n\\n**How it's detected:** A bare \`WebFetch\` allow rule, or \`WebFetch(domain:*)\`. A domain-scoped rule (\`WebFetch(domain:example.com)\`, \`WebFetch(domain:*.example.com)\`) is fine.\\n\\n**Remediation:** Allow only the domains the project needs, e.g. \`WebFetch(domain:docs.example.com)\`. Fetched pages are untrusted input, so each new domain is a new prompt-injection source."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-agy-008--web-fetches-pre-approved-for-every-domain",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "category": "agency",
+                "owasp": "LLM08: Excessive Agency",
+                "severity": "medium",
+                "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "agency"
+                ]
+              }
+            },
+            {
               "id": "CHAP-SUP-001",
               "name": "Skill from an unverified source",
               "shortDescription": {
@@ -2749,8 +3085,8 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
                 "text": "Skill dependencies installed with no lockfile."
               },
               "help": {
-                "text": "Skill dependencies installed with no lockfile.\\n\\nHow it's detected: The skill has a \`package.json\` that declares at least one runtime \`dependencies\` entry, but no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\nRemediation: Commit a lockfile alongside the manifest and enable integrity checks.",
-                "markdown": "Skill dependencies installed with no lockfile.\\n\\n**How it's detected:** The skill has a \`package.json\` that declares at least one runtime \`dependencies\` entry, but no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\n**Remediation:** Commit a lockfile alongside the manifest and enable integrity checks."
+                "text": "Skill dependencies installed with no lockfile.\\n\\nHow it's detected: The skill declares at least one runtime dependency with no lockfile alongside it. npm: a \`package.json\` \`dependencies\` entry and no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\`. Python (when there is no \`package.json\`): a \`requirements.txt\` or \`pyproject.toml\` dependency and no \`poetry.lock\`/\`uv.lock\`/\`Pipfile.lock\`/\`pdm.lock\`; a \`requirements.txt\` whose every entry has a \`--hash=\` counts as its own lockfile. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\nRemediation: Commit a lockfile alongside the manifest and enable integrity checks.",
+                "markdown": "Skill dependencies installed with no lockfile.\\n\\n**How it's detected:** The skill declares at least one runtime dependency with no lockfile alongside it. npm: a \`package.json\` \`dependencies\` entry and no \`package-lock.json\`/\`yarn.lock\`/\`pnpm-lock.yaml\`. Python (when there is no \`package.json\`): a \`requirements.txt\` or \`pyproject.toml\` dependency and no \`poetry.lock\`/\`uv.lock\`/\`Pipfile.lock\`/\`pdm.lock\`; a \`requirements.txt\` whose every entry has a \`--hash=\` counts as its own lockfile. A manifest with no dependencies has nothing to install, so it is not flagged.\\n\\n**Remediation:** Commit a lockfile alongside the manifest and enable integrity checks."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-002--no-integrity-verification-for-skill-dependencies",
               "defaultConfiguration": {
@@ -2873,6 +3209,62 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
                 "owasp": "LLM05: Supply Chain",
                 "severity": "medium",
                 "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "supply-chain"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-SUP-008",
+              "name": "Project MCP servers approved without review",
+              "shortDescription": {
+                "text": "Project MCP servers approved without review"
+              },
+              "fullDescription": {
+                "text": "Claude Code configured to start every server in a project's \`.mcp.json\` without asking: any repository it's opened in can launch its own processes."
+              },
+              "help": {
+                "text": "Claude Code configured to start every server in a project's \`.mcp.json\` without asking: any repository it's opened in can launch its own processes.\\n\\nHow it's detected: \`enableAllProjectMcpServers\` is \`true\` in any settings file. In user settings it applies to every repository you open, including ones you just cloned.\\n\\nRemediation: Remove \`enableAllProjectMcpServers\` and approve servers by name with \`enabledMcpjsonServers\`, after reviewing each one.",
+                "markdown": "Claude Code configured to start every server in a project's \`.mcp.json\` without asking: any repository it's opened in can launch its own processes.\\n\\n**How it's detected:** \`enableAllProjectMcpServers\` is \`true\` in any settings file. In user settings it applies to every repository you open, including ones you just cloned.\\n\\n**Remediation:** Remove \`enableAllProjectMcpServers\` and approve servers by name with \`enabledMcpjsonServers\`, after reviewing each one."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-008--project-mcp-servers-approved-without-review",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "high",
+                "security-severity": "8.0",
+                "tags": [
+                  "security",
+                  "supply-chain"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-SUP-009",
+              "name": "Claude Code hook runs downloaded code",
+              "shortDescription": {
+                "text": "Claude Code hook runs downloaded code"
+              },
+              "fullDescription": {
+                "text": "A command Claude Code runs on its own (a hook, \`statusLine\`, \`fileSuggestion\`, or \`apiKeyHelper\`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger."
+              },
+              "help": {
+                "text": "A command Claude Code runs on its own (a hook, \`statusLine\`, \`fileSuggestion\`, or \`apiKeyHelper\`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger.\\n\\nHow it's detected: The same patterns as CHAP-SUP-004: \`curl\`/\`wget\` piped into a shell, \`bash <(curl …)\`, \`iwr … | iex\`, \`base64 -d … | sh\`, \`sudo\`, and package installs.\\n\\nRemediation: Vendor the script into the repository (and review it) instead of piping a download into a shell, and avoid \`sudo\` in commands Claude Code runs automatically.",
+                "markdown": "A command Claude Code runs on its own (a hook, \`statusLine\`, \`fileSuggestion\`, or \`apiKeyHelper\`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger.\\n\\n**How it's detected:** The same patterns as CHAP-SUP-004: \`curl\`/\`wget\` piped into a shell, \`bash <(curl …)\`, \`iwr … | iex\`, \`base64 -d … | sh\`, \`sudo\`, and package installs.\\n\\n**Remediation:** Vendor the script into the repository (and review it) instead of piping a download into a shell, and avoid \`sudo\` in commands Claude Code runs automatically."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-009--claude-code-hook-runs-downloaded-code",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "high",
+                "security-severity": "8.0",
                 "tags": [
                   "security",
                   "supply-chain"
@@ -3082,11 +3474,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
                 "text": "Plaintext transport on the gateway"
               },
               "fullDescription": {
-                "text": "The gateway explicitly configured without TLS."
+                "text": "The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext \`http://\` URL."
               },
               "help": {
-                "text": "The gateway explicitly configured without TLS.\\n\\nHow it's detected: \`gateway.tls\` is explicitly \`false\`. Silent when TLS isn't mentioned in config at all — v1 doesn't have a confident signal either way in that case.\\n\\nRemediation: Enable TLS on the gateway and disable any plaintext fallback.",
-                "markdown": "The gateway explicitly configured without TLS.\\n\\n**How it's detected:** \`gateway.tls\` is explicitly \`false\`. Silent when TLS isn't mentioned in config at all — v1 doesn't have a confident signal either way in that case.\\n\\n**Remediation:** Enable TLS on the gateway and disable any plaintext fallback."
+                "text": "The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext \`http://\` URL.\\n\\nHow it's detected: \`gateway.tls\` is explicitly \`false\` (silent when TLS isn't mentioned in config at all: there's no confident signal either way), or a remote MCP server's \`url\` uses \`http://\`/\`ws://\` with a host that isn't loopback (\`localhost\`, \`127.0.0.0/8\`, \`::1\`).\\n\\nRemediation: Enable TLS on the gateway and disable any plaintext fallback.",
+                "markdown": "The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext \`http://\` URL.\\n\\n**How it's detected:** \`gateway.tls\` is explicitly \`false\` (silent when TLS isn't mentioned in config at all: there's no confident signal either way), or a remote MCP server's \`url\` uses \`http://\`/\`ws://\` with a host that isn't loopback (\`localhost\`, \`127.0.0.0/8\`, \`::1\`).\\n\\n**Remediation:** Enable TLS on the gateway and disable any plaintext fallback."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-net-003--plaintext-transport-on-the-gateway",
               "defaultConfiguration": {

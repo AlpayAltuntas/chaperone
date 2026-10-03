@@ -3,6 +3,13 @@ import { chapAgy001UnrestrictedShell } from './agency/chapAgy001UnrestrictedShel
 import { chapAgy002UnrestrictedFilesystem } from './agency/chapAgy002UnrestrictedFilesystem.js';
 import { chapAgy003DestructiveWithoutConfirmation } from './agency/chapAgy003DestructiveWithoutConfirmation.js';
 import { chapAgy004BroadNetworkEgress } from './agency/chapAgy004BroadNetworkEgress.js';
+import { chapAgy005PrivilegedContainer } from './agency/chapAgy005PrivilegedContainer.js';
+import { chapAgy006BypassPermissions } from './agency/chapAgy006BypassPermissions.js';
+import { chapAgy007PreapprovedShell } from './agency/chapAgy007PreapprovedShell.js';
+import { chapAgy008UnrestrictedWebFetch } from './agency/chapAgy008UnrestrictedWebFetch.js';
+import { chapSec009SecretFilesNotDenied } from './secrets/chapSec009SecretFilesNotDenied.js';
+import { chapSup008AutoApprovedMcpServers } from './supplyChain/chapSup008AutoApprovedMcpServers.js';
+import { chapSup009DangerousSettingsCommand } from './supplyChain/chapSup009DangerousSettingsCommand.js';
 import { chapInj001UntrustedInputUnmarked } from './injection/chapInj001UntrustedInputUnmarked.js';
 import { chapInj002ToolOutputTrusted } from './injection/chapInj002ToolOutputTrusted.js';
 import { chapInj003NoToolAllowlist } from './injection/chapInj003NoToolAllowlist.js';
@@ -43,11 +50,16 @@ export const ALL_CHECKS: readonly Check[] = [
   chapSec006SidecarSecretFileExposed,
   chapSec007EnvVarNotSet,
   chapSec008WritableByOthers,
+  chapSec009SecretFilesNotDenied,
   // Excessive agency & permissions
   chapAgy001UnrestrictedShell,
   chapAgy002UnrestrictedFilesystem,
   chapAgy003DestructiveWithoutConfirmation,
   chapAgy004BroadNetworkEgress,
+  chapAgy005PrivilegedContainer,
+  chapAgy006BypassPermissions,
+  chapAgy007PreapprovedShell,
+  chapAgy008UnrestrictedWebFetch,
   // Supply chain & skill provenance
   chapSup001UnverifiedSources,
   chapSup002NoIntegrityVerification,
@@ -55,6 +67,8 @@ export const ALL_CHECKS: readonly Check[] = [
   chapSup004DangerousInstallPatterns,
   chapSup005ObfuscatedCode,
   chapSup006TyposquatRisk,
+  chapSup008AutoApprovedMcpServers,
+  chapSup009DangerousSettingsCommand,
   // Prompt-injection surface
   chapInj001UntrustedInputUnmarked,
   chapInj002ToolOutputTrusted,
