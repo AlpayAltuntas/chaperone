@@ -5,7 +5,7 @@ import type { AgentModel, Finding } from '../../src/model/types.js';
 
 const EMPTY_MODEL: AgentModel = {
   targetRoot: '/fake',
-  config: { path: null, format: null, data: null, secretFields: [] },
+  config: { path: null, format: null, data: null, secretFields: [], keyLines: {} },
   sidecarSecretFiles: [],
   git: {
     hasAncestorGitDir: false,

@@ -10,6 +10,9 @@ describe('CHAP-SEC-006 — sidecar secret file exposed', () => {
 
   beforeEach(() => {
     dir = mkdtempSync(path.join(os.tmpdir(), 'chaperone-sec006-test-'));
+    // A config file makes the directory an agent install; without one
+    // (and no skills/), discovery reports nothing scanned.
+    writeFileSync(path.join(dir, 'config.yaml'), 'agent: {}\n', { mode: 0o600 });
   });
 
   afterEach(() => {

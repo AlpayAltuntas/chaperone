@@ -1,6 +1,7 @@
 import YAML from 'yaml';
 import type { JsonValue, SecretField } from '../model/types.js';
 import { isRecord } from './jsonUtils.js';
+import { detectSecretValue } from './secretValuePatterns.js';
 import { splitWordSegments } from './wordSegments.js';
 
 // Whole-word segments (after splitting a key on `_`/`-`/camelCase
@@ -27,6 +28,31 @@ export function looksLikeSecretKeyName(key: string): boolean {
   return splitWordSegments(key).some((segment) => SECRET_KEY_SEGMENTS.has(segment));
 }
 
+// Weaker signals (PROPOSED_FIXES.md 3.1): `auth`, `authorization`,
+// `cookie`, and friends often hold a credential, but just as often a
+// mode or a setting (`auth: none`, `session_timeout: 30m`, `auth_type:
+// bearer`). They count only as the key's LAST segment, and only for a
+// value that looks like a credential rather than a word or a setting:
+// at least 8 characters, no whitespace, and both a letter and a digit.
+const WEAK_SECRET_KEY_LAST_SEGMENTS = new Set([
+  'auth',
+  'authorization',
+  'bearer',
+  'cookie',
+  'session',
+]);
+
+function looksLikeWeakSecretKey(key: string, value: string): boolean {
+  const last = splitWordSegments(key).at(-1);
+  if (last === undefined || !WEAK_SECRET_KEY_LAST_SEGMENTS.has(last)) {
+    return false;
+  }
+  const trimmed = value.trim();
+  return (
+    trimmed.length >= 8 && !/\s/.test(trimmed) && /[A-Za-z]/.test(trimmed) && /\d/.test(trimmed)
+  );
+}
+
 // Conventions for "this value is an indirect reference, not the literal
 // secret": `${VAR}` / `$VAR` interpolation syntax, an `env:VAR` prefix, and
 // bash/docker-compose-style parameter expansion with a default or error
@@ -41,7 +67,9 @@ const ENV_REF_PATTERNS = [
 ];
 
 export function looksLikeEnvReference(value: string): boolean {
-  const trimmed = value.trim();
+  // `Bearer ${TOKEN}` (an Authorization header built from an env var) is
+  // as indirect as `${TOKEN}` itself.
+  const trimmed = value.trim().replace(/^(?:Bearer|Basic|Token)\s+/i, '');
   return ENV_REF_PATTERNS.some((re) => re.test(trimmed));
 }
 
@@ -68,47 +96,56 @@ export function extractEnvVarName(value: string): string | null {
   return null;
 }
 
-export type LineLookup = (keyPath: string) => number | null;
-
-const NO_LINE_LOOKUP: LineLookup = () => null;
-
 /**
- * Builds a `keyPath -> source line` lookup for a config (improvement_plan.md
- * 1.17), using `YAML.parseDocument`'s CST (which retains source ranges) —
- * distinct from `parseConfigSource`'s plain-value parse, which discards
- * position info entirely. JSON has no equivalent free CST-with-positions
- * in this codebase's chosen parser (`JSON.parse`), so a JSON config gets
- * a lookup that always returns `null` — a documented limitation, not a
- * silent inconsistency (see `SecretField.line`'s doc comment).
+ * Maps every key path in a config (`trust.tool_allowlist`,
+ * `trust.tool_allowlist[1]`, the same form maskConfig uses) to its
+ * 1-indexed source line, using `YAML.parseDocument`'s source ranges
+ * (improvement_plan.md 1.17). JSON is valid YAML 1.2, so the same parser
+ * gives JSON configs line numbers too (PROPOSED_FIXES.md 4.2); values
+ * are still taken from `JSON.parse`, only positions come from here.
+ * Returns an empty index for unparseable input, never throws.
  */
-export function createLineLookup(source: string, format: 'yaml' | 'json'): LineLookup {
-  if (format === 'json') {
-    return NO_LINE_LOOKUP;
-  }
-
+export function buildKeyLineIndex(source: string): Record<string, number> {
   const lineCounter = new YAML.LineCounter();
   let doc: ReturnType<typeof YAML.parseDocument>;
   try {
-    doc = YAML.parseDocument(source, { lineCounter });
+    doc = YAML.parseDocument(source, { lineCounter, uniqueKeys: false });
   } catch {
-    return NO_LINE_LOOKUP;
+    return {};
   }
-
-  return (keyPath: string): number | null => {
-    const segments = parseKeyPathSegments(keyPath);
-    if (segments.length === 0) {
-      return null;
-    }
-    try {
-      const node: unknown = doc.getIn(segments, true);
-      if (isRangedNode(node)) {
-        return lineCounter.linePos(node.range[0]).line;
+  const index: Record<string, number> = {};
+  const lineOf = (node: unknown): number | null =>
+    isRangedNode(node) ? lineCounter.linePos(node.range[0]).line : null;
+  const walk = (node: unknown, prefix: string): void => {
+    if (YAML.isMap(node)) {
+      for (const pair of node.items) {
+        if (!YAML.isScalar(pair.key)) {
+          continue;
+        }
+        const keyPath = prefix ? `${prefix}.${String(pair.key.value)}` : String(pair.key.value);
+        const line = lineOf(pair.key);
+        if (line !== null) {
+          index[keyPath] = line;
+        }
+        walk(pair.value, keyPath);
       }
-    } catch {
-      // keyPath didn't resolve to a real node in the document — no line info.
+    } else if (YAML.isSeq(node)) {
+      node.items.forEach((item, i) => {
+        const keyPath = `${prefix}[${String(i)}]`;
+        const line = lineOf(item);
+        if (line !== null) {
+          index[keyPath] = line;
+        }
+        walk(item, keyPath);
+      });
     }
-    return null;
   };
+  try {
+    walk(doc.contents, '');
+  } catch {
+    return {};
+  }
+  return index;
 }
 
 function isRangedNode(value: unknown): value is { range: [number, number, number] } {
@@ -180,16 +217,45 @@ function maskTree(node: JsonValue, keyPath: string, out: SecretField[]): JsonVal
     const result: Record<string, JsonValue> = {};
     for (const [key, value] of Object.entries(node)) {
       const childPath = keyPath ? `${keyPath}.${key}` : key;
-      if (typeof value === 'string' && value.length > 0 && looksLikeSecretKeyName(key)) {
+      if (
+        typeof value === 'string' &&
+        value.length > 0 &&
+        (looksLikeSecretKeyName(key) || looksLikeWeakSecretKey(key, value))
+      ) {
         const isEnvRef = looksLikeEnvReference(value);
+        const valueMatch = isEnvRef ? null : detectSecretValue(value, maskSecretValue);
         const displayValue = isEnvRef ? value : maskSecretValue(value);
         result[key] = displayValue;
-        out.push({ keyPath: childPath, displayValue, looksLikeEnvReference: isEnvRef, line: null });
+        out.push({
+          keyPath: childPath,
+          displayValue,
+          looksLikeEnvReference: isEnvRef,
+          line: null,
+          detectedBy: 'key-name',
+          pattern: valueMatch?.pattern ?? null,
+        });
         continue;
       }
       result[key] = maskTree(value, childPath, out);
     }
     return result;
+  }
+  if (typeof node === 'string' && keyPath !== '') {
+    // A secret under an innocuous key name (`headers.Authorization`,
+    // `base_url`, an MCP server's args) is caught by its value instead,
+    // and masked here so the literal never reaches the model.
+    const valueMatch = detectSecretValue(node, maskSecretValue);
+    if (valueMatch !== null) {
+      out.push({
+        keyPath,
+        displayValue: valueMatch.masked,
+        looksLikeEnvReference: false,
+        line: null,
+        detectedBy: 'value-pattern',
+        pattern: valueMatch.pattern,
+      });
+      return valueMatch.masked;
+    }
   }
   return node;
 }

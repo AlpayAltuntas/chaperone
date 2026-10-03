@@ -5,5 +5,5 @@ import subprocess
 # confirmation gate.
 
 
-def clear_cache(days_old):
+def delete_old_cache(days_old):
     subprocess.run(["find", "/tmp/cache", "-mtime", f"+{days_old}", "-delete"])

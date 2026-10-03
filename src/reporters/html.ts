@@ -76,7 +76,6 @@ export function formatHtmlReport(
   metadata: ScanMetadata,
   scoreWeights?: Partial<Record<Severity, number>>,
 ): string {
-  const { score, band } = computeScore(findings, scoreWeights);
   const counts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const finding of findings) {
     counts[finding.severity] += 1;
@@ -138,7 +137,7 @@ export function formatHtmlReport(
 Scanned at ${escapeHtml(metadata.timestamp)} — chaperone v${escapeHtml(metadata.toolVersion)}</p>
 ${!metadata.targetRootResolved ? '<div class="not-resolved"><strong>Could not locate an installation to scan.</strong></div>' : ''}
 <div class="summary">
-  <div class="score">Posture score: ${String(score)}/100 (${band})</div>
+  <div class="score">${scoreHtml(findings, metadata, scoreWeights)}</div>
   <div>${String(findings.length)} finding${findings.length === 1 ? '' : 's'} — ${String(counts.critical)} critical, ${String(counts.high)} high, ${String(counts.medium)} medium, ${String(counts.low)} low, ${String(counts.info)} info</div>
   <div>Inspected ${String(metadata.inspected.length)} path${metadata.inspected.length === 1 ? '' : 's'}, skipped ${String(metadata.skipped.length)}.</div>
 </div>
@@ -147,4 +146,17 @@ ${skippedHtml}
 </body>
 </html>
 `;
+}
+
+function scoreHtml(
+  findings: readonly Finding[],
+  metadata: ScanMetadata,
+  scoreWeights?: Partial<Record<Severity, number>>,
+): string {
+  // Same rule as formatScoreLabel: an unscanned target has no score (PROPOSED_FIXES.md 2.1).
+  if (!metadata.targetRootResolved) {
+    return 'No posture score (nothing scanned)';
+  }
+  const { score, band } = computeScore(findings, scoreWeights);
+  return `Posture score: ${String(score)}/100 (${band})`;
 }

@@ -31,6 +31,52 @@ describe('cli scan — exit codes and output (in-process, non-throwing paths onl
     expect(process.exitCode).toBe(1);
   });
 
+  // PROPOSED_FIXES.md 2.1: a CI path typo must fail, not pass with grade A.
+  describe('when the explicit path is not an agent installation', () => {
+    let dir: string;
+
+    beforeEach(() => {
+      dir = mkdtempSync(path.join(os.tmpdir(), 'chaperone-exitcode-target-'));
+    });
+
+    afterEach(() => {
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it.each([
+      ['a nonexistent path', () => path.join(dir, 'does-not-exist')],
+      ['an empty directory', () => dir],
+    ])('exits non-zero with no findings for %s', (_label, target) => {
+      run(['node', 'chaperone', 'scan', target(), '--format', 'json', '--fail-on', 'critical']);
+
+      const report = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as {
+        targetRootResolved: boolean;
+        findings: unknown[];
+      };
+      expect(report.targetRootResolved).toBe(false);
+      expect(report.findings).toEqual([]);
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('scans the containing directory when given the config file itself', () => {
+      run([
+        'node',
+        'chaperone',
+        'scan',
+        path.join('test', 'fixtures', 'vulnerable-agent', 'config.yaml'),
+        '--format',
+        'json',
+      ]);
+
+      const report = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as {
+        targetRootResolved: boolean;
+        findings: unknown[];
+      };
+      expect(report.targetRootResolved).toBe(true);
+      expect(report.findings.length).toBeGreaterThan(0);
+    });
+  });
+
   it('exits zero when raising the threshold above every finding severity present', () => {
     // clean-agent's only findings are CHAP-SUP-003 (info); nothing reaches critical.
     run([

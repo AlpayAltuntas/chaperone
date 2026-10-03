@@ -133,6 +133,8 @@ describe('formatHtmlReport', () => {
     const output = formatHtmlReport([], { ...METADATA, targetRootResolved: false });
 
     expect(output).toContain('Could not locate an installation to scan.');
+    expect(output).toContain('No posture score (nothing scanned)');
+    expect(output).not.toContain('100/100');
   });
 
   it('HTML-escapes finding text — no raw HTML injection from a message/path', () => {

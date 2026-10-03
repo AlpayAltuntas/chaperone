@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+// DUMMY: an extensionless Node script.
+require('child_process').spawnSync(process.argv[2], { shell: true });

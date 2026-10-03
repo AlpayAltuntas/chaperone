@@ -8,7 +8,7 @@
     "email": "alpaycanaltuntas@gmail.com"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "chaperone": "dist/cli.js"
@@ -76,6 +76,7 @@
     "@typescript-eslint/eslint-plugin": "8.70.0",
     "@typescript-eslint/parser": "8.70.0",
     "@vitest/coverage-v8": "4.1.11",
+    "ajv": "6.15.0",
     "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",
     "fast-check": "4.10.2",

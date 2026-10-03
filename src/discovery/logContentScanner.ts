@@ -2,6 +2,7 @@ import { closeSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import type { LoggedSecretMatch } from '../model/types.js';
 import { looksLikeSecretKeyName, maskSecretValue } from './configParser.js';
 import { errorMessage } from './errors.js';
+import { findSecretsInText } from './secretValuePatterns.js';
 
 // Bounded scan (improvement_plan.md 1.8/2.1): only the last MAX_SCAN_BYTES
 // of the log file are ever read, and scanning stops after MAX_MATCHES —
@@ -55,6 +56,7 @@ export function scanExistingLogContent(logPath: string): LogContentScanResult {
       break;
     }
     KEY_VALUE_PATTERN.lastIndex = 0;
+    const keyValueHits: string[] = [];
     let match: RegExpExecArray | null;
     while ((match = KEY_VALUE_PATTERN.exec(line)) !== null && matches.length < MAX_MATCHES) {
       const key = match[1];
@@ -62,7 +64,20 @@ export function scanExistingLogContent(logPath: string): LogContentScanResult {
       if (key === undefined || value === undefined || !looksLikeSecretKeyName(key)) {
         continue;
       }
+      keyValueHits.push(value);
       matches.push({ keyName: key, displayValue: maskSecretValue(value) });
+    }
+    // Secret-shaped values the key=value pass can't see, such as a logged
+    // `Authorization: Bearer …` header or a bare token (PROPOSED_FIXES.md
+    // 3.1). A value already reported by the key=value pass isn't repeated.
+    for (const hit of findSecretsInText(line, maskSecretValue)) {
+      if (matches.length >= MAX_MATCHES) {
+        break;
+      }
+      if (keyValueHits.some((value) => hit.raw.includes(value) || value.includes(hit.raw))) {
+        continue;
+      }
+      matches.push({ keyName: `(${hit.pattern})`, displayValue: hit.masked });
     }
   }
 

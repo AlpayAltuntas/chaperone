@@ -1,5 +1,5 @@
-import type { JsonValue } from '../../model/types.js';
-import { isRecord } from '../../discovery/jsonUtils.js';
+import type { AgentModel, JsonValue } from '../../model/types.js';
+import { findConfigKey, getConfigField, isRecord } from '../../discovery/jsonUtils.js';
 
 /**
  * Reads the `trust`/`channels` sections that CHAP-INJ-* checks need
@@ -25,12 +25,11 @@ function getTrust(configData: JsonValue | null): Record<string, unknown> | null 
   return isRecord(trust) ? trust : null;
 }
 
+/** `field` is the snake_case key name; camelCase/kebab-case spellings are accepted too (see getConfigField). */
 export function getTrustBoolean(configData: JsonValue | null, field: string): boolean | null {
   const trust = getTrust(configData);
-  if (trust === null || typeof trust[field] !== 'boolean') {
-    return null;
-  }
-  return trust[field];
+  const value = trust === null ? undefined : getConfigField(trust, field);
+  return typeof value === 'boolean' ? value : null;
 }
 
 export function getTrustToolAllowlist(configData: JsonValue | null): string[] | null {
@@ -38,7 +37,7 @@ export function getTrustToolAllowlist(configData: JsonValue | null): string[] | 
   if (trust === null) {
     return null;
   }
-  const value = trust['tool_allowlist'];
+  const value = getConfigField(trust, 'tool_allowlist');
   return Array.isArray(value) && value.every((v) => typeof v === 'string') ? value : null;
 }
 
@@ -70,7 +69,7 @@ export function getEnabledChannels(configData: JsonValue | null): EnabledChannel
       continue;
     }
     const publicField = value['public'];
-    const allowlist = value['tool_allowlist'];
+    const allowlist = getConfigField(value, 'tool_allowlist');
     result.push({
       name,
       public: typeof publicField === 'boolean' ? publicField : true,
@@ -81,4 +80,30 @@ export function getEnabledChannels(configData: JsonValue | null): EnabledChannel
     });
   }
   return result;
+}
+
+/**
+ * The source line of a config key, given its snake_case path
+ * (`['trust', 'auto_execute_links']`), in whatever spelling the config
+ * uses. When the full path doesn't exist, returns the line of its deepest
+ * existing ancestor (the `trust:` section a missing key belongs in), or
+ * null when not even the first key exists (PROPOSED_FIXES.md 4.2).
+ */
+export function configLine(model: AgentModel, keyPath: readonly string[]): number | null {
+  let node: unknown = model.config.data;
+  const actual: string[] = [];
+  let line: number | null = null;
+  for (const segment of keyPath) {
+    if (!isRecord(node)) {
+      break;
+    }
+    const key = findConfigKey(node, segment);
+    if (key === undefined) {
+      break;
+    }
+    actual.push(key);
+    line = model.config.keyLines[actual.join('.')] ?? line;
+    node = node[key];
+  }
+  return line;
 }

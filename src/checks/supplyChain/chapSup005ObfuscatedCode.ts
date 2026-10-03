@@ -1,4 +1,5 @@
 import type { Check } from '../../engine/types.js';
+import { locateEvidence } from '../shared/skillEvidence.js';
 
 const ID = 'CHAP-SUP-005';
 const TITLE = 'Obfuscated or dynamically-evaluated code';
@@ -23,22 +24,26 @@ export const chapSup005ObfuscatedCode: Check = {
   detects:
     'A skill using eval(), the Function constructor, or a decode-then-execute chain (e.g. eval(atob(payload))) to run dynamically-constructed code.',
   heuristic:
-    "Any call to the `eval`/`Function` globals (bare, or `new Function(...)`) in a skill's source. Flagged unconditionally regardless of what's being evaluated — a real backdoor and a benign use are equally invisible to static review once code is constructed/evaluated at runtime, so there's no confident way to distinguish them from source alone.",
+    "Any call to the `eval`/`Function` globals in a skill's source: bare, `new Function(...)`, indirect (`(0, eval)(...)`), through a global object (`globalThis.eval`, `window.eval`, `self['eval']`), or through a local alias. Also `vm` code execution (`runInNewContext`, `runInThisContext`, `new vm.Script`, `compileFunction`), `require`/`import()` of a non-literal module name, `setTimeout`/`setInterval` with a string, and `module._compile`. Files over 256 KB (typically minified bundles) aren't parsed; a pattern pre-pass looks for `eval(`, `Function(`, `atob(`, or `child_process` instead, and the report's Skipped section says which matched. Flagged unconditionally regardless of what's being evaluated — a real backdoor and a benign use are equally invisible to static review once code is constructed/evaluated at runtime, so there's no confident way to distinguish them from source alone.",
   remediation:
     'Avoid dynamic code evaluation entirely. If genuinely needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing or fetching it at runtime.',
   run(model) {
     return model.skills
       .filter((skill) => skill.capabilities.dynamicEval)
-      .map((skill) => ({
-        checkId: ID,
-        title: TITLE,
-        severity: 'critical' as const,
-        category: 'supply-chain' as const,
-        owasp: OWASP,
-        message: `Skill '${skill.name}' uses eval()/Function() to run dynamically-constructed code — a common way to hide a malicious payload from static review.`,
-        location: { filePath: skill.manifestPath ?? skill.dir, line: null, detail: skill.name },
-        remediation:
-          'Avoid dynamic code evaluation entirely; if truly needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing it at runtime.',
-      }));
+      .map((skill) => {
+        const { location, related, seenAt } = locateEvidence(skill, 'dynamicEval');
+        return {
+          checkId: ID,
+          title: TITLE,
+          severity: 'critical' as const,
+          category: 'supply-chain' as const,
+          owasp: OWASP,
+          message: `Skill '${skill.name}' runs dynamically constructed or dynamically loaded code (eval, Function, vm, or a computed require/import) — a common way to hide a malicious payload from static review.${seenAt}`,
+          location,
+          ...related,
+          remediation:
+            'Avoid dynamic code evaluation entirely; if truly needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing it at runtime.',
+        };
+      });
   },
 };

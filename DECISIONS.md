@@ -2167,3 +2167,240 @@ failing test written first from the reproductions in
   much larger. Revisit if more profiles land (0.4.0). `runChecks` with
   no `profile` still runs everything, so plugin authors and existing
   callers see no change.
+
+## PROPOSED_FIXES.md, 0.3.0 batch — Detection accuracy
+
+### 2.1 — Nothing scanned is never a pass
+
+- **"Is this an agent install?" means a config file or a `skills/`
+  directory.** Sidecar files alone (a stray `.env`) don't count: almost
+  any project directory has one, and treating it as an install is what
+  let a wrong path grade "A". The check uses the default `skills/` name
+  because a custom `skills_dir` can only come from a config file, and a
+  config file already makes the directory count.
+- **The JSON `summary.score` is unchanged for unscanned targets.**
+  Making it nullable would be a schema change for every consumer, and
+  `targetRootResolved: false` already says the score is meaningless.
+  Only the human-facing reporters (console, markdown, html) drop it.
+- **`--docker` with no path, against a container whose config isn't at
+  `/`, now exits 1.** That's the same rule applied consistently: nothing
+  was scanned. Pass the in-container path to scan it.
+
+### 2.3 — camelCase/kebab-case config keys
+
+- **One helper, `getConfigField(record, 'snake_name')`, matches any key
+  whose word segments equal the snake_case name.** It reuses
+  `splitWordSegments`, so `autoExecuteLinks`, `auto-execute-links`, and
+  `AutoExecuteLinks` all match. An exact snake_case key wins when a
+  section has several spellings, so existing configs read the same.
+- **Only config reads go through it.** Skill manifest fields
+  (`confirmationRequired`, `gitRef`) are already camelCase by npm
+  convention and aren't changed.
+- **Regression test:** the vulnerable fixture's YAML config is converted
+  to a camelCase JSON config, and both must produce the same
+  `checkId:severity` multiset. Messages aren't compared because they
+  quote the key path as written.
+
+### 3.1 — Value-based secret detection
+
+- **Patterns are anchored to a prefix or a structure; there's no entropy
+  scoring.** Entropy flags hashes, UUIDs, and base64 blobs, which are
+  common in agent configs. Each pattern returns a name, so the finding
+  says what it looks like ("looks like a GitHub token").
+- **A token must stand alone.** A match can't be preceded or followed by
+  another token character, so `task-ant-…` and `xghp_…` don't match.
+  Tokens embedded in longer values (`token ghp_… --verbose`) do match,
+  and only the token is masked.
+- **The weak key names (`auth`, `authorization`, `bearer`, `cookie`,
+  `session`) need the last key segment and a credential-like value.**
+  They are just as often modes or settings (`auth: none`,
+  `session_timeout: 30m`, `auth_type: bearer`). Requiring 8+ characters,
+  no whitespace, and both a letter and a digit keeps `session:
+redis-store` quiet while catching `auth: xoxb-1234-…`. A
+  `Bearer sk-…` header value is caught by its value pattern instead.
+- **`Bearer ${VAR}` counts as an env reference.** It's how
+  Authorization headers are normally templated.
+- **String array items are checked by value too** (`args[1]`), since
+  MCP servers commonly pass tokens as command-line arguments. Key-name
+  matching still only applies to object keys.
+- **`SecretField` gained `detectedBy` and `pattern`, with no new check
+  ID.** CHAP-SEC-001's message is worded differently for value-pattern
+  hits.
+- **Log scanning reports value-pattern hits under a parenthesized
+  pattern name** (`(GitHub token)`) as the `keyName`, since there's no
+  key. A token already matched by the key=value pass on the same line
+  isn't reported twice.
+
+### 3.2 — More APIs and indirection in the AST pass
+
+- **A binding is now a module plus a member path.** `require('fs')`,
+  `require('fs').promises`, `const { promises } = require('fs')`, and
+  `const run = cp['exec']` all resolve through one `resolveModuleRef`, so
+  aliasing and nested namespaces fall out of the same code instead of
+  special cases. Aliases are resolved in up to three passes, which
+  handles an alias of an alias and an alias declared above its target.
+- **Module names are compared without the `node:` prefix**, so every
+  table lists each module once.
+- **Non-literal `require()`/`import()` counts as dynamic code**
+  (`CHAP-SUP-005`), because a loader that picks its module at runtime is
+  how payloads are hidden. A literal path never counts.
+- **Locally declared names shadow globals, but parameters don't.**
+  `const Bun = {...}` or `function fetch()` stop the global from being
+  matched. Scope is flat, so counting parameters would let one
+  `(fetch) => …` callback hide every real `fetch` in the file.
+  `const fetch = globalThis.fetch` re-exposes the global and isn't a
+  shadow.
+- **`new` of something from a network module counts as network access**
+  (`new WebSocket(url)` from `ws`), using the same tables as calls.
+
+### 3.3 — Skill-scanner blind spots
+
+- **Dot-entries are scanned; the skip list is explicit.** Only
+  `node_modules`, `.git`, `.hg`, `.svn`, `.venv`, `venv`, and
+  `__pycache__` are skipped: dependency trees and VCS metadata, never
+  the skill's own code.
+- **The depth limit went from 4 to 6, and hitting it is reported.** 6
+  levels covers real `src/lib/...` layouts. The perf test's 20-level tree
+  still finishes quickly, and its deeper levels show up as one Skipped
+  entry.
+- **The large-file pre-pass ignores line length.** The plan suggested
+  also flagging very long lines, but every minified bundle has those, so
+  every bundled skill would get `CHAP-SUP-005`. Only `eval(`,
+  `Function(`, `atob(`, and `child_process` count, and only within the
+  first 16 MB. The file stays in Skipped with the patterns it matched,
+  so the reduced analysis is visible.
+- **`apt-get install`/`brew install` were kept for `*.sh` files and
+  dropped for READMEs**, rather than removed outright. In an install
+  script they're still a privileged system change worth reviewing. The
+  vulnerable fixture's `install.sh` keeps its findings unchanged.
+- **The pipe-to-shell match requires a word boundary after the shell
+  name.** The old `\|\s*(?:ba)?sh` matched `| shasum`.
+
+### 3.6 — `CHAP-SEC-008`, writable by others
+
+- **Category `secrets`, OWASP LLM05.** It sits with `CHAP-SEC-003`
+  because it's the same kind of file-permission fact, but the risk is
+  supply-chain (planted code), not disclosure.
+- **One finding per writable path, not per skill.** A `chmod -R 777` on
+  the skills directory produces a finding for the directory and for each
+  skill, which matches how each one has to be fixed. Skill source files
+  themselves aren't checked; a writable directory is enough to replace
+  them.
+- **Sticky-bit directories still count.** The sticky bit stops others
+  from deleting existing files but not from adding a new skill.
+- **Windows reports permissions as unknown** (null) at the discovery
+  layer, so every permission check is silent there instead of each
+  check special-casing the platform. Node synthesizes Windows modes from
+  the read-only attribute, so `0o666` there says nothing about other
+  users.
+- **`role` on each permission fact** lets a check select paths without
+  matching them against other model fields, and stops a path that plays
+  two roles from being ambiguous.
+
+### 3.7 — More sidecar secret files
+
+- **The target root is listed once and each name classified**, instead
+  of probing a fixed list, so `.env.*` and `service-account*.json` can be
+  patterns.
+- **ini files reuse the dotenv parser.** `[section]` headers have no
+  `=` and are skipped; `key = value` is trimmed. `.npmrc`'s
+  `//registry/:_authToken` key splits to a `token` segment, so key-name
+  matching works unchanged.
+- **`.netrc` passwords are keyed `<machine>-password`.** The hyphen
+  makes `password` its own key segment.
+- **A key file's content is only tested for the PEM private-key header.**
+  A `.pem` holding a certificate isn't a secret file. A matching file
+  gets one synthetic `(private key)` field, so it flows through
+  `CHAP-SEC-006`'s existing git-tracked and permission logic. The key
+  material itself is never stored.
+
+### 4.2 — Evidence locations, config line numbers
+
+- **Evidence is file + line + API name, never a snippet.** API names are
+  resolved identifiers (`child_process.execSync`, `(0, eval)`,
+  `deleteFile`), so nothing from a string literal reaches a report.
+  Evidence is capped at 10 per capability per skill.
+- **The flags are derived from the evidence.** `shellExec` is "there is
+  shell evidence", so the boolean and the location can't disagree.
+- **`detail` stays the skill name.** A skill finding's fingerprint
+  (2.7) is check ID + relative path + detail. The path moved from
+  `package.json` to the evidence file, which is a one-time baseline
+  break (called out in the CHANGELOG). Keeping `detail` stable means
+  moving code within the same file won't break it again.
+- **`relatedLocations` is omitted when empty**, so the JSON schema change
+  is additive for every existing finding.
+- **Config line numbers come from a `keyLines` index built once at
+  discovery**, from `YAML.parseDocument`, for JSON as well (JSON is YAML
+  1.2). Values still come from `JSON.parse`. A property test checks both
+  parsers agree on the key paths. `configLine` resolves the snake_case
+  path through whichever spelling the config uses (2.3), and a missing
+  key points at its section's line, which is where the fix goes.
+- **`CHAP-OBS-002`/`CHAP-SEC-004` keep pointing at the log file** when it
+  exists, so their fingerprints don't move. `CHAP-OBS-003`/`004` are
+  about files, not keys.
+
+### 2.6 (second half) — Per-call scoping
+
+- **A write is judged by its path argument**, through a small resolver:
+  the module directory forms from the first half, fixed literal paths
+  other than `/`, `~`, `.`, or a drive root, variables initialized from
+  those (fixed-point, so chains of variables work), and `join`/`resolve`
+  whose first argument is scoped. Two-path writes (`rename`, `copy`,
+  `symlink`) check both paths.
+- **A fixed literal path counts as scoped.** `AGY-002` is about writes
+  to caller-controlled locations; `fs.writeFileSync('/var/lib/x/state')`
+  isn't that.
+- **The variable-name heuristic is gone for JS.** It was the false
+  negative (`const workspaceRoot = '/'`). Python keeps its file-level
+  pattern until 3.4.
+- **Merging requires every writing file to be scoped**, instead of any
+  file.
+
+### 2.4 (Python half) — `def` names only
+
+- **Only module-level `def`/`async def` names count**, split into word
+  segments like JS identifiers. A keyword in a comment, a string, or a
+  nested helper doesn't. The `py-cache-cleaner` fixture's function was
+  renamed from `clear_cache` to `delete_old_cache`: its only destructive
+  signal used to be `-delete` inside a string argument, so the fixture
+  now carries the signal the check is meant to find, and its finding
+  count is unchanged.
+
+### 4.1 — SARIF for code scanning
+
+- **Paths are relative to the git root, not the scan target.** Code
+  scanning maps results onto repository files, so a target in a
+  subdirectory (`./agent`) needs `agent/config.yaml`, not `config.yaml`.
+  Outside a repository the target is the root.
+- **`originalUriBaseIds.SRCROOT` has a description but no `uri`.**
+  SARIF allows that, and an absolute `file://` URI there would put back
+  the path the relative URIs removed. Absolute paths in message text
+  are rewritten for the same reason (the root itself becomes `<SRCROOT>`).
+- **`partialFingerprints` is a SHA-256 of the `--baseline`
+  fingerprint**, computed against the same root as the URIs. One
+  identity scheme serves both.
+- **`security-severity` comes from the check's default severity**, since
+  GitHub reads it per rule. A finding downgraded at runtime (AGY-001 with
+  a declared gate) still shows its own `level`.
+- **Rules come from the checks that ran**, passed in through
+  `ScanMetadata.checks`. A caller without them (the library API, older
+  tests) falls back to rules derived from findings, as before.
+- **The schema test uses `ajv` 6**, pinned as a dev dependency (already
+  present transitively), with its draft-04 meta-schema. The official
+  schema is vendored at `test/fixtures/sarif-schema-2.1.0.json`, so the
+  test needs no network.
+- **`npm audit fix` updated `brace-expansion`** (a Stryker transitive dev
+  dependency) because a newly published high advisory failed CI's
+  `npm audit --audit-level=high`. Two moderate `qs` advisories remain,
+  pinned by `typed-rest-client`, and are below CI's threshold.
+
+### 7.1 — Node 22 floor
+
+- **`engines` is `>=22`, not `>=22.12`.** Nothing in Chaperone's runtime
+  needs a later 22.x. The dev toolchain may (vitest 5 needs 22.12), but
+  CI's `node-version: 22` resolves to the latest 22.x anyway.
+- **Dependabot no longer holds back vitest's major.** The TypeScript 7
+  hold stays until typescript-eslint supports it.
+- **Listed under "May change CI results"**: a pipeline still on Node 20
+  gets an `EBADENGINE` warning on install, and a minor bump is the
+  policy for that.

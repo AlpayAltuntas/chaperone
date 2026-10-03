@@ -9,7 +9,7 @@ const OWASP = 'LLM06: Sensitive Information Disclosure';
 /**
  * Applies the same two checks CHAP-SEC-002/CHAP-SEC-003 apply to the main
  * config — git-tracked-and-not-gitignored, and group/other-readable
- * permissions — to sidecar secret files (.env, secrets.yaml, secrets.json)
+ * permissions — to sidecar secret files (.env, secrets.yaml, .npmrc, private keys, ...)
  * discovered alongside it (improvement_plan.md 1.6/2.2). Only fires per
  * file when it holds at least one literal secret; a reference-only or
  * empty sidecar file isn't a hygiene issue.
@@ -21,9 +21,9 @@ export const chapSec006SidecarSecretFileExposed: Check = {
   category: 'secrets',
   owasp: OWASP,
   detects:
-    "A sidecar secret file (`.env`, `.env.local`, `secrets.yaml`, `secrets.yml`, `secrets.json`) discovered alongside the main config, holding a literal secret that's either git-tracked and not gitignored, or readable by group/other.",
+    "A sidecar secret file discovered alongside the main config (`.env`, `.env.*` except example/sample/template files, `.envrc`, `secrets.yaml/.yml/.json`, `credentials.json`, `service-account*.json`, `.npmrc`, `.pypirc`, `.netrc`, or a private key: `id_rsa`/`id_ecdsa`/`id_ed25519`, `*.pem`/`*.key` holding a PEM private key), holding a literal secret that's either git-tracked and not gitignored, or readable by group/other.",
   heuristic:
-    "Applies the exact same two checks CHAP-SEC-002/CHAP-SEC-003 apply to the main config file, to each discovered sidecar file instead: the file holds at least one literal (non-env-reference) secret field (masked the same way `config.yaml` is — see `discovery/configParser.ts`/`discovery/sidecarSecrets.ts`), and either its path relative to an ancestor git root isn't covered by the repo's `.gitignore`, or its POSIX mode is broader than `0600`. Both reasons are reported together in one finding when both hold.",
+    "Applies the exact same two checks CHAP-SEC-002/CHAP-SEC-003 apply to the main config file, to each discovered sidecar file instead: the file holds at least one literal (non-env-reference) secret field, recognized by key name or by value pattern exactly as in CHAP-SEC-001 (masked the same way `config.yaml` is — see `discovery/configParser.ts`/`discovery/sidecarSecrets.ts`), and either its path relative to an ancestor git root isn't covered by the repo's `.gitignore`, or its POSIX mode is broader than `0600`. Both reasons are reported together in one finding when both hold.",
   remediation:
     'Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600).',
   run(model) {

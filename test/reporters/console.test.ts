@@ -92,6 +92,9 @@ describe('formatConsoleReport', () => {
 
     expect(output).toContain('Could not locate an installation to scan.');
     expect(output).not.toContain('No findings.');
+    // PROPOSED_FIXES.md 2.1: nothing scanned must not read as grade A.
+    expect(output).toContain('no posture score (nothing scanned)');
+    expect(output).not.toContain('100/100');
   });
 
   it('lists each skipped path and reason', () => {

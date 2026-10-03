@@ -64,21 +64,38 @@ describe('detectPythonCapabilities — Phase 16 (improvement_plan.md 1.9), regex
     expect(detectPythonCapabilities('os.remove(user_supplied_path)').fileSystemScoped).toBe(false);
   });
 
-  it('detects a destructive keyword as a standalone word', () => {
-    const capabilities = detectPythonCapabilities('# Delete old cache files without confirmation.');
-    expect(capabilities.destructiveKeywords).toEqual(['delete']);
-  });
-
-  it('has the same documented fragility as the pre-Phase-10 JS approach: an identifier joined by an underscore is not a word boundary', () => {
-    // `\bdelete\b` never matches inside `delete_file` — no non-word
-    // boundary between `e` and `_` (both are \w). Deliberately NOT
-    // fixed here (see astCapabilities.ts's splitWordSegments, which
-    // Phase 16 explicitly does not port to Python) — this is the
-    // documented v1 limitation, not a bug.
+  // PROPOSED_FIXES.md 2.4: only module-level `def` names count, split into
+  // word segments, so a keyword in a comment or string no longer does and
+  // `delete_file` now does.
+  it('detects a destructive keyword in a module-level function name', () => {
     const capabilities = detectPythonCapabilities(
       'def delete_file(path):\n    pathlib.Path(path).unlink()',
+      'skill.py',
     );
-    expect(capabilities.destructiveKeywords).toEqual([]);
+    expect(capabilities.destructiveKeywords).toEqual(['delete']);
+    expect(capabilities.evidence).toContainEqual({
+      capability: 'destructive',
+      file: 'skill.py',
+      line: 1,
+      api: 'delete_file',
+    });
+  });
+
+  it.each([
+    ['a comment', '# Delete old cache files without confirmation.\ndef run():\n    pass'],
+    ['a string', 'def run():\n    subprocess.run(["find", ".", "-delete"])'],
+    ['a nested helper', 'def run():\n    def delete_tmp():\n        pass'],
+  ])('ignores a destructive keyword in %s', (_label, source) => {
+    expect(detectPythonCapabilities(source).destructiveKeywords).toEqual([]);
+  });
+
+  it('records the line of each capability', () => {
+    const source = 'import subprocess\n\n\ndef run(c):\n    subprocess.run(c)\n    eval(c)\n';
+    const { evidence } = detectPythonCapabilities(source, 'x.py');
+    expect(evidence).toEqual([
+      { capability: 'shellExec', file: 'x.py', line: 5, api: 'subprocess.run' },
+      { capability: 'dynamicEval', file: 'x.py', line: 6, api: 'eval' },
+    ]);
   });
 
   it('never sets dataFlowToShellExec — Phase 16 is capability detection only, not a ported taint analysis', () => {
@@ -96,6 +113,7 @@ describe('detectPythonCapabilities — Phase 16 (improvement_plan.md 1.9), regex
       destructiveKeywords: [],
       dynamicEval: false,
       dataFlowToShellExec: false,
+      evidence: [],
     });
   });
 });

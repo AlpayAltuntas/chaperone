@@ -1,4 +1,5 @@
 import type { Check } from '../../engine/types.js';
+import { configLine } from '../shared/configAccess.js';
 
 const ID = 'CHAP-NET-003';
 const TITLE = 'Plaintext transport on the gateway';
@@ -29,7 +30,11 @@ export const chapNet003PlaintextTransport: Check = {
         owasp: OWASP,
         message:
           'The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext.',
-        location: { filePath: model.config.path, line: null, detail: 'gateway.tls' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['gateway', 'tls']),
+          detail: 'gateway.tls',
+        },
         remediation: 'Enable TLS on the gateway and disable any plaintext fallback.',
       },
     ];

@@ -88,6 +88,8 @@ describe('formatMarkdownReport', () => {
 
     expect(output).toContain('Could not locate an installation to scan.');
     expect(output).not.toContain('No findings.');
+    expect(output).toContain('no posture score (nothing scanned)');
+    expect(output).not.toContain('100/100');
   });
 
   it('lists the skipped section', () => {

@@ -45,7 +45,8 @@ describe('CHAP-SEC-001 — plaintext secrets in config', () => {
 
   // improvement_plan.md 1.17's own definition of done: JSON configs stay
   // null, documented rather than silently inconsistent with YAML.
-  describe('JSON config (no line numbers — documented limitation)', () => {
+  // PROPOSED_FIXES.md 4.2: JSON configs get line numbers too.
+  describe('JSON config', () => {
     let dir: string;
 
     beforeEach(() => {
@@ -56,17 +57,17 @@ describe('CHAP-SEC-001 — plaintext secrets in config', () => {
       rmSync(dir, { recursive: true, force: true });
     });
 
-    it('still fires, but with a null line number', () => {
+    it('fires with the real source line', () => {
       writeFileSync(
         path.join(dir, 'config.json'),
-        JSON.stringify({ llm: { api_key: 'sk-ant-literal-dummy-value' } }),
+        JSON.stringify({ llm: { api_key: 'sk-ant-literal-dummy-value' } }, null, 2),
       );
 
       const { model } = discoverAgent({ targetPath: dir });
       const findings = chapSec001PlaintextSecrets.run(model);
 
       expect(findings).toHaveLength(1);
-      expect(findings[0]?.location.line).toBeNull();
+      expect(findings[0]?.location.line).toBe(3);
     });
   });
 });

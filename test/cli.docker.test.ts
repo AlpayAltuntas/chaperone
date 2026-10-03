@@ -76,11 +76,14 @@ describe.skipIf(!dockerAvailable)('cli scan — --docker, against a real contain
       const printed = logSpy.mock.calls[0]?.[0] as string;
       const report = JSON.parse(printed) as { targetRootResolved: boolean };
       // /agent-root is nested one level below the container root here,
-      // so config.yaml isn't found directly at "/" — still resolves
-      // (an explicit --docker target always does), just no findings.
-      expect(report.targetRootResolved).toBe(true);
+      // so config.yaml isn't found directly at "/". That's "nothing
+      // scanned", which fails the run rather than passing it with no
+      // findings (PROPOSED_FIXES.md 2.1).
+      expect(report.targetRootResolved).toBe(false);
+      expect(process.exitCode).toBe(1);
     } finally {
       logSpy.mockRestore();
+      process.exitCode = undefined;
     }
   }, 30_000);
 });

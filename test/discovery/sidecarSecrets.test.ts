@@ -85,4 +85,75 @@ describe('discoverSidecarSecretFiles', () => {
     expect(result.inspected).toEqual([]);
     expect(result.skipped).toEqual([]);
   });
+
+  // PROPOSED_FIXES.md 3.7: the other files credentials conventionally live in.
+  it.each([
+    ['.env.production', 'API_KEY=dummy-literal-value-123\n', 'dotenv', 'API_KEY'],
+    ['.envrc', 'export API_TOKEN=dummy-literal-value-123\n', 'dotenv', 'API_TOKEN'],
+    [
+      '.npmrc',
+      '//registry.npmjs.org/:_authToken=npm_dummyliteralvalue1234567890abcdefgh\n',
+      'ini',
+      '//registry.npmjs.org/:_authToken',
+    ],
+    [
+      '.pypirc',
+      '[pypi]\nusername = __token__\npassword = pypi-dummy-literal-value\n',
+      'ini',
+      'password',
+    ],
+    [
+      '.netrc',
+      'machine api.example.com\n  login me\n  password dummy-literal-value\n',
+      'netrc',
+      'api.example.com-password',
+    ],
+    ['credentials.json', '{"client_secret": "dummy-literal-value"}', 'json', 'client_secret'],
+    [
+      'service-account-prod.json',
+      '{"type": "service_account", "private_key": "-----BEGIN PRIVATE KEY-----\\nMIIEdummy\\n-----END PRIVATE KEY-----\\n"}',
+      'json',
+      'private_key',
+    ],
+    [
+      'id_ed25519',
+      '-----BEGIN OPENSSH PRIVATE KEY-----\ndummy\n-----END OPENSSH PRIVATE KEY-----\n',
+      'key',
+      '(private key)',
+    ],
+    [
+      'deploy.pem',
+      '-----BEGIN RSA PRIVATE KEY-----\ndummy\n-----END RSA PRIVATE KEY-----\n',
+      'key',
+      '(private key)',
+    ],
+  ])('finds a literal secret in %s', (filename, content, format, keyPath) => {
+    writeFileSync(path.join(dir, filename), content);
+
+    const result = discoverSidecarSecretFiles(dir);
+
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0]?.format).toBe(format);
+    expect(result.files[0]?.secretFields.map((f) => f.keyPath)).toEqual([keyPath]);
+    expect(JSON.stringify(result)).not.toContain('dummy-literal-value');
+    expect(JSON.stringify(result)).not.toContain('MIIEdummy');
+  });
+
+  it.each(['.env.example', '.env.sample', '.env.template'])(
+    'ignores the template %s',
+    (filename) => {
+      writeFileSync(path.join(dir, filename), 'API_KEY=placeholder-value-123\n');
+
+      expect(discoverSidecarSecretFiles(dir).files).toEqual([]);
+    },
+  );
+
+  it('ignores a .pem that holds only a certificate', () => {
+    writeFileSync(
+      path.join(dir, 'server.pem'),
+      '-----BEGIN CERTIFICATE-----\nMIIdummy\n-----END CERTIFICATE-----\n',
+    );
+
+    expect(discoverSidecarSecretFiles(dir).files).toEqual([]);
+  });
 });

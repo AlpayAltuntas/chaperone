@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { AgentModel, InspectedEntry, SkippedEntry, Skill } from '../model/types.js';
-import { maskConfig } from './configParser.js';
+import { resolveExplicitTarget } from './configLocator.js';
+import { buildKeyLineIndex, maskConfig } from './configParser.js';
 import { errorMessage } from './errors.js';
 import { emptyModel, type DiscoveryOptions, type DiscoveryResult } from './index.js';
 import { isRecord } from './jsonUtils.js';
@@ -78,30 +79,49 @@ export function discoverMcpAgent(options: DiscoveryOptions): DiscoveryResult {
   // a repo), not home-directory-scoped like the default profile's
   // fictional install roots — so "no explicit path" means "look in the
   // current directory", not a probed list under $HOME.
-  const targetRoot = path.resolve(options.targetPath ?? process.cwd());
+  let targetRoot = path.resolve(options.targetPath ?? process.cwd());
+  if (options.targetPath !== undefined) {
+    const explicit = resolveExplicitTarget(options.targetPath, MCP_CONFIG_FILENAMES);
+    if (explicit.root === null) {
+      skipped.push({ path: targetRoot, reason: explicit.reason });
+      return { targetRootResolved: false, model: emptyModel(targetRoot, inspected, skipped) };
+    }
+    targetRoot = explicit.root;
+  }
 
+  // Nothing scanned is never reported as a clean pass (PROPOSED_FIXES.md
+  // 2.1): a missing or unparseable MCP config leaves targetRootResolved
+  // false, so the CLI exits non-zero instead of grading an empty model.
   const configPath = locateMcpConfigFile(targetRoot);
   if (configPath === null) {
     skipped.push({
       path: targetRoot,
       reason: `no MCP config found (tried: ${MCP_CONFIG_FILENAMES.join(', ')})`,
     });
-    return { targetRootResolved: true, model: emptyModel(targetRoot, inspected, skipped) };
+    return { targetRootResolved: false, model: emptyModel(targetRoot, inspected, skipped) };
   }
 
   let rawParsed: unknown;
+  let source: string;
   try {
-    rawParsed = JSON.parse(readFileSync(configPath, 'utf8'));
+    source = readFileSync(configPath, 'utf8');
+    rawParsed = JSON.parse(source);
   } catch (err) {
     skipped.push({ path: configPath, reason: `unparseable MCP config: ${errorMessage(err)}` });
-    return { targetRootResolved: true, model: emptyModel(targetRoot, inspected, skipped) };
+    return { targetRootResolved: false, model: emptyModel(targetRoot, inspected, skipped) };
   }
   inspected.push({ path: configPath, kind: 'config' });
 
   // Reused verbatim from the default profile (configParser.ts): walks
   // ANY JSON-shaped tree for secret-looking keys, regardless of nesting
   // — an MCP server's `env`/`headers` block is just more tree to it.
-  const { data, secretFields } = maskConfig(rawParsed);
+  const keyLines = buildKeyLineIndex(source);
+  const masked = maskConfig(rawParsed);
+  const data = masked.data;
+  const secretFields = masked.secretFields.map((field) => ({
+    ...field,
+    line: keyLines[field.keyPath] ?? null,
+  }));
 
   const mcpServers =
     isRecord(rawParsed) && isRecord(rawParsed['mcpServers']) ? rawParsed['mcpServers'] : {};
@@ -112,11 +132,11 @@ export function discoverMcpAgent(options: DiscoveryOptions): DiscoveryResult {
     })
     .map(([name, server]) => mcpServerToSkill(name, server, configPath));
 
-  const permissions = [getFilePermissionFact(configPath)];
+  const permissions = [getFilePermissionFact(configPath, 'config')];
 
   const model: AgentModel = {
     ...emptyModel(targetRoot, inspected, skipped),
-    config: { path: configPath, format: 'json', data, secretFields },
+    config: { path: configPath, format: 'json', data, secretFields, keyLines },
     permissions,
     skills,
   };
@@ -144,6 +164,7 @@ function mcpServerToSkill(
       destructiveKeywords: [],
       dynamicEval: false,
       dataFlowToShellExec: false,
+      evidence: [],
     },
     provenance: {
       sourceUrl: 'url' in server ? server.url : null,

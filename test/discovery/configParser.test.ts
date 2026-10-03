@@ -1,6 +1,7 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
-  createLineLookup,
+  buildKeyLineIndex,
   extractEnvVarName,
   looksLikeEnvReference,
   looksLikeSecretKeyName,
@@ -145,6 +146,8 @@ describe('maskConfig', () => {
         displayValue: 'sk-…mnop',
         looksLikeEnvReference: false,
         line: null,
+        detectedBy: 'key-name',
+        pattern: null,
       },
     ]);
     expect(JSON.stringify(data)).not.toContain('abcdefghijklmnop');
@@ -159,6 +162,8 @@ describe('maskConfig', () => {
         displayValue: '${ANTHROPIC_API_KEY}',
         looksLikeEnvReference: true,
         line: null,
+        detectedBy: 'key-name',
+        pattern: null,
       },
     ]);
     expect(data).toEqual({ llm: { api_key: '${ANTHROPIC_API_KEY}' } });
@@ -202,8 +207,8 @@ describe('maskConfig', () => {
   });
 });
 
-// improvement_plan.md 1.17.
-describe('createLineLookup', () => {
+// improvement_plan.md 1.17; JSON added in PROPOSED_FIXES.md 4.2.
+describe('buildKeyLineIndex', () => {
   const YAML_SOURCE = [
     'llm:',
     '  provider: anthropic',
@@ -219,38 +224,67 @@ describe('createLineLookup', () => {
   ].join('\n');
 
   it('resolves a top-level key path to its 1-indexed source line', () => {
-    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
-
-    expect(lookup('llm.api_key')).toBe(3);
+    expect(buildKeyLineIndex(YAML_SOURCE)['llm.api_key']).toBe(3);
   });
 
   it('resolves a nested key path', () => {
-    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
-
-    expect(lookup('channels.telegram.bot_token')).toBe(6);
+    expect(buildKeyLineIndex(YAML_SOURCE)['channels.telegram.bot_token']).toBe(6);
   });
 
   it('resolves an array-index key path', () => {
-    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
-
-    expect(lookup('trust.tool_allowlist[1]')).toBe(10);
+    expect(buildKeyLineIndex(YAML_SOURCE)['trust.tool_allowlist[1]']).toBe(10);
   });
 
-  it('returns null for a key path that does not exist in the document', () => {
-    const lookup = createLineLookup(YAML_SOURCE, 'yaml');
-
-    expect(lookup('llm.does_not_exist')).toBeNull();
+  it('has no entry for a key path that does not exist in the document', () => {
+    expect(buildKeyLineIndex(YAML_SOURCE)['llm.does_not_exist']).toBeUndefined();
   });
 
-  it('always returns null for JSON — no CST-with-positions available (documented limitation)', () => {
-    const lookup = createLineLookup('{"llm": {"api_key": "sk-ant-test"}}', 'json');
+  it('resolves lines in a pretty-printed JSON config', () => {
+    const json = JSON.stringify(
+      { llm: { api_key: 'x' }, trust: { tool_allowlist: ['a', 'b'] } },
+      null,
+      2,
+    );
+    const index = buildKeyLineIndex(json);
 
-    expect(lookup('llm.api_key')).toBeNull();
+    expect(index['llm.api_key']).toBe(3);
+    expect(index['trust.tool_allowlist']).toBe(6);
+    expect(index['trust.tool_allowlist[1]']).toBe(8);
   });
 
-  it('returns a no-op lookup (never throws) for unparseable YAML', () => {
-    const lookup = createLineLookup('a:\n  - b\n  c: [', 'yaml');
+  it('returns an index (never throws) for unparseable YAML', () => {
+    expect(() => buildKeyLineIndex('a:\n  - b\n  c: [')).not.toThrow();
+  });
 
-    expect(lookup('a.c')).toBeNull();
+  // JSON is parsed for values with JSON.parse and for positions with
+  // YAML.parseDocument; the two must agree on the document's structure.
+  it('indexes exactly the key paths JSON.parse produces', () => {
+    const keyPaths = (value: unknown, prefix = ''): string[] => {
+      if (Array.isArray(value)) {
+        return value.flatMap((item, i) => [
+          `${prefix}[${String(i)}]`,
+          ...keyPaths(item, `${prefix}[${String(i)}]`),
+        ]);
+      }
+      if (typeof value === 'object' && value !== null) {
+        return Object.entries(value).flatMap(([k, v]) => {
+          const kp = prefix ? `${prefix}.${k}` : k;
+          return [kp, ...keyPaths(v, kp)];
+        });
+      }
+      return [];
+    };
+    fc.assert(
+      fc.property(
+        fc.dictionary(fc.stringMatching(/^[a-z_]{1,8}$/), fc.jsonValue({ maxDepth: 3 })),
+        (value) => {
+          const json = JSON.stringify(value, null, 2);
+          const index = buildKeyLineIndex(json);
+          expect(Object.keys(index).sort()).toEqual(
+            [...new Set(keyPaths(JSON.parse(json)))].sort(),
+          );
+        },
+      ),
+    );
   });
 });

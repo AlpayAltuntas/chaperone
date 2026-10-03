@@ -1,4 +1,5 @@
 import ts from 'typescript';
+import type { CapabilityEvidence } from '../model/types.js';
 import { splitWordSegments } from './wordSegments.js';
 
 // AST-based capability detection (improvement_plan.md 1.1), replacing
@@ -19,13 +20,18 @@ import { splitWordSegments } from './wordSegments.js';
 //   fixes this for identifier names, the same fix configParser.ts
 //   already applies to config keys).
 //
+// Also resolved (PROPOSED_FIXES.md 3.2): one level of aliasing
+// (`const run = cp['exec']; run(c)`), nested namespaces
+// (`fs.promises.writeFile`, `require('fs').promises.x`), template-literal
+// keys (``cp[`exec`]``), and indirect eval (`(0, eval)(c)`,
+// `globalThis.eval(c)`).
+//
 // Known remaining gaps (documented, not solved — see DECISIONS.md):
-// arbitrary indirection (`const run = exec; run(cmd)`), a function
-// reference passed across files/modules, fully dynamic requires
-// (`require(moduleNameVariable)`), and a local declaration shadowing a
-// bare-global name (`fetch`/`eval`/`Function`) are still invisible —
-// this is static, single-file analysis, not real data-flow/points-to
-// analysis or scope resolution.
+// aliasing more than a few levels deep, a function reference passed
+// across files/modules, and a *parameter* shadowing a bare-global name
+// (`fetch`/`eval`) are still invisible. Locally declared names do shadow
+// globals, but scope is flat: this is static, single-file analysis, not
+// real data-flow/points-to analysis or scope resolution.
 
 export interface DetectedCapabilities {
   shellExec: boolean;
@@ -35,7 +41,12 @@ export interface DetectedCapabilities {
   destructiveKeywords: string[];
   dynamicEval: boolean;
   dataFlowToShellExec: boolean;
+  evidence: CapabilityEvidence[];
 }
+
+// Per capability, per skill. Enough to point at the first few call sites
+// without one generated file flooding the model.
+const MAX_EVIDENCE_PER_CAPABILITY = 10;
 
 const EMPTY_CAPABILITIES: DetectedCapabilities = {
   shellExec: false,
@@ -45,6 +56,7 @@ const EMPTY_CAPABILITIES: DetectedCapabilities = {
   destructiveKeywords: [],
   dynamicEval: false,
   dataFlowToShellExec: false,
+  evidence: [],
 };
 
 // eval()/Function() (bare or `new Function(...)`) — improvement_plan.md
@@ -55,23 +67,35 @@ const EMPTY_CAPABILITIES: DetectedCapabilities = {
 // needed.
 const DYNAMIC_EVAL_GLOBAL_NAMES = new Set(['eval', 'Function']);
 
+// Global objects `eval`/`Function` can be reached through
+// (`globalThis.eval(c)`, `self['eval'](c)`).
+const GLOBAL_OBJECT_NAMES = new Set(['globalThis', 'global', 'window', 'self']);
+
 // Taint *sources* for the CHAP-INJ-002 data-flow improvement
 // (improvement_plan.md 1.16) — read-oriented fs functions, distinct from
-// FS_WRITE_FUNCTIONS above (a write result isn't attacker-controlled
+// FS_WRITE_FUNCTIONS below (a write result isn't attacker-controlled
 // data flowing *in*).
 const FS_READ_FUNCTIONS = new Set(['readFile', 'readFileSync', 'readdir', 'readdirSync']);
 
-const SHELL_MODULES = new Set(['child_process', 'node:child_process']);
-const SHELL_FUNCTIONS = new Set([
-  'exec',
-  'execSync',
-  'spawn',
-  'spawnSync',
-  'execFile',
-  'execFileSync',
+// Module names are compared without a `node:` prefix (see normalizeModule).
+// `''` as a function name means the module's default export was called
+// directly (`execa(cmd)`, `crossSpawn(cmd)`).
+const SHELL_FUNCTIONS_BY_MODULE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  [
+    'child_process',
+    new Set(['exec', 'execSync', 'spawn', 'spawnSync', 'execFile', 'execFileSync', 'fork']),
+  ],
+  [
+    'execa',
+    new Set(['', 'execa', 'execaSync', 'execaCommand', 'execaCommandSync', 'execaNode', '$']),
+  ],
+  ['shelljs', new Set(['exec'])],
+  ['zx', new Set(['$'])],
+  ['cross-spawn', new Set(['', 'spawn', 'sync'])],
+  ['node-pty', new Set(['spawn'])],
 ]);
 
-const FS_MODULES = new Set(['fs', 'node:fs', 'fs/promises', 'node:fs/promises']);
+const FS_MODULES = new Set(['fs', 'fs/promises', 'fs-extra', 'graceful-fs']);
 const FS_WRITE_FUNCTIONS = new Set([
   'writeFile',
   'writeFileSync',
@@ -83,21 +107,97 @@ const FS_WRITE_FUNCTIONS = new Set([
   'rmdirSync',
   'appendFile',
   'appendFileSync',
+  'rename',
+  'renameSync',
+  'copyFile',
+  'copyFileSync',
+  'cp',
+  'cpSync',
+  'mkdir',
+  'mkdirSync',
+  'truncate',
+  'truncateSync',
+  'chmod',
+  'chmodSync',
+  'chown',
+  'chownSync',
+  'symlink',
+  'symlinkSync',
+  'link',
+  'linkSync',
+  'createWriteStream',
+  // fs-extra
+  'outputFile',
+  'outputFileSync',
+  'outputJson',
+  'outputJsonSync',
+  'writeJson',
+  'writeJsonSync',
+  'remove',
+  'removeSync',
+  'emptyDir',
+  'emptyDirSync',
+  'move',
+  'moveSync',
+  'copy',
+  'copySync',
 ]);
+// Writes whose second argument is also a destination path.
+const TWO_PATH_FS_FUNCTIONS = new Set([
+  'rename',
+  'renameSync',
+  'copyFile',
+  'copyFileSync',
+  'cp',
+  'cpSync',
+  'symlink',
+  'symlinkSync',
+  'link',
+  'linkSync',
+  'move',
+  'moveSync',
+  'copy',
+  'copySync',
+]);
+// Modules whose every call is a filesystem write/delete.
+const FS_WRITE_MODULES = new Set(['rimraf', 'del']);
 
-const PATH_MODULES = new Set(['path', 'node:path']);
+const PATH_MODULES = new Set(['path']);
 const PATH_SCOPING_FUNCTIONS = new Set(['join', 'resolve']);
 
+// Any call into (or `new` of) one of these is network access.
 const NETWORK_MODULES = new Set([
   'http',
   'https',
-  'node:http',
-  'node:https',
+  'http2',
+  'net',
+  'tls',
+  'dgram',
   'node-fetch',
+  'cross-fetch',
   'axios',
+  'undici',
+  'got',
+  'ky',
+  'superagent',
+  'request',
+  'ws',
 ]);
+// Global network constructors/functions, when not shadowed by a binding.
+const NETWORK_GLOBAL_CALLS = new Set(['fetch']);
+const NETWORK_GLOBAL_CONSTRUCTORS = new Set(['WebSocket', 'XMLHttpRequest', 'EventSource']);
 
-const WORKSPACE_NAME_SEGMENTS = new Set(['workspace', 'sandbox', 'scoped']);
+// `vm` executes arbitrary code strings, the same capability as eval.
+const VM_EVAL_FUNCTIONS = new Set([
+  'runInNewContext',
+  'runInThisContext',
+  'runInContext',
+  'compileFunction',
+  'Script',
+  'SourceTextModule',
+]);
+// `setTimeout('code', ms)` evaluates a string argument like eval.
+const STRING_EVAL_TIMERS = new Set(['setTimeout', 'setInterval']);
 
 const DESTRUCTIVE_KEYWORDS = new Set([
   'delete',
@@ -117,20 +217,24 @@ const DESTRUCTIVE_KEYWORDS = new Set([
 // function name (`function deleteFile`) still does — PROPOSED_FIXES.md 2.4.
 const GENERIC_MEMBER_VERBS = new Set(['delete', 'remove', 'send']);
 
-type BindingKind = 'namespace' | 'named';
-
+/**
+ * What a local name refers to: a module plus the member path inside it.
+ * `const cp = require('child_process')` is `{child_process, []}`;
+ * `import { exec as run } from 'child_process'` is `{child_process,
+ * ['exec']}` (the ORIGINAL exported name, so the alias still resolves);
+ * `const { promises } = require('fs')` is `{fs, ['promises']}`.
+ */
 interface Binding {
   module: string;
-  kind: BindingKind;
-  // For 'named': the ORIGINAL exported name (not the local alias) — so
-  // `import { exec as run } from 'child_process'` still resolves `run(x)`
-  // back to child_process's `exec`. Unused ('') for 'namespace'.
-  functionName: string;
+  path: readonly string[];
 }
 
 interface CallTarget {
   module: string;
+  /** The last member name, or '' when the module itself was called (`axios(url)`). */
   functionName: string;
+  /** The full member path inside the module (`['promises', 'writeFile']`). */
+  path: readonly string[];
 }
 
 /**
@@ -140,7 +244,12 @@ interface CallTarget {
  * genuinely unparseable file just yields no detected capabilities rather
  * than failing the whole scan.
  */
-export function detectCapabilities(filename: string, source: string): DetectedCapabilities {
+export function detectCapabilities(
+  filename: string,
+  source: string,
+  /** The path recorded in evidence, when `filename` is only a parser hint (an extensionless script parsed as `.js`). */
+  evidenceFile: string = filename,
+): DetectedCapabilities {
   let sourceFile: ts.SourceFile;
   try {
     sourceFile = ts.createSourceFile(
@@ -148,28 +257,78 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
       source,
       ts.ScriptTarget.Latest,
       true,
-      /^\.(ts|mts|cts)$/.test(getExtension(filename)) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
+      scriptKindFor(getExtension(filename)),
     );
   } catch {
     return EMPTY_CAPABILITIES;
   }
 
+  const declared = collectDeclaredNames(sourceFile);
   const bindings = new Map<string, Binding>();
-  collectBindings(sourceFile, bindings);
-  const moduleDirAliases = collectModuleDirAliases(sourceFile);
+  const evalAliases = new Set<string>();
+  collectBindings(sourceFile, bindings, declared, evalAliases);
+  const scopedPaths = new ScopedPathResolver(
+    sourceFile,
+    bindings,
+    collectModuleDirAliases(sourceFile),
+  );
 
-  let shellExec = false;
-  let fileSystemAccess = false;
-  let fileSystemScoped = false;
-  let networkAccess = false;
-  let dynamicEval = false;
+  const evidence: CapabilityEvidence[] = [];
   const destructiveKeywords = new Set<string>();
 
-  const recordDestructive = (name: string): void => {
+  const record = (
+    capability: CapabilityEvidence['capability'],
+    node: ts.Node,
+    api: string,
+    scoped?: boolean,
+  ): void => {
+    const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+    evidence.push({
+      capability,
+      file: evidenceFile,
+      line,
+      api,
+      ...(scoped === undefined ? {} : { scoped }),
+    });
+  };
+
+  const recordDestructive = (node: ts.Node, name: string): void => {
+    let matched = false;
     for (const segment of splitWordSegments(name)) {
       if (DESTRUCTIVE_KEYWORDS.has(segment)) {
         destructiveKeywords.add(segment);
+        matched = true;
       }
+    }
+    if (matched) {
+      record('destructive', node, name);
+    }
+  };
+
+  const recordTarget = (
+    node: ts.Node,
+    target: CallTarget | null,
+    args: readonly ts.Expression[],
+  ): void => {
+    if (target === null) {
+      return;
+    }
+    const api = describeTarget(target);
+    if (isShellTarget(target)) {
+      record('shellExec', node, api);
+    }
+    if (isFsWriteTarget(target)) {
+      const pathArgs = TWO_PATH_FS_FUNCTIONS.has(target.functionName)
+        ? args.slice(0, 2)
+        : args.slice(0, 1);
+      const scoped = pathArgs.length > 0 && pathArgs.every((arg) => scopedPaths.isScoped(arg));
+      record('fileSystemAccess', node, api, scoped);
+    }
+    if (NETWORK_MODULES.has(target.module)) {
+      record('networkAccess', node, api);
+    }
+    if (target.module === 'vm' && VM_EVAL_FUNCTIONS.has(target.functionName)) {
+      record('dynamicEval', node, api);
     }
   };
 
@@ -177,66 +336,103 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
     if (ts.isCallExpression(node)) {
       const callee = node.expression;
 
-      // fetch(...) is a global in modern Node — no import required —
-      // unless the file itself has shadowed/rebound the name.
-      if (ts.isIdentifier(callee) && callee.text === 'fetch' && !bindings.has('fetch')) {
-        networkAccess = true;
-      }
-
       if (
         ts.isIdentifier(callee) &&
-        DYNAMIC_EVAL_GLOBAL_NAMES.has(callee.text) &&
-        !bindings.has(callee.text)
+        NETWORK_GLOBAL_CALLS.has(callee.text) &&
+        !declared.has(callee.text)
       ) {
-        dynamicEval = true;
+        record('networkAccess', node, callee.text);
       }
 
-      const target = resolveCallTarget(callee, bindings);
-      if (target !== null) {
-        if (SHELL_MODULES.has(target.module) && SHELL_FUNCTIONS.has(target.functionName)) {
-          shellExec = true;
-        }
-        if (FS_MODULES.has(target.module) && FS_WRITE_FUNCTIONS.has(target.functionName)) {
-          fileSystemAccess = true;
-        }
-        if (
-          PATH_MODULES.has(target.module) &&
-          PATH_SCOPING_FUNCTIONS.has(target.functionName) &&
-          isModuleDirArgument(node.arguments[0], moduleDirAliases)
-        ) {
-          fileSystemScoped = true;
-        }
-        if (NETWORK_MODULES.has(target.module)) {
-          networkAccess = true;
-        }
+      // globalThis.fetch(url)
+      const globalMember = getMemberAccess(callee);
+      if (
+        globalMember !== null &&
+        ts.isIdentifier(globalMember.object) &&
+        GLOBAL_OBJECT_NAMES.has(globalMember.object.text) &&
+        !declared.has(globalMember.object.text) &&
+        NETWORK_GLOBAL_CALLS.has(globalMember.name)
+      ) {
+        record('networkAccess', node, `${globalMember.object.text}.${globalMember.name}`);
       }
+
+      if (isEvalReference(callee, declared, evalAliases)) {
+        record('dynamicEval', node, describeExpression(callee));
+      }
+
+      // require(<non-literal>) / import(<non-literal>): the module that
+      // runs can't be known statically, which is how loaders hide payloads.
+      if (isDynamicModuleLoad(node, declared)) {
+        record(
+          'dynamicEval',
+          node,
+          callee.kind === ts.SyntaxKind.ImportKeyword ? 'import(<dynamic>)' : 'require(<dynamic>)',
+        );
+      }
+
+      // setTimeout('code', ms) / setInterval(`code`, ms).
+      if (
+        ts.isIdentifier(callee) &&
+        STRING_EVAL_TIMERS.has(callee.text) &&
+        !declared.has(callee.text) &&
+        node.arguments[0] !== undefined &&
+        isStringExpression(node.arguments[0])
+      ) {
+        record('dynamicEval', node, `${callee.text}(<string>)`);
+      }
+
+      // module._compile(source, filename)
+      if (
+        ts.isPropertyAccessExpression(callee) &&
+        callee.name.text === '_compile' &&
+        ts.isIdentifier(callee.expression) &&
+        callee.expression.text === 'module' &&
+        !declared.has('module')
+      ) {
+        record('dynamicEval', node, 'module._compile');
+      }
+
+      // Bun.spawn / Bun.spawnSync (Bun runtime global).
+      if (isRuntimeGlobalMember(callee, 'Bun', ['spawn', 'spawnSync', '$'], declared)) {
+        record('shellExec', node, describeExpression(callee));
+      }
+
+      recordTarget(node, resolveCallTarget(callee, bindings), node.arguments);
 
       const calleeName = getCalleeSimpleName(callee);
       if (calleeName !== null && !isGenericMemberVerbCall(callee, calleeName)) {
-        recordDestructive(calleeName);
+        recordDestructive(node, calleeName);
       }
     }
 
-    if (
-      ts.isNewExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === 'Function' &&
-      !bindings.has('Function')
-    ) {
-      dynamicEval = true;
+    // zx/execa tagged templates: $`rm -rf ${dir}`.
+    if (ts.isTaggedTemplateExpression(node)) {
+      recordTarget(node, resolveCallTarget(node.tag, bindings), []);
+    }
+
+    if (ts.isNewExpression(node)) {
+      const ctor = node.expression;
+      if (isEvalReference(ctor, declared, evalAliases)) {
+        record('dynamicEval', node, `new ${describeExpression(ctor)}`);
+      }
+      if (
+        ts.isIdentifier(ctor) &&
+        NETWORK_GLOBAL_CONSTRUCTORS.has(ctor.text) &&
+        !declared.has(ctor.text)
+      ) {
+        record('networkAccess', node, `new ${ctor.text}`);
+      }
+      // new Deno.Command('sh', ...) (Deno runtime global).
+      if (isRuntimeGlobalMember(ctor, 'Deno', ['Command'], declared)) {
+        record('shellExec', node, 'new Deno.Command');
+      }
+      recordTarget(node, resolveCallTarget(ctor, bindings), node.arguments ?? []);
     }
 
     if (isNamedFunctionLike(node)) {
       const name = getFunctionLikeDeclaredName(node);
       if (name !== null) {
-        recordDestructive(name);
-      }
-    }
-
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
-      const segments = splitWordSegments(node.name.text);
-      if (segments.some((segment) => WORKSPACE_NAME_SEGMENTS.has(segment))) {
-        fileSystemScoped = true;
+        recordDestructive(node, name);
       }
     }
 
@@ -244,32 +440,247 @@ export function detectCapabilities(filename: string, source: string): DetectedCa
   };
   visit(sourceFile);
 
+  const has = (capability: CapabilityEvidence['capability']): boolean =>
+    evidence.some((e) => e.capability === capability);
+  const writes = evidence.filter((e) => e.capability === 'fileSystemAccess');
+
   return {
-    shellExec,
-    fileSystemAccess,
-    fileSystemScoped,
-    networkAccess,
+    shellExec: has('shellExec'),
+    fileSystemAccess: writes.length > 0,
+    // Scoping is decided per write call: a file is scoped only when every
+    // write in it is (PROPOSED_FIXES.md 2.6).
+    fileSystemScoped: writes.length > 0 && writes.every((e) => e.scoped === true),
+    networkAccess: has('networkAccess'),
     destructiveKeywords: [...destructiveKeywords].sort(),
-    dynamicEval,
+    dynamicEval: has('dynamicEval'),
     dataFlowToShellExec: detectDataFlowToShellExec(sourceFile, bindings),
+    evidence,
   };
 }
 
-/** Merges per-file results the way discovery aggregates a whole skill: any file exercising a capability is enough, keyword findings union across files. */
+/** Merges per-file results the way discovery aggregates a whole skill. */
 export function mergeCapabilities(results: readonly DetectedCapabilities[]): DetectedCapabilities {
   const merged = { ...EMPTY_CAPABILITIES, destructiveKeywords: new Set<string>() };
+  const evidence: CapabilityEvidence[] = [];
+  const evidenceCounts = new Map<CapabilityEvidence['capability'], number>();
+  const filesWithWrites = results.filter((result) => result.fileSystemAccess);
   for (const result of results) {
     merged.shellExec ||= result.shellExec;
     merged.fileSystemAccess ||= result.fileSystemAccess;
-    merged.fileSystemScoped ||= result.fileSystemScoped;
     merged.networkAccess ||= result.networkAccess;
     merged.dynamicEval ||= result.dynamicEval;
     merged.dataFlowToShellExec ||= result.dataFlowToShellExec;
     for (const keyword of result.destructiveKeywords) {
       merged.destructiveKeywords.add(keyword);
     }
+    for (const item of result.evidence) {
+      const count = evidenceCounts.get(item.capability) ?? 0;
+      if (count < MAX_EVIDENCE_PER_CAPABILITY) {
+        evidence.push(item);
+        evidenceCounts.set(item.capability, count + 1);
+      }
+    }
   }
-  return { ...merged, destructiveKeywords: [...merged.destructiveKeywords].sort() };
+  return {
+    ...merged,
+    // A skill is scoped only when every file that writes is: one scoped
+    // file no longer clears unscoped writes in another (PROPOSED_FIXES.md 2.6).
+    fileSystemScoped:
+      filesWithWrites.length > 0 && filesWithWrites.every((result) => result.fileSystemScoped),
+    destructiveKeywords: [...merged.destructiveKeywords].sort(),
+    evidence,
+  };
+}
+
+/**
+ * Decides whether a path expression is confined to a fixed place
+ * (PROPOSED_FIXES.md 2.6): the module's own directory (`__dirname`,
+ * `import.meta.dirname`/`url` and variables derived from them), a fixed
+ * string path other than a filesystem root, a variable initialized from
+ * either, or `path.join`/`path.resolve` whose first argument is one of
+ * those. Anything else, such as a caller-supplied parameter, is unscoped.
+ * Traversal through a joined segment (`../`) isn't modeled.
+ */
+class ScopedPathResolver {
+  private readonly scopedVariables = new Set<string>();
+
+  constructor(
+    root: ts.SourceFile,
+    private readonly bindings: ReadonlyMap<string, Binding>,
+    private readonly moduleDirAliases: ReadonlySet<string>,
+  ) {
+    const declarations: Array<{ name: string; initializer: ts.Expression }> = [];
+    const visit = (node: ts.Node): void => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+        declarations.push({ name: node.name.text, initializer: node.initializer });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(root);
+    for (let pass = 0; pass < 5; pass++) {
+      let changed = false;
+      for (const { name, initializer } of declarations) {
+        if (!this.scopedVariables.has(name) && this.isScoped(initializer)) {
+          this.scopedVariables.add(name);
+          changed = true;
+        }
+      }
+      if (!changed) {
+        break;
+      }
+    }
+  }
+
+  isScoped(expr: ts.Expression): boolean {
+    const inner = unwrapParentheses(expr);
+    if (ts.isAwaitExpression(inner)) {
+      return this.isScoped(inner.expression);
+    }
+    if (ts.isIdentifier(inner)) {
+      return (
+        inner.text === '__dirname' ||
+        this.moduleDirAliases.has(inner.text) ||
+        this.scopedVariables.has(inner.text)
+      );
+    }
+    if (ts.isStringLiteralLike(inner)) {
+      return isFixedNonRootPath(inner.text);
+    }
+    if (ts.isArrayLiteralExpression(inner)) {
+      return inner.elements.length > 0 && inner.elements.every((e) => this.isScoped(e));
+    }
+    if (ts.isTemplateExpression(inner)) {
+      // `${__dirname}/out/${name}`: scoped when the leading part is.
+      const first = inner.templateSpans[0];
+      return inner.head.text === '' && first !== undefined && this.isScoped(first.expression);
+    }
+    if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      return this.isScoped(inner.left);
+    }
+    if (ts.isCallExpression(inner)) {
+      const target = resolveCallTarget(inner.expression, this.bindings);
+      if (
+        target !== null &&
+        PATH_MODULES.has(target.module) &&
+        PATH_SCOPING_FUNCTIONS.has(target.functionName)
+      ) {
+        const first = inner.arguments[0];
+        return (
+          first !== undefined &&
+          (this.isScoped(first) || isModuleDirArgument(first, this.moduleDirAliases))
+        );
+      }
+    }
+    // new URL('./out', import.meta.url), path.dirname(fileURLToPath(import.meta.url)), ...
+    return referencesImportMetaLocation(inner);
+  }
+}
+
+/** A literal path that names a fixed location, not `/`, `~`, `.`, or a drive root. */
+function isFixedNonRootPath(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length > 0 && !/^(?:[/\\]+|~[/\\]?|\.[/\\]?|[A-Za-z]:[/\\]?)$/.test(trimmed);
+}
+
+function describeTarget(target: CallTarget): string {
+  return [target.module, ...target.path].join('.');
+}
+
+/** A short name for a callee (`globalThis.eval`, `(0, eval)`), never a source snippet. */
+function describeExpression(expr: ts.Expression): string {
+  const inner = unwrapParentheses(expr);
+  if (ts.isIdentifier(inner)) {
+    return inner.text;
+  }
+  if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.CommaToken) {
+    return `(0, ${describeExpression(inner.right)})`;
+  }
+  const member = getMemberAccess(inner);
+  if (member !== null) {
+    return `${describeExpression(member.object)}.${member.name}`;
+  }
+  return '<expression>';
+}
+
+function isShellTarget(target: CallTarget): boolean {
+  return SHELL_FUNCTIONS_BY_MODULE.get(target.module)?.has(target.functionName) ?? false;
+}
+
+function isFsWriteTarget(target: CallTarget): boolean {
+  return (
+    (FS_MODULES.has(target.module) && FS_WRITE_FUNCTIONS.has(target.functionName)) ||
+    FS_WRITE_MODULES.has(target.module)
+  );
+}
+
+/** `eval`/`Function` reached directly, through a global object, via `(0, eval)`, or through a local alias. */
+function isEvalReference(
+  expr: ts.Expression,
+  declared: ReadonlySet<string>,
+  evalAliases: ReadonlySet<string>,
+): boolean {
+  const inner = unwrapParentheses(expr);
+  if (ts.isIdentifier(inner)) {
+    return (
+      (DYNAMIC_EVAL_GLOBAL_NAMES.has(inner.text) && !declared.has(inner.text)) ||
+      evalAliases.has(inner.text)
+    );
+  }
+  // (0, eval)(c): the comma operator yields eval without a direct-eval call.
+  if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.CommaToken) {
+    return isEvalReference(inner.right, declared, evalAliases);
+  }
+  const member = getMemberAccess(inner);
+  if (
+    member !== null &&
+    ts.isIdentifier(member.object) &&
+    GLOBAL_OBJECT_NAMES.has(member.object.text) &&
+    !declared.has(member.object.text)
+  ) {
+    return DYNAMIC_EVAL_GLOBAL_NAMES.has(member.name);
+  }
+  return false;
+}
+
+function isDynamicModuleLoad(call: ts.CallExpression, declared: ReadonlySet<string>): boolean {
+  const arg = call.arguments[0];
+  if (arg === undefined || ts.isStringLiteralLike(arg)) {
+    return false;
+  }
+  if (call.expression.kind === ts.SyntaxKind.ImportKeyword) {
+    return true;
+  }
+  return (
+    ts.isIdentifier(call.expression) &&
+    call.expression.text === 'require' &&
+    !declared.has('require')
+  );
+}
+
+function isStringExpression(expr: ts.Expression): boolean {
+  return (
+    ts.isStringLiteralLike(expr) ||
+    ts.isTemplateExpression(expr) ||
+    (ts.isBinaryExpression(expr) &&
+      expr.operatorToken.kind === ts.SyntaxKind.PlusToken &&
+      (isStringExpression(expr.left) || isStringExpression(expr.right)))
+  );
+}
+
+function isRuntimeGlobalMember(
+  expr: ts.Expression,
+  globalName: string,
+  members: readonly string[],
+  declared: ReadonlySet<string>,
+): boolean {
+  const member = getMemberAccess(expr);
+  return (
+    member !== null &&
+    ts.isIdentifier(member.object) &&
+    member.object.text === globalName &&
+    !declared.has(globalName) &&
+    members.includes(member.name)
+  );
 }
 
 /**
@@ -289,7 +700,7 @@ export function mergeCapabilities(results: readonly DetectedCapabilities[]): Det
  */
 function detectDataFlowToShellExec(
   sourceFile: ts.SourceFile,
-  bindings: Map<string, Binding>,
+  bindings: ReadonlyMap<string, Binding>,
 ): boolean {
   const declarations: Array<{ name: string; initializer: ts.Expression }> = [];
   const shellExecCalls: ts.CallExpression[] = [];
@@ -300,11 +711,7 @@ function detectDataFlowToShellExec(
     }
     if (ts.isCallExpression(node)) {
       const target = resolveCallTarget(node.expression, bindings);
-      if (
-        target !== null &&
-        SHELL_MODULES.has(target.module) &&
-        SHELL_FUNCTIONS.has(target.functionName)
-      ) {
+      if (target !== null && isShellTarget(target)) {
         shellExecCalls.push(node);
       }
     }
@@ -318,8 +725,8 @@ function detectDataFlowToShellExec(
     }
     if (
       ts.isIdentifier(expr.expression) &&
-      expr.expression.text === 'fetch' &&
-      !bindings.has('fetch')
+      NETWORK_GLOBAL_CALLS.has(expr.expression.text) &&
+      !bindings.has(expr.expression.text)
     ) {
       return true;
     }
@@ -388,6 +795,21 @@ function unwrapAwait(expr: ts.Expression): ts.Expression {
   return ts.isAwaitExpression(expr) ? expr.expression : expr;
 }
 
+function scriptKindFor(extension: string): ts.ScriptKind {
+  switch (extension) {
+    case '.ts':
+    case '.mts':
+    case '.cts':
+      return ts.ScriptKind.TS;
+    case '.tsx':
+      return ts.ScriptKind.TSX;
+    case '.jsx':
+      return ts.ScriptKind.JSX;
+    default:
+      return ts.ScriptKind.JS;
+  }
+}
+
 function getExtension(filename: string): string {
   const dot = filename.lastIndexOf('.');
   return dot === -1 ? '' : filename.slice(dot).toLowerCase();
@@ -448,27 +870,117 @@ function referencesImportMetaLocation(node: ts.Node): boolean {
   );
 }
 
-function collectBindings(root: ts.Node, bindings: Map<string, Binding>): void {
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      collectImportBindings(node, node.moduleSpecifier.text, bindings);
+/**
+ * Every name the file declares (variables, including destructured ones,
+ * functions, classes, imports). A declared name shadows the global of the
+ * same name, so `const Bun = {...}; Bun.spawn()` or a local `fetch` isn't
+ * read as the runtime global. Flat scope like the rest of this module;
+ * parameters aren't included, so a parameter named `fetch` doesn't hide
+ * every global `fetch` call in the file.
+ */
+function collectDeclaredNames(root: ts.Node): Set<string> {
+  const names = new Set<string>();
+  const addBindingName = (name: ts.BindingName): void => {
+    if (ts.isIdentifier(name)) {
+      names.add(name.text);
+      return;
     }
-
-    if (ts.isVariableDeclaration(node) && node.initializer) {
-      const requiredModule = unwrapRequireCall(node.initializer);
-      if (requiredModule !== null) {
-        collectRequireBindings(node.name, requiredModule, bindings);
+    for (const element of name.elements) {
+      if (!ts.isOmittedExpression(element)) {
+        addBindingName(element.name);
       }
     }
-
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node)) {
+      // `const fetch = globalThis.fetch` re-exposes the global; it doesn't shadow it.
+      if (!(ts.isIdentifier(node.name) && isSameGlobalAlias(node.name.text, node.initializer))) {
+        addBindingName(node.name);
+      }
+    } else if (
+      (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+      node.name !== undefined
+    ) {
+      names.add(node.name.text);
+    } else if (ts.isImportClause(node) && node.name !== undefined) {
+      names.add(node.name.text);
+    } else if (ts.isNamespaceImport(node) || ts.isImportSpecifier(node)) {
+      names.add(node.name.text);
+    }
     ts.forEachChild(node, visit);
   };
   visit(root);
+  return names;
+}
+
+function isSameGlobalAlias(name: string, initializer: ts.Expression | undefined): boolean {
+  if (initializer === undefined) {
+    return false;
+  }
+  const member = getMemberAccess(unwrapParentheses(initializer));
+  return (
+    member !== null &&
+    member.name === name &&
+    ts.isIdentifier(member.object) &&
+    GLOBAL_OBJECT_NAMES.has(member.object.text)
+  );
+}
+
+function collectBindings(
+  root: ts.Node,
+  bindings: Map<string, Binding>,
+  declared: ReadonlySet<string>,
+  evalAliases: Set<string>,
+): void {
+  const declarations: ts.VariableDeclaration[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      collectImportBindings(node, normalizeModule(node.moduleSpecifier.text), bindings);
+    }
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      declarations.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+
+  // Variables bound to a module or a member of one: `require(...)`,
+  // `require('fs').promises`, and aliases of an existing binding
+  // (`const run = cp['exec']`). A few passes resolve an alias declared
+  // before the binding it refers to, or an alias of an alias.
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (const decl of declarations) {
+      const initializer = unwrapParentheses(decl.initializer ?? decl);
+      if (ts.isIdentifier(decl.name) && bindings.has(decl.name.text)) {
+        continue;
+      }
+      if (
+        ts.isIdentifier(decl.name) &&
+        !evalAliases.has(decl.name.text) &&
+        ts.isExpression(initializer) &&
+        isEvalReference(initializer, declared, evalAliases)
+      ) {
+        evalAliases.add(decl.name.text);
+        changed = true;
+        continue;
+      }
+      const resolved = ts.isExpression(initializer)
+        ? resolveModuleRef(initializer, bindings)
+        : null;
+      if (resolved !== null && addDeclarationBindings(decl.name, resolved, bindings)) {
+        changed = true;
+      }
+    }
+    if (!changed) {
+      break;
+    }
+  }
 }
 
 function collectImportBindings(
   node: ts.ImportDeclaration,
-  moduleSpecifier: string,
+  module: string,
   bindings: Map<string, Binding>,
 ): void {
   const clause = node.importClause;
@@ -478,43 +990,34 @@ function collectImportBindings(
   if (clause.name) {
     // Default import — treated like a namespace binding (`import axios
     // from 'axios'; axios(url)` is a real, common pattern).
-    bindings.set(clause.name.text, {
-      module: moduleSpecifier,
-      kind: 'namespace',
-      functionName: '',
-    });
+    bindings.set(clause.name.text, { module, path: [] });
   }
   const namedBindings = clause.namedBindings;
   if (namedBindings && ts.isNamespaceImport(namedBindings)) {
-    bindings.set(namedBindings.name.text, {
-      module: moduleSpecifier,
-      kind: 'namespace',
-      functionName: '',
-    });
+    bindings.set(namedBindings.name.text, { module, path: [] });
   } else if (namedBindings && ts.isNamedImports(namedBindings)) {
     for (const specifier of namedBindings.elements) {
       const original = (specifier.propertyName ?? specifier.name).text;
-      bindings.set(specifier.name.text, {
-        module: moduleSpecifier,
-        kind: 'named',
-        functionName: original,
-      });
+      // `import { default as x }` is the module itself.
+      bindings.set(specifier.name.text, { module, path: original === 'default' ? [] : [original] });
     }
   }
 }
 
-function collectRequireBindings(
+/** Binds a declaration's name (or each destructured name) to `resolved`; returns whether anything was added. */
+function addDeclarationBindings(
   name: ts.BindingName,
-  moduleSpecifier: string,
+  resolved: Binding,
   bindings: Map<string, Binding>,
-): void {
+): boolean {
   if (ts.isIdentifier(name)) {
-    bindings.set(name.text, { module: moduleSpecifier, kind: 'namespace', functionName: '' });
-    return;
+    bindings.set(name.text, resolved);
+    return true;
   }
+  let added = false;
   if (ts.isObjectBindingPattern(name)) {
     for (const element of name.elements) {
-      if (!ts.isIdentifier(element.name)) {
+      if (!ts.isIdentifier(element.name) || bindings.has(element.name.text)) {
         continue;
       }
       const original =
@@ -522,12 +1025,61 @@ function collectRequireBindings(
           ? element.propertyName.text
           : element.name.text;
       bindings.set(element.name.text, {
-        module: moduleSpecifier,
-        kind: 'named',
-        functionName: original,
+        module: resolved.module,
+        path: [...resolved.path, original],
       });
+      added = true;
     }
   }
+  return added;
+}
+
+/**
+ * Resolves an expression to the module member it refers to:
+ * `require('x')`, a bound identifier, or a property/element access on
+ * either (`cp.exec`, `cp['exec']`, ``cp[`exec`]``, `fs.promises.writeFile`).
+ */
+function resolveModuleRef(
+  expr: ts.Expression,
+  bindings: ReadonlyMap<string, Binding>,
+): Binding | null {
+  const inner = unwrapParentheses(expr);
+  if (ts.isIdentifier(inner)) {
+    return bindings.get(inner.text) ?? null;
+  }
+  const required = unwrapRequireCall(inner);
+  if (required !== null) {
+    return { module: normalizeModule(required), path: [] };
+  }
+  const member = getMemberAccess(inner);
+  if (member !== null) {
+    const base = resolveModuleRef(member.object, bindings);
+    return base === null ? null : { module: base.module, path: [...base.path, member.name] };
+  }
+  return null;
+}
+
+/** `obj.name`, `obj['name']`, or ``obj[`name`]`` as `{object, name}`; null for computed keys. */
+function getMemberAccess(expr: ts.Expression): { object: ts.Expression; name: string } | null {
+  if (ts.isPropertyAccessExpression(expr)) {
+    return { object: expr.expression, name: expr.name.text };
+  }
+  if (ts.isElementAccessExpression(expr) && ts.isStringLiteralLike(expr.argumentExpression)) {
+    return { object: expr.expression, name: expr.argumentExpression.text };
+  }
+  return null;
+}
+
+function unwrapParentheses<T extends ts.Node>(node: T): T | ts.Expression {
+  let current: ts.Node = node;
+  while (ts.isParenthesizedExpression(current)) {
+    current = current.expression;
+  }
+  return current as T | ts.Expression;
+}
+
+function normalizeModule(specifier: string): string {
+  return specifier.startsWith('node:') ? specifier.slice('node:'.length) : specifier;
 }
 
 function unwrapRequireCall(expr: ts.Expression): string | null {
@@ -539,61 +1091,25 @@ function unwrapRequireCall(expr: ts.Expression): string | null {
     return null;
   }
   const arg = expr.arguments[0];
-  return arg !== undefined && ts.isStringLiteral(arg) ? arg.text : null;
+  return arg !== undefined && ts.isStringLiteralLike(arg) ? arg.text : null;
 }
 
 function resolveCallTarget(
   callee: ts.Expression,
-  bindings: Map<string, Binding>,
+  bindings: ReadonlyMap<string, Binding>,
 ): CallTarget | null {
-  if (ts.isIdentifier(callee)) {
-    const binding = bindings.get(callee.text);
-    if (!binding) {
-      return null;
-    }
-    // A named binding IS the function itself (`exec(...)`); a
-    // namespace/default binding called bare means the module's own
-    // export was invoked directly (`axios(url)`).
-    return {
-      module: binding.module,
-      functionName: binding.kind === 'named' ? binding.functionName : '',
-    };
+  const resolved = resolveModuleRef(callee, bindings);
+  if (resolved === null) {
+    return null;
   }
-
-  if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression)) {
-    const binding = bindings.get(callee.expression.text);
-    if (!binding || binding.kind !== 'namespace') {
-      return null;
-    }
-    return { module: binding.module, functionName: callee.name.text };
-  }
-
-  if (
-    ts.isElementAccessExpression(callee) &&
-    ts.isIdentifier(callee.expression) &&
-    ts.isStringLiteralLike(callee.argumentExpression)
-  ) {
-    const binding = bindings.get(callee.expression.text);
-    if (!binding || binding.kind !== 'namespace') {
-      return null;
-    }
-    return { module: binding.module, functionName: callee.argumentExpression.text };
-  }
-
-  return null;
+  return { module: resolved.module, functionName: resolved.path.at(-1) ?? '', path: resolved.path };
 }
 
 function getCalleeSimpleName(callee: ts.Expression): string | null {
   if (ts.isIdentifier(callee)) {
     return callee.text;
   }
-  if (ts.isPropertyAccessExpression(callee)) {
-    return callee.name.text;
-  }
-  if (ts.isElementAccessExpression(callee) && ts.isStringLiteralLike(callee.argumentExpression)) {
-    return callee.argumentExpression.text;
-  }
-  return null;
+  return getMemberAccess(callee)?.name ?? null;
 }
 
 function isGenericMemberVerbCall(callee: ts.Expression, calleeName: string): boolean {

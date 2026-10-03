@@ -1,4 +1,5 @@
 import type { Check } from '../../engine/types.js';
+import { configLine } from '../shared/configAccess.js';
 
 const ID = 'CHAP-NET-002';
 const TITLE = 'Missing or weak auth on the gateway control API';
@@ -38,7 +39,11 @@ export const chapNet002WeakGatewayAuth: Check = {
         category: 'network',
         owasp: OWASP,
         message: `The gateway's control API has weak authentication: ${reason}.`,
-        location: { filePath: model.config.path, line: null, detail: 'gateway.auth.token' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['gateway', 'auth', 'token']),
+          detail: 'gateway.auth.token',
+        },
         remediation:
           'Require a strong, randomly-generated token for the gateway control API and rotate any default value.',
       },
