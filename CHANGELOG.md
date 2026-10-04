@@ -10,11 +10,30 @@ severity changing, is treated as a semver **minor** bump at minimum —
 either can change `--fail-on` exit-code behavior for an existing CI
 pipeline, even though it isn't a breaking API change in the usual sense.
 
-## [Unreleased]
+## [0.6.0] - 2026-10-04
+
+Everything in `PROPOSED_FIXES.md`, released together. The work was done
+in five batches planned as 0.2.2, 0.3.0, 0.4.0, 0.5.0, and a hygiene
+batch; none of those intermediate versions was published, so 0.6.0
+follows 0.2.1 directly. Each batch's notes are below, newest first.
+Anything that can change a CI result is under a **May change CI
+results** heading.
+
+**Upgrading from 0.2.x, at a glance:**
+
+- Node.js 22.12 or later is required (was 20).
+- `chaperone scan <path>` exits 1 when the path isn't an agent install.
+- Re-create any `--baseline` file once: skill findings now point at the
+  triggering code line instead of `package.json`.
+- Posture scores use version 2 of the formula (`summary.scoreVersion`).
+- 38 checks (was 29), two new discovery profiles (`claude-code`, a much
+  stronger `mcp`), and automatic profile detection.
+
+### Hygiene
 
 The ongoing hygiene items from `PROPOSED_FIXES.md`.
 
-### May change CI results
+#### May change CI results
 
 - **Node.js 22.12 or later is required** (was 22), so plugins can be ES
   modules: Node 22.12 is the first 22.x where `require()` loads ESM.
@@ -26,7 +45,7 @@ The ongoing hygiene items from `PROPOSED_FIXES.md`.
   `customBindHost`), `gateway.auth.mode` (`none` counts as no auth), and
   `gateway.auth.password` are read by `CHAP-NET-001`/`002`.
 
-### Added
+#### Added
 
 - `chaperone init` writes a starter `.chaperonerc.json` with each option
   explained, and refuses to overwrite an existing one.
@@ -35,7 +54,7 @@ The ongoing hygiene items from `PROPOSED_FIXES.md`.
 - CI runs the test suite on Node 24 (Ubuntu) and on macOS. A Windows
   job runs too, non-blocking until the permission tests are ported.
 
-### Changed
+#### Changed
 
 - Every finding is validated against the schema, and a check may only
   report its own ID; a violation becomes the "internal error" finding,
@@ -47,11 +66,11 @@ The ongoing hygiene items from `PROPOSED_FIXES.md`.
   `secretValuePatterns.ts`.
 - `improvement_plan.md` is marked as a historical record.
 
-## [0.5.0] - Unreleased
+### Supply chain and remediation (planned as 0.5.0)
 
 Supply chain and remediation from `PROPOSED_FIXES.md` (the 0.5.0 batch).
 
-### May change CI results
+#### May change CI results
 
 - `CHAP-SUP-003` reads lockfiles (`package-lock.json` v1–v3,
   `npm-shrinkwrap.json`, `yarn.lock` v1, `pnpm-lock.yaml`) and matches
@@ -75,7 +94,7 @@ Supply chain and remediation from `PROPOSED_FIXES.md` (the 0.5.0 batch).
   sinks the score on its own. Scores for the same findings will differ
   from 0.4.x. The JSON report's `summary.scoreVersion` is `2`.
 
-### Added
+#### Added
 
 - `--vuln-db <file>` (`CHAPERONE_VULN_DB`): match against an OSV JSON
   export as well as the bundled snapshot, read locally, never fetched.
@@ -87,7 +106,7 @@ Supply chain and remediation from `PROPOSED_FIXES.md` (the 0.5.0 batch).
   `--write-env` for `CHAP-SEC-001` to move the literal values into a
   `0600` `.env` (gitignored) instead of leaving you to store them.
 
-### Changed
+#### Changed
 
 - `chaperone fix` edits JSON configs in place instead of re-serializing
   them, so formatting and key order are kept. Each plan ends with notes:
@@ -97,11 +116,11 @@ Supply chain and remediation from `PROPOSED_FIXES.md` (the 0.5.0 batch).
   and its OSV parsing moved to `src/checks/shared/osv.ts` for reuse by
   `--vuln-db`.
 
-## [0.4.0] - Unreleased
+### Real-world coverage (planned as 0.4.0)
 
 Real-world coverage from `PROPOSED_FIXES.md` (the 0.4.0 batch).
 
-### May change CI results
+#### May change CI results
 
 - `--profile mcp` now analyzes how each server is launched instead of
   treating every server as capability-free (`PROPOSED_FIXES.md` 3.9). A
@@ -141,7 +160,7 @@ Real-world coverage from `PROPOSED_FIXES.md` (the 0.4.0 batch).
   a Python skill with no `poetry.lock`/`uv.lock`/`Pipfile.lock`/
   `pdm.lock` (a fully hashed `requirements.txt` counts as its own lock).
 
-### Added
+#### Added
 
 - Reports show the discovery profile when it was detected or isn't
   `default` (console/markdown header, and a `profile` field in JSON).
@@ -154,11 +173,11 @@ Real-world coverage from `PROPOSED_FIXES.md` (the 0.4.0 batch).
   key names, or masked URL and header key names; never values), and the
   model has a `containers` list.
 
-## [0.3.0] - Unreleased
+### Detection accuracy (planned as 0.3.0)
 
 Detection-accuracy fixes from `PROPOSED_FIXES.md` (the 0.3.0 batch).
 
-### May change CI results
+#### May change CI results
 
 - `chaperone scan <path>` now exits `1` when the path doesn't exist, is a
   file other than the agent's config file, or is a directory with
@@ -236,7 +255,7 @@ old files` or `"-delete"` don't), the Python half of 2.4.
 - **Node.js 22 or later is now required** (`engines: >=22`). Node 20
   reached end-of-life on 2026-04-30. CI runs on Node 22.
 
-### Changed
+#### Changed
 
 - Skill findings (`CHAP-AGY-001..004`, `CHAP-SUP-005`, `CHAP-INJ-002`)
   now point at the code that triggered them (`index.js:12`) instead of
@@ -285,20 +304,20 @@ old files` or `"-delete"` don't), the Python half of 2.4.
   or an MCP config file under `--profile mcp`) scans its directory
   instead of reporting no config found.
 
-### Security
+#### Security
 
 - Secrets recognized only by their value used to stay unmasked in the
   in-memory model passed to `--plugin` checks. They're now masked, which
   restores the documented "no literal secret is retained in the model"
   invariant. A URL credential is masked as `https://user:***@host`.
 
-## [0.2.2] - Unreleased
+### False-positive fixes (planned as 0.2.2)
 
 False-positive fixes from `PROPOSED_FIXES.md` (the 0.2.2 batch). Every
 change here can only remove a finding or lower its severity, never add
 one, so no existing `--fail-on` pipeline can go from passing to failing.
 
-### Fixed
+#### Fixed
 
 - `CHAP-NET-001` no longer reports a critical finding for loopback
   addresses written with a port or brackets (`127.0.0.1:8080`,

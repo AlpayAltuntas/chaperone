@@ -140,7 +140,7 @@ Chaperone scan report
 Target: ~/clawd
 Profile: default (detected)
 Vulnerability data: OSV snapshot 2026-10-04 (606 advisories)
-Scanned at 2026-10-04T08:22:57.906Z — chaperone v0.5.0
+Scanned at 2026-10-04T08:22:57.906Z — chaperone v0.6.0
 
 CRITICAL (5)
 

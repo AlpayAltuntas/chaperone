@@ -1,5 +1,9 @@
 # Chaperone — Proposed Fixes (post-0.2.1)
 
+> **Complete.** Every batch below shipped in **0.6.0** (2026-10-04),
+> except the Windows CI follow-up noted under Progress. Kept as the
+> record of why each change was made; `DECISIONS.md` has the details.
+
 A fresh backlog written on 2026-10-03, after every item in
 `improvement_plan.md` (Phases 1-24) shipped in 0.2.0/0.2.1. That document
 is now a historical record. This one starts from the current code.
