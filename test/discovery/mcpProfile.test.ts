@@ -154,7 +154,10 @@ describe("discoverAgent — 'mcp' profile", () => {
 
   it('reports the MCP config file permission fact, feeding CHAP-SEC-003', () => {
     const configPath = path.join(dir, '.mcp.json');
-    writeFileSync(configPath, JSON.stringify({ mcpServers: {} }));
+    writeFileSync(
+      configPath,
+      JSON.stringify({ mcpServers: { demo: { command: 'npx', args: ['demo'] } } }),
+    );
     chmodSync(configPath, 0o644);
 
     const { model } = discoverAgent({ targetPath: dir, profile: 'mcp' });

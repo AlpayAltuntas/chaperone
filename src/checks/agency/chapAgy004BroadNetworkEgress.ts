@@ -22,6 +22,9 @@ export const chapAgy004BroadNetworkEgress: Check = {
       .filter(
         (skill) =>
           skill.capabilities.networkAccess &&
+          // A remote MCP server *is* a network endpoint; its own egress is
+          // the server's business, not something this config can scope.
+          skill.launch?.kind !== 'remote' &&
           (skill.domainAllowlist === null || skill.domainAllowlist.length === 0),
       )
       .map((skill) => {

@@ -119,6 +119,15 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Heuristic:** POSIX mode with a group or other write bit (`0o022`) set on any of those paths. A writable skills directory lets any local user or process plant code that the agent runs with its own privileges (a local privilege escalation); writable memory lets them inject persistent instructions. Meaningful on macOS/Linux only: on Windows, Node's reported mode doesn't reflect other users' access, so no finding is reported there.
 - **Remediation:** Remove group/other write access, e.g. `chmod go-w <path>` (`chmod -R go-w` for a skills directory), and make sure the agent runs as a dedicated user that owns its files.
 
+### CHAP-SEC-009 — Secret files readable by Claude Code
+
+- **Severity:** Medium
+- **OWASP:** LLM06 — Sensitive Information Disclosure
+- **Profiles:** `claude-code` only
+- **Detects:** Claude Code settings with no deny rule keeping its file tools away from common secret files: `.env` files in the project and SSH keys in `~/.ssh`.
+- **Heuristic:** Across every settings file read, no `permissions.deny` rule for `Read` (bare, or with a path containing `.env`, or a recursive `**` pattern) covers `.env` files, or none (containing `.ssh`, or `~/**`/`//**`) covers `~/.ssh`. Only reported when at least one settings file exists. Path coverage is approximate: it checks for the file name in the rule, not full glob matching.
+- **Remediation:** Add `Read` deny rules for secret files, e.g. `"deny": ["Read(./.env)", "Read(./.env.*)", "Read(~/.ssh/**)"]`. Claude Code reads files in the working directory without asking, and a `.claudeignore` file has no effect.
+
 ## Category B — Excessive agency & permissions
 
 ### CHAP-AGY-001 — Unrestricted shell execution
@@ -153,6 +162,41 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Heuristic:** The skill's source shows network capability (global `fetch`/`WebSocket`/`XMLHttpRequest`/`EventSource`, or any call into `http`/`https`/`http2`/`net`/`tls`/`dgram`, `axios`, `node-fetch`, `undici`, `got`, `ky`, `superagent`, `ws`) and its manifest declares no non-empty `domainAllowlist` array (same manifest-convention caveat as CHAP-AGY-003).
 - **Remediation:** Allowlist the specific destination domain(s) the skill needs and log outbound calls.
 
+### CHAP-AGY-005 — Container launched with host-level privileges
+
+- **Severity:** Critical
+- **OWASP:** LLM08 — Excessive Agency
+- **Detects:** A container the agent or one of its tools runs in, configured so code inside it can act on the host: an MCP server launched with `docker run`/`podman run`, or a `docker-compose.yml`/`compose.yaml` service in the install directory.
+- **Heuristic:** `--privileged` / `privileged: true`; `--cap-add` of `ALL` or `SYS_ADMIN`; host PID, network, IPC, or user namespace (`--pid=host`, `network_mode: host`, ...); or a bind mount whose source is `/`, `/var/run/docker.sock`, `~`, or `$HOME`. Any one of these makes the container no sandbox: the Docker socket alone is root on the host.
+- **Remediation:** Drop the host-level options: no --privileged, no --cap-add=ALL/SYS_ADMIN, no host PID/network/IPC namespaces, and no bind mounts of /, the Docker socket, or the home directory. Mount only the specific directories the tool needs, read-only where possible.
+
+### CHAP-AGY-006 — Claude Code runs every tool without asking
+
+- **Severity:** Critical
+- **OWASP:** LLM08 — Excessive Agency
+- **Profiles:** `claude-code` only
+- **Detects:** Claude Code settings that start every session in `bypassPermissions` mode, where every tool call, including any shell command, runs without a permission prompt.
+- **Heuristic:** `permissions.defaultMode` is `"bypassPermissions"`. In user settings this applies to every project: critical. Current Claude Code (v2.1.257+) ignores the value in project and local settings, so there it is reported as low (it still applied on older versions, and it signals intent). `skipDangerousModePermissionPrompt: true` is mentioned when set.
+- **Remediation:** Remove `permissions.defaultMode: "bypassPermissions"` and pre-approve only the specific commands the project needs with `permissions.allow` rules. To stop anyone entering the mode, set `permissions.disableBypassPermissionsMode`.
+
+### CHAP-AGY-007 — Shell commands pre-approved too broadly
+
+- **Severity:** Critical
+- **OWASP:** LLM08 — Excessive Agency
+- **Profiles:** `claude-code` only
+- **Detects:** Claude Code `permissions.allow` rules that let it run any shell command, or any invocation of an interpreter, downloader, or destructive command, without asking.
+- **Heuristic:** A bare `Bash`/`PowerShell` rule, or one whose pattern is only a wildcard (`Bash(*)`, `Bash(:*)`), is critical. A rule whose command is an interpreter or one that runs, fetches, deletes, or escalates (`sh`, `python`, `node`, `npx`, `curl`, `wget`, `rm`, `sudo`, `xargs`, ...), with a trailing wildcard, is high: `Bash(python:*)` approves `python -c "<anything>"`.
+- **Remediation:** Replace the rule with the specific commands the project needs (e.g. `Bash(npm run test *)`), and leave interpreters, downloads, deletes, and privilege escalation to a prompt.
+
+### CHAP-AGY-008 — Web fetches pre-approved for every domain
+
+- **Severity:** Medium
+- **OWASP:** LLM08 — Excessive Agency
+- **Profiles:** `claude-code` only
+- **Detects:** A Claude Code `permissions.allow` rule that lets it fetch any URL without asking: a channel for both data exfiltration and prompt injection from attacker-controlled pages.
+- **Heuristic:** A bare `WebFetch` allow rule, or `WebFetch(domain:*)`. A domain-scoped rule (`WebFetch(domain:example.com)`, `WebFetch(domain:*.example.com)`) is fine.
+- **Remediation:** Allow only the domains the project needs, e.g. `WebFetch(domain:docs.example.com)`. Fetched pages are untrusted input, so each new domain is a new prompt-injection source.
+
 ## Category C — Supply chain & skill provenance
 
 ### CHAP-SUP-001 — Skill from an unverified source
@@ -168,7 +212,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Medium
 - **OWASP:** LLM05 — Supply Chain
 - **Detects:** Skill dependencies installed with no lockfile.
-- **Heuristic:** The skill has a `package.json` that declares at least one runtime `dependencies` entry, but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.
+- **Heuristic:** The skill declares at least one runtime dependency with no lockfile alongside it. npm: a `package.json` `dependencies` entry and no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml`. Python (when there is no `package.json`): a `requirements.txt` or `pyproject.toml` dependency and no `poetry.lock`/`uv.lock`/`Pipfile.lock`/`pdm.lock`; a `requirements.txt` whose every entry has a `--hash=` counts as its own lockfile. A manifest with no dependencies has nothing to install, so it is not flagged.
 - **Remediation:** Commit a lockfile alongside the manifest and enable integrity checks.
 
 ### CHAP-SUP-003 — Known-vulnerable dependency
@@ -202,6 +246,24 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Detects:** A skill dependency whose name is suspiciously close (small edit distance) to a well-known popular package name (e.g. 'reqeust' vs 'request') — a common typosquatting technique.
 - **Heuristic:** The dependency name isn't itself a well-known package, is at least 4 characters, and has a Levenshtein (edit) distance of 1-2 from a well-known package name in a small bundled reference list (no live registry lookup — Chaperone makes no outbound network calls). Not exhaustive: a name not close to anything on that list is never flagged.
 - **Remediation:** Double check the exact spelling against the real package on the registry before installing, and remove the dependency if it was added by mistake.
+
+### CHAP-SUP-008 — Project MCP servers approved without review
+
+- **Severity:** High
+- **OWASP:** LLM05 — Supply Chain
+- **Profiles:** `claude-code` only
+- **Detects:** Claude Code configured to start every server in a project's `.mcp.json` without asking: any repository it's opened in can launch its own processes.
+- **Heuristic:** `enableAllProjectMcpServers` is `true` in any settings file. In user settings it applies to every repository you open, including ones you just cloned.
+- **Remediation:** Remove `enableAllProjectMcpServers` and approve servers by name with `enabledMcpjsonServers`, after reviewing each one.
+
+### CHAP-SUP-009 — Claude Code hook runs downloaded code
+
+- **Severity:** High
+- **OWASP:** LLM05 — Supply Chain
+- **Profiles:** `claude-code` only
+- **Detects:** A command Claude Code runs on its own (a hook, `statusLine`, `fileSuggestion`, or `apiKeyHelper`) that executes code fetched at run time, so whoever controls that URL controls your machine on every trigger.
+- **Heuristic:** The same patterns as CHAP-SUP-004: `curl`/`wget` piped into a shell, `bash <(curl …)`, `iwr … | iex`, `base64 -d … | sh`, `sudo`, and package installs.
+- **Remediation:** Vendor the script into the repository (and review it) instead of piping a download into a shell, and avoid `sudo` in commands Claude Code runs automatically.
 
 ## Category D — Prompt-injection surface
 
@@ -271,8 +333,8 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** Medium
 - **OWASP:** General
-- **Detects:** The gateway explicitly configured without TLS.
-- **Heuristic:** `gateway.tls` is explicitly `false`. Silent when TLS isn't mentioned in config at all — v1 doesn't have a confident signal either way in that case.
+- **Detects:** The gateway explicitly configured without TLS, or a remote MCP server configured with a plaintext `http://` URL.
+- **Heuristic:** `gateway.tls` is explicitly `false` (silent when TLS isn't mentioned in config at all: there's no confident signal either way), or a remote MCP server's `url` uses `http://`/`ws://` with a host that isn't loopback (`localhost`, `127.0.0.0/8`, `::1`).
 - **Remediation:** Enable TLS on the gateway and disable any plaintext fallback.
 
 ## Category F — Observability & recoverability

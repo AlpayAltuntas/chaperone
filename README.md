@@ -133,12 +133,13 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 39 findings across all 30 checks):
+the real run reports 39 findings across all 37 checks):
 
 ```
 Chaperone scan report
 Target: ~/clawd
-Scanned at 2026-10-03T19:49:13.889Z — chaperone v0.3.0
+Profile: default (detected)
+Scanned at 2026-10-03T20:17:11.162Z — chaperone v0.4.0
 
 CRITICAL (5)
 
@@ -168,8 +169,11 @@ HIGH (20)
 
 MEDIUM (13)  LOW (1)  ...
 
+Skipped (1):
+  - (profile: default): checks not applicable to this profile: CHAP-SEC-009, CHAP-AGY-006, CHAP-AGY-007, CHAP-AGY-008, CHAP-SUP-008, CHAP-SUP-009
+
 Summary: 39 findings (5 critical, 20 high, 13 medium, 1 low, 0 info) — posture score 0/100 (F)
-Inspected 18 paths, skipped 0.
+Inspected 18 paths, skipped 1.
 ```
 
 Notice the secret value is masked (`sk-…wxyz`) — the real value is never
@@ -187,25 +191,25 @@ chaperone scan test/fixtures/clean-agent        # hardened sample
 Full flag reference (see [How to use](#how-to-use) above for examples of
 each):
 
-| Flag                          | Effect                                                                       | Env var                   |
-| ----------------------------- | ---------------------------------------------------------------------------- | ------------------------- |
-| `--format <format>`           | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`  | `CHAPERONE_FORMAT`        |
-| `--fail-on <severity>`        | Minimum severity for a non-zero exit code (default: `high`)                  | `CHAPERONE_FAIL_ON`       |
-| `--output <file>`             | Write the report to a file instead of stdout                                 | `CHAPERONE_OUTPUT`        |
-| `--only <ids>`                | Run only the listed check IDs (comma-separated)                              |                           |
-| `--skip <ids>`                | Skip the listed check IDs (comma-separated)                                  |                           |
-| `--only-category <cats>`      | Display filter: only show findings in these categories (comma-separated)     | `CHAPERONE_ONLY_CATEGORY` |
-| `--skip-category <cats>`      | Display filter: hide findings in these categories (comma-separated)          | `CHAPERONE_SKIP_CATEGORY` |
-| `--min-severity <severity>`   | Display filter: only show findings at or above this severity                 | `CHAPERONE_MIN_SEVERITY`  |
-| `--quiet`                     | One compact line per finding (id + severity) instead of full detail          |                           |
-| `--summary-only`              | Print only the summary line and posture score, no per-finding detail         |                           |
-| `--no-color`                  | Disable colored console output                                               |                           |
-| `--config <file>`             | Suppression/override config file (default: `./.chaperonerc.json` if present) | `CHAPERONE_CONFIG`        |
-| `--baseline <file>`           | A prior saved JSON report — report (and fail on) only findings new since it  | `CHAPERONE_BASELINE`      |
-| `--profile <profile>`         | Discovery profile: `default` (fictional format) or `mcp` (real MCP config)   | `CHAPERONE_PROFILE`       |
-| `--all <pattern>`             | Scan every immediate subdirectory of a parent, one aggregate report          | `CHAPERONE_ALL`           |
-| `--docker <container[:path]>` | Scan a container's filesystem via `docker cp` (read-only)                    | `CHAPERONE_DOCKER`        |
-| `--plugin <path>`             | Load a third-party check module (repeatable) — no sandboxing, trust it fully |                           |
+| Flag                          | Effect                                                                         | Env var                   |
+| ----------------------------- | ------------------------------------------------------------------------------ | ------------------------- |
+| `--format <format>`           | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`    | `CHAPERONE_FORMAT`        |
+| `--fail-on <severity>`        | Minimum severity for a non-zero exit code (default: `high`)                    | `CHAPERONE_FAIL_ON`       |
+| `--output <file>`             | Write the report to a file instead of stdout                                   | `CHAPERONE_OUTPUT`        |
+| `--only <ids>`                | Run only the listed check IDs (comma-separated)                                |                           |
+| `--skip <ids>`                | Skip the listed check IDs (comma-separated)                                    |                           |
+| `--only-category <cats>`      | Display filter: only show findings in these categories (comma-separated)       | `CHAPERONE_ONLY_CATEGORY` |
+| `--skip-category <cats>`      | Display filter: hide findings in these categories (comma-separated)            | `CHAPERONE_SKIP_CATEGORY` |
+| `--min-severity <severity>`   | Display filter: only show findings at or above this severity                   | `CHAPERONE_MIN_SEVERITY`  |
+| `--quiet`                     | One compact line per finding (id + severity) instead of full detail            |                           |
+| `--summary-only`              | Print only the summary line and posture score, no per-finding detail           |                           |
+| `--no-color`                  | Disable colored console output                                                 |                           |
+| `--config <file>`             | Suppression/override config file (default: `./.chaperonerc.json` if present)   | `CHAPERONE_CONFIG`        |
+| `--baseline <file>`           | A prior saved JSON report — report (and fail on) only findings new since it    | `CHAPERONE_BASELINE`      |
+| `--profile <profile>`         | Discovery profile: `default`, `mcp`, or `claude-code` (auto-detected if unset) | `CHAPERONE_PROFILE`       |
+| `--all <pattern>`             | Scan every immediate subdirectory of a parent, one aggregate report            | `CHAPERONE_ALL`           |
+| `--docker <container[:path]>` | Scan a container's filesystem via `docker cp` (read-only)                      | `CHAPERONE_DOCKER`        |
+| `--plugin <path>`             | Load a third-party check module (repeatable) — no sandboxing, trust it fully   |                           |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -295,26 +299,67 @@ Clawdbot/Moltbot/OpenClaw-style config shape (see [Known
 limitations](#known-limitations)). `--profile mcp` (or `CHAPERONE_PROFILE=mcp`)
 switches discovery to a **real** config shape instead — the [MCP (Model
 Context Protocol)](https://modelcontextprotocol.io) server config used by
-Claude Desktop, Claude Code, and other MCP clients
-(`.mcp.json`/`mcp.json`/`claude_desktop_config.json`, a top-level
-`{"mcpServers": {"<name>": {...}}}` object):
+Claude Desktop, Claude Code, Cursor, VS Code, and other MCP clients:
 
 ```bash
-chaperone scan --profile mcp .            # looks for .mcp.json in the current directory
-chaperone scan --profile mcp ~/my-project # or an explicit directory
+chaperone scan --profile mcp .                      # .mcp.json, mcp.json, claude_desktop_config.json, .vscode/mcp.json, .cursor/mcp.json
+chaperone scan --profile mcp ~/.claude.json         # or any MCP config file directly
+chaperone scan --profile mcp                        # current directory, then the user-level Claude Desktop/Cursor/Claude Code configs
 ```
 
-The `mcp` profile maps each configured MCP server onto the same
-`AgentModel` the default profile produces, so the existing check catalog
-runs against it — but only the checks whose heuristic genuinely applies
-to an MCP config actually fire: `CHAP-SEC-001` (a literal secret in a
-server's `env` block instead of an env-var reference), `CHAP-SEC-003`
-(the config file itself being group/other-readable), and `CHAP-SUP-001`
-(a server launched from an unpinned package version, e.g. `npx -y
-<pkg>` with no `@<version>` pin). Checks with no MCP equivalent —
-gateway/channel/trust config, a skill's own source code — correctly stay
-silent rather than being forced onto a shape they don't fit; see
-`DECISIONS.md`, Phase 17.
+Both the `mcpServers` key and VS Code's `servers` key are read, along with
+the per-project servers in Claude Code's `~/.claude.json`. Each server
+is mapped onto the same model the default profile produces, with
+capabilities derived from how it's launched:
+
+- A shell run with `-c` (`bash -c "…"`, `cmd /c`, `pwsh -Command`) is
+  shell execution (`CHAP-AGY-001`), and its command string is checked for
+  `curl … | sh` and friends (`CHAP-SUP-004`).
+- The filesystem server rooted at `/`, `~`, `$HOME`, or a drive root is
+  unscoped filesystem access (`CHAP-AGY-002`).
+- `docker run`/`podman run` with `--privileged`, `--cap-add=ALL`, a host
+  namespace, or a bind mount of `/`, the Docker socket, or `$HOME` is
+  `CHAP-AGY-005`.
+- A remote server on plaintext `http://` (not loopback) is
+  `CHAP-NET-003`.
+- A literal token in `env`, `headers`, or `args` is `CHAP-SEC-001`.
+- An unpinned package (`npx -y <pkg>` with no `@<version>`) is
+  `CHAP-SUP-001`.
+
+Checks with no MCP equivalent (gateway, channel, and trust config) don't
+run under this profile and are listed as not applicable. A config that
+defines no servers is reported as nothing scanned.
+
+#### Claude Code (`--profile claude-code`)
+
+Reads Claude Code's own settings: `.claude/settings.json` (shared
+project), `.claude/settings.local.json` (local), and, when no path is
+given, `~/.claude/settings.json` (user). The project's `.mcp.json` is
+analyzed as in the `mcp` profile. Settings-specific checks:
+
+| Check          | Fires on                                                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `CHAP-AGY-006` | `permissions.defaultMode: "bypassPermissions"` (critical in user settings; low in project/local, where current Claude Code ignores it) |
+| `CHAP-AGY-007` | an allow rule for every shell command (`Bash`, `Bash(*)`), or for an interpreter, downloader, or `rm`/`sudo` prefix (`Bash(python:*)`) |
+| `CHAP-AGY-008` | an allow rule for every web fetch (`WebFetch`, `WebFetch(domain:*)`)                                                                   |
+| `CHAP-SEC-009` | no `Read` deny rule for `.env` files or `~/.ssh`                                                                                       |
+| `CHAP-SUP-008` | `enableAllProjectMcpServers: true`                                                                                                     |
+| `CHAP-SUP-009` | a hook, `statusLine`, `fileSuggestion`, or `apiKeyHelper` command that pipes a download into a shell or uses `sudo`                    |
+
+A literal secret in an `env` block is reported by `CHAP-SEC-001`. The
+settings keys were checked against the Claude Code documentation on
+2026-10-03; the schema evolves, so report anything that has drifted.
+
+#### Auto-detection
+
+Without `--profile` (or `CHAPERONE_PROFILE`), Chaperone picks the
+profile from the files in the target: a `config.yaml`/`.yml`/`.json` or
+`skills/` directory means `default`, `.claude/settings*.json` means
+`claude-code`, and an MCP config (`.mcp.json`, `.vscode/mcp.json`, ...)
+means `mcp`. The report header says `Profile: mcp (detected)`. If the
+default format and another profile both match, the scan stops and asks
+for `--profile`. If nothing matches, the `default` profile runs as
+before.
 
 ### Multi-root batch scanning (`--all`)
 
@@ -526,7 +571,7 @@ upload flow is more than a given job needs:
 
 ## Checks
 
-Chaperone runs 30 checks across six categories — secrets & credential
+Chaperone runs 37 checks across six categories — secrets & credential
 hygiene, excessive agency & permissions, supply chain & skill provenance,
 prompt-injection surface, exposure & network posture, and observability &
 recoverability. Every check maps to an OWASP LLM Top 10 category and ships

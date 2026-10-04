@@ -8,6 +8,17 @@ import type { ScanMetadata } from './types.js';
  * list would otherwise read as 100/100 (A), the exact "nothing scanned
  * looks like nothing found" confusion PROPOSED_FIXES.md 2.1 removes.
  */
+/** "mcp (detected)", or null when there's nothing worth printing (the default profile, chosen explicitly or by fallback). */
+export function formatProfileLabel(metadata: ScanMetadata): string | null {
+  if (metadata.profile === undefined) {
+    return null;
+  }
+  if (metadata.profileDetected === true) {
+    return `${metadata.profile} (detected)`;
+  }
+  return metadata.profile === 'default' ? null : metadata.profile;
+}
+
 export function formatScoreLabel(
   findings: readonly Finding[],
   metadata: ScanMetadata,

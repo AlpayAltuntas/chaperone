@@ -16,6 +16,8 @@ const EMPTY_MODEL: AgentModel = {
   },
   permissions: [],
   skills: [],
+  containers: [],
+  claudeCodeSettings: [],
   gateway: {
     present: false,
     bindHost: null,

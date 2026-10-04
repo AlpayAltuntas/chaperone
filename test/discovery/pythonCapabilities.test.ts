@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { detectPythonCapabilities } from '../../src/discovery/pythonCapabilities.js';
+import {
+  parsePyprojectToml,
+  parseRequirementsTxt,
+} from '../../src/discovery/pythonDependencies.js';
 
 describe('detectPythonCapabilities — Phase 16 (improvement_plan.md 1.9), regex-based first cut', () => {
   it('detects subprocess-based shell execution', () => {
@@ -115,5 +119,120 @@ describe('detectPythonCapabilities — Phase 16 (improvement_plan.md 1.9), regex
       dataFlowToShellExec: false,
       evidence: [],
     });
+  });
+});
+
+// PROPOSED_FIXES.md 3.4.
+describe('detectPythonCapabilities — aliases, comments, strings (3.4)', () => {
+  it.each([
+    [
+      'from subprocess import run',
+      'from subprocess import run\nrun(cmd, shell=True)',
+      'shellExec',
+      'subprocess.run',
+    ],
+    [
+      'import subprocess as sp',
+      'import subprocess as sp\nsp.Popen(cmd)',
+      'shellExec',
+      'subprocess.Popen',
+    ],
+    [
+      'from os import system as sh',
+      'from os import system as sh\nsh(cmd)',
+      'shellExec',
+      'os.system',
+    ],
+    [
+      'asyncio.create_subprocess_shell',
+      'import asyncio\nawait asyncio.create_subprocess_shell(cmd)',
+      'shellExec',
+      'asyncio.create_subprocess_shell',
+    ],
+    ['pty.spawn', 'import pty\npty.spawn("/bin/sh")', 'shellExec', 'pty.spawn'],
+    [
+      'multi-line from-import',
+      'from subprocess import (\n    check_output,\n    PIPE,\n)\ncheck_output(c)',
+      'shellExec',
+      'subprocess.check_output',
+    ],
+    ['httpx', 'import httpx\nhttpx.get(url)', 'networkAccess', 'httpx.get'],
+    [
+      'aiohttp',
+      'import aiohttp\naiohttp.ClientSession()',
+      'networkAccess',
+      'aiohttp.ClientSession',
+    ],
+    ['urllib3', 'import urllib3\nurllib3.PoolManager()', 'networkAccess', 'urllib3.PoolManager'],
+    ['pickle.loads', 'import pickle\npickle.loads(blob)', 'dynamicEval', 'pickle.loads'],
+    ['marshal.loads', 'import marshal\nmarshal.loads(blob)', 'dynamicEval', 'marshal.loads'],
+    [
+      'yaml.load without a safe loader',
+      'import yaml\nyaml.load(text)',
+      'dynamicEval',
+      'yaml.load (no SafeLoader)',
+    ],
+    [
+      'pathlib write_text',
+      'from pathlib import Path\nPath(p).write_text(d)',
+      'fileSystemAccess',
+      '.write_text',
+    ],
+  ])('detects %s', (_label, source, capability, api) => {
+    const { evidence } = detectPythonCapabilities(source, 'x.py');
+    expect(evidence).toContainEqual(expect.objectContaining({ capability, api }));
+  });
+
+  it.each([
+    ['cursor.exec', 'cursor.exec("SELECT 1")'],
+    ['a call in a comment', '# subprocess.run(cmd)\nx = 1'],
+    ['a call in a docstring', '"""\nos.system(cmd) is dangerous\n"""\nx = 1'],
+    ['a call in a string', 'msg = "eval(x) is not run"'],
+    ['yaml.load with SafeLoader', 'import yaml\nyaml.load(text, Loader=yaml.SafeLoader)'],
+    ['yaml.safe_load', 'import yaml\nyaml.safe_load(text)'],
+    ['a local function named run', 'def run(x):\n    return x\nrun(1)'],
+  ])('ignores %s', (_label, source) => {
+    const capabilities = detectPythonCapabilities(source);
+    expect(capabilities.shellExec || capabilities.dynamicEval || capabilities.networkAccess).toBe(
+      false,
+    );
+  });
+});
+
+describe('Python dependency manifests (3.4)', () => {
+  it('parses requirements.txt, ignoring options and comments', () => {
+    expect(
+      parseRequirementsTxt(
+        '# deps\nrequests>=2.31 ; python_version>"3.8"\n-r other.txt\nhttpx[http2]==0.27.0  # client\n\nPyYAML\n',
+      ),
+    ).toEqual({
+      versionsByName: { requests: '>=2.31', httpx: '==0.27.0', pyyaml: '' },
+      hashPinned: false,
+    });
+  });
+
+  it('treats a fully hashed requirements.txt as its own lockfile', () => {
+    expect(
+      parseRequirementsTxt(
+        'requests==2.31.0 \\\n    --hash=sha256:abc\nidna==3.6 --hash=sha256:def\n',
+      ).hashPinned,
+    ).toBe(true);
+  });
+
+  it('parses [project] and [tool.poetry] dependencies from pyproject.toml', () => {
+    const toml = [
+      '[project]',
+      'name = "x"',
+      'dependencies = [',
+      '  "requests>=2",',
+      "  'rich',",
+      ']',
+      '',
+      '[tool.poetry.dependencies]',
+      'python = "^3.11"',
+      'httpx = "^0.27"',
+      '',
+    ].join('\n');
+    expect(parsePyprojectToml(toml)).toEqual({ requests: '>=2', rich: '', httpx: '^0.27' });
   });
 });

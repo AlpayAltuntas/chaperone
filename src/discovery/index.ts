@@ -12,6 +12,8 @@ import {
 import { buildKeyLineIndex, maskConfig, parseConfigSource } from './configParser.js';
 import { errorMessage } from './errors.js';
 import { extractGatewayModel } from './gateway.js';
+import { discoverClaudeCodeAgent } from './claudeCodeProfile.js';
+import { discoverComposeContainers } from './containerPrivileges.js';
 import { detectGitContext } from './gitContext.js';
 import { getConfigField, isRecord } from './jsonUtils.js';
 import { scanExistingLogContent } from './logContentScanner.js';
@@ -25,8 +27,8 @@ import { discoverSidecarSecretFiles } from './sidecarSecrets.js';
 import { scanSkills } from './skillsScanner.js';
 
 /** 'default' (or unset) is the existing fictional Clawdbot/Moltbot/OpenClaw-style profile; 'mcp' is the real MCP server config profile (improvement_plan.md 3.1/Phase 17). */
-export type DiscoveryProfile = 'default' | 'mcp';
-export const DISCOVERY_PROFILES: readonly DiscoveryProfile[] = ['default', 'mcp'];
+export type DiscoveryProfile = 'default' | 'mcp' | 'claude-code';
+export const DISCOVERY_PROFILES: readonly DiscoveryProfile[] = ['default', 'mcp', 'claude-code'];
 
 export interface DiscoveryOptions {
   targetPath?: string;
@@ -44,6 +46,9 @@ const DEFAULT_SKILLS_DIR = 'skills';
 export function discoverAgent(options: DiscoveryOptions): DiscoveryResult {
   if (options.profile === 'mcp') {
     return discoverMcpAgent(options);
+  }
+  if (options.profile === 'claude-code') {
+    return discoverClaudeCodeAgent(options);
   }
 
   const inspected: InspectedEntry[] = [];
@@ -178,6 +183,11 @@ function discoverAtRoot(
 
   const recoverability = detectRecoverability(targetRoot);
 
+  // docker-compose services and their host privileges (CHAP-AGY-005).
+  const compose = discoverComposeContainers(targetRoot);
+  inspected.push(...compose.inspected);
+  skipped.push(...compose.skipped);
+
   const model: AgentModel = {
     targetRoot,
     config: { path: configPath, format, data, secretFields, keyLines },
@@ -185,6 +195,8 @@ function discoverAtRoot(
     git,
     permissions,
     skills: skillsResult.skills,
+    containers: compose.containers,
+    claudeCodeSettings: [],
     gateway,
     logging,
     memory,
@@ -223,6 +235,8 @@ export function emptyModel(
     },
     permissions: [],
     skills: [],
+    containers: [],
+    claudeCodeSettings: [],
     gateway: {
       present: false,
       bindHost: null,

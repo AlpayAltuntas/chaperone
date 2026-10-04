@@ -2,7 +2,7 @@ import pc from 'picocolors';
 import { compareSeverity, SEVERITY_ORDER } from '../engine/severity.js';
 import type { Finding, FindingLocation, Severity } from '../model/types.js';
 import type { ScanMetadata } from './types.js';
-import { formatScoreLabel } from './scoreLabel.js';
+import { formatProfileLabel, formatScoreLabel } from './scoreLabel.js';
 
 const SEVERITY_LABEL: Record<Severity, string> = {
   critical: 'CRITICAL',
@@ -57,6 +57,10 @@ export function formatConsoleReport(
 
   lines.push(bold('Chaperone scan report'));
   lines.push(`Target: ${metadata.target}${metadata.targetRootResolved ? '' : ' (not found)'}`);
+  const profileLabel = formatProfileLabel(metadata);
+  if (profileLabel !== null) {
+    lines.push(`Profile: ${profileLabel}`);
+  }
   lines.push(`Scanned at ${metadata.timestamp} — chaperone v${metadata.toolVersion}`);
   lines.push('');
 

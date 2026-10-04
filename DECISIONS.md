@@ -2404,3 +2404,85 @@ redis-store` quiet while catching `auth: xoxb-1234-…`. A
 - **Listed under "May change CI results"**: a pipeline still on Node 20
   gets an `EBADENGINE` warning on install, and a minor bump is the
   policy for that.
+
+## PROPOSED_FIXES.md, 0.4.0 batch — Real-world coverage
+
+### 3.9 — MCP server launch analysis, `CHAP-AGY-005`
+
+- **Capabilities come from the launch line, since there's no source.**
+  Only signals that are unambiguous from argv count: a known shell
+  binary with its command-string flag, the reference filesystem server
+  with a root argument, and a remote URL. An arbitrary `npx some-server`
+  stays capability-free rather than guessed at.
+- **A remote server sets `networkAccess` but `CHAP-AGY-004` skips it.**
+  The server is itself the endpoint; "no domain allowlist" would be a
+  false statement about this config.
+- **`launch` stores masked args and URLs, and only key names for env and
+  headers**, so a token passed on the command line never reaches the
+  model or a plugin.
+- **`containers` is a model-level list, not a skill field.** Compose
+  services aren't skills, and `CHAP-AGY-005` should read one place.
+  Compose discovery only reads `docker-compose.yml`/`compose.yaml` in the
+  target root; it doesn't follow `extends` or `include`.
+- **`CAP_SYS_ADMIN` counts alongside `ALL`**, since it is close to
+  equivalent. `--userns=host` counts too. Parsing stops at the image
+  name, so flags meant for the container's own command don't count.
+- **One config per scan.** When a project has both `.mcp.json` and
+  `.vscode/mcp.json`, the first in the documented order is scanned.
+  Scanning several would need a model with multiple config files.
+- **A config with zero servers is nothing scanned**, matching 2.1.
+
+### 6.1 — Claude Code profile
+
+- **Keys were verified against code.claude.com/docs on 2026-10-03**
+  (settings, settings-reference, permissions). Two facts shaped the
+  checks: `bypassPermissions` only takes effect from user or managed
+  settings since v2.1.257, so in project/local files it is reported as
+  low rather than critical; and a bare `WebFetch` rule and
+  `WebFetch(domain:*)` both cover every domain.
+- **New check IDs rather than reusing `AGY-001`/`AGY-004`.** The table in
+  the plan maps these to existing check _classes_, but the existing
+  checks' heuristics, docs, and messages are about skill source code.
+  Separate checks, scoped with `appliesToProfiles: ['claude-code']`,
+  keep each check's documentation true. `SUP-007` is left for the 0.5.0
+  malicious-package check the plan already assigned it to.
+- **"Risky" shell prefixes are commands that run, fetch, delete, or
+  escalate** (interpreters, `npx`, `xargs`, `env`, `curl`, `rm`,
+  `sudo`, ...). Pre-approving `Bash(npm run test *)` is fine;
+  `Bash(python:*)` approves `python -c` with any program.
+- **`CHAP-SEC-009` checks coverage approximately**: a deny rule whose
+  pattern mentions `.env` or `.ssh` (or a recursive `**`) counts. Full
+  gitignore-style matching of Claude Code's path anchors would be more
+  precise; the approximation only errs toward silence.
+- **Managed settings aren't read.** They are an organization's policy,
+  not this install's configuration.
+- **The project's `.mcp.json` is analyzed through the MCP profile**, so
+  a Claude Code scan covers the servers the project would start.
+
+### 6.3 — Profile auto-detection
+
+- **Only project-level files are detection signals.** A user-level
+  Claude Desktop or Claude Code config exists on most developer machines
+  and would match every scan.
+- **claude-code subsumes mcp** when both match, since it also analyzes
+  `.mcp.json`. default plus anything else is a hard error: the two
+  formats describe different things, and guessing would silently skip
+  one.
+- **No match falls back to `default`, marked not detected**, so the
+  existing "nothing scanned" messages and exit codes are unchanged for
+  a wrong path.
+
+### 3.4 — Python detection
+
+- **Still not a parser.** A small tokenizer blanks comments and string
+  contents (keeping offsets so line numbers stay right), and calls are
+  matched by qualified name after resolving import aliases. That fixes
+  the comment/string false positives and `cursor.exec`, and catches the
+  aliased forms the plan listed, without a Python dependency.
+- **Unsafe deserialization counts as dynamic code** (`CHAP-SUP-005`):
+  `pickle.loads` on untrusted data runs arbitrary code, the same risk as
+  `eval`. `yaml.load` counts unless a safe loader is passed.
+- **Dependencies carry an `ecosystem`.** `CHAP-SUP-003`'s vulnerability
+  data and `CHAP-SUP-006`'s popular-package list are npm's, so both
+  skip PyPI dependencies rather than compare them against the wrong
+  registry. Only `CHAP-SUP-002` applies to Python for now.

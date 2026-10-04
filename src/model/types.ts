@@ -242,6 +242,10 @@ export const SkillProvenanceSchema = z.object({
 export type SkillProvenance = z.infer<typeof SkillProvenanceSchema>;
 
 export const SkillDependencyInfoSchema = z.object({
+  // Which package ecosystem the manifest belongs to (PROPOSED_FIXES.md
+  // 3.4); null when there's no manifest. CHAP-SUP-003/006 only have npm
+  // data, so they skip PyPI dependencies.
+  ecosystem: z.enum(['npm', 'pypi']).nullable(),
   manifestPath: z.string().nullable(),
   lockfilePath: z.string().nullable(),
   // Declared dependency names (package.json's "dependencies" keys) — feeds
@@ -267,6 +271,24 @@ export const SkillInstallScriptInfoSchema = z.object({
 });
 export type SkillInstallScriptInfo = z.infer<typeof SkillInstallScriptInfoSchema>;
 
+// How an MCP server is launched (PROPOSED_FIXES.md 3.9). Arguments and
+// URLs are stored masked (a token passed as an argument never reaches the
+// model); env and header blocks keep key names only, never values.
+export const SkillLaunchSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('stdio'),
+    command: z.string(),
+    args: z.array(z.string()),
+    envKeys: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal('remote'),
+    url: z.string(),
+    headerKeys: z.array(z.string()),
+  }),
+]);
+export type SkillLaunch = z.infer<typeof SkillLaunchSchema>;
+
 export const SkillSchema = z.object({
   name: z.string(),
   dir: z.string(),
@@ -280,8 +302,41 @@ export const SkillSchema = z.object({
   // just reports what it found.
   confirmationRequired: z.boolean().nullable(),
   domainAllowlist: z.array(z.string()).nullable(),
+  // Set for an MCP server; null for a skill whose code Chaperone reads.
+  launch: SkillLaunchSchema.nullable(),
 });
 export type Skill = z.infer<typeof SkillSchema>;
+
+// ---------------------------------------------------------------------------
+// Containers (feeds CHAP-AGY-005) — a container the agent or one of its
+// tools is launched in, from an MCP server's `docker run` arguments or a
+// docker-compose service, with any host-level privileges it is granted.
+// ---------------------------------------------------------------------------
+
+export const ContainerLaunchSchema = z.object({
+  name: z.string(),
+  source: z.string(),
+  line: z.number().nullable(),
+  // e.g. "--privileged", "pid: host", "bind mount of /var/run/docker.sock"
+  hostPrivileges: z.array(z.string()),
+});
+export type ContainerLaunch = z.infer<typeof ContainerLaunchSchema>;
+
+// ---------------------------------------------------------------------------
+// Claude Code settings (PROPOSED_FIXES.md 6.1) — one entry per settings
+// file read, masked like the main config. `scope` decides which keys take
+// effect: `permissions.defaultMode: bypassPermissions` is ignored in
+// project/local files by current Claude Code.
+// ---------------------------------------------------------------------------
+
+export const ClaudeCodeSettingsFileSchema = z.object({
+  path: z.string(),
+  scope: z.enum(['user', 'project', 'local']),
+  data: JsonValueSchema.nullable(),
+  secretFields: z.array(SecretFieldSchema),
+  keyLines: z.record(z.string(), z.number()),
+});
+export type ClaudeCodeSettingsFile = z.infer<typeof ClaudeCodeSettingsFileSchema>;
 
 // ---------------------------------------------------------------------------
 // Gateway / network
@@ -343,6 +398,9 @@ export const AgentModelSchema = z.object({
   git: GitContextSchema,
   permissions: z.array(FilePermissionFactSchema),
   skills: z.array(SkillSchema),
+  containers: z.array(ContainerLaunchSchema),
+  // Claude Code settings files (`--profile claude-code`); empty otherwise.
+  claudeCodeSettings: z.array(ClaudeCodeSettingsFileSchema),
   gateway: GatewayModelSchema,
   logging: LoggingModelSchema,
   memory: MemoryModelSchema,

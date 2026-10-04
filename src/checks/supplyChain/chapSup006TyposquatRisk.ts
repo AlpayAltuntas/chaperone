@@ -57,6 +57,10 @@ export const chapSup006TyposquatRisk: Check = {
   run(model) {
     const findings = [];
     for (const skill of model.skills) {
+      // The popular-package list is npm's; PyPI names aren't compared to it.
+      if (skill.dependencies.ecosystem !== 'npm') {
+        continue;
+      }
       for (const dependencyName of skill.dependencies.names) {
         const match = findTyposquatMatch(dependencyName);
         if (match === null) {

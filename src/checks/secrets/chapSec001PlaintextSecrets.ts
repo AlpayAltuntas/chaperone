@@ -26,25 +26,34 @@ export const chapSec001PlaintextSecrets: Check = {
   remediation:
     'Move the value to an environment variable or a secrets manager and reference it indirectly in config.',
   run(model) {
-    if (model.config.path === null) {
-      return [];
-    }
+    // The main config, plus each Claude Code settings file (an `env` block
+    // holding a literal API key, PROPOSED_FIXES.md 6.1).
+    const sources = [
+      ...(model.config.path === null
+        ? []
+        : [{ path: model.config.path, secretFields: model.config.secretFields }]),
+      ...model.claudeCodeSettings
+        .filter((file) => file.path !== model.config.path)
+        .map((file) => ({ path: file.path, secretFields: file.secretFields })),
+    ];
 
-    return model.config.secretFields
-      .filter((field) => !field.looksLikeEnvReference)
-      .map((field) => ({
-        checkId: ID,
-        title: TITLE,
-        severity: 'high',
-        category: 'secrets',
-        owasp: OWASP,
-        message:
-          field.detectedBy === 'value-pattern'
-            ? `Config field '${field.keyPath}' holds a value that looks like a ${field.pattern ?? 'secret'} (${field.displayValue}), recognized from the value itself. Literal credentials belong in an environment variable, not the config.`
-            : `Config field '${field.keyPath}' holds a literal secret value (${field.displayValue}) instead of an environment-variable reference.`,
-        location: { filePath: model.config.path, line: field.line, detail: field.keyPath },
-        remediation:
-          'Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).',
-      }));
+    return sources.flatMap((source) =>
+      source.secretFields
+        .filter((field) => !field.looksLikeEnvReference)
+        .map((field) => ({
+          checkId: ID,
+          title: TITLE,
+          severity: 'high' as const,
+          category: 'secrets' as const,
+          owasp: OWASP,
+          message:
+            field.detectedBy === 'value-pattern'
+              ? `Config field '${field.keyPath}' holds a value that looks like a ${field.pattern ?? 'secret'} (${field.displayValue}), recognized from the value itself. Literal credentials belong in an environment variable, not the config.`
+              : `Config field '${field.keyPath}' holds a literal secret value (${field.displayValue}) instead of an environment-variable reference.`,
+          location: { filePath: source.path, line: field.line, detail: field.keyPath },
+          remediation:
+            'Move this value to an environment variable or a secrets manager and reference it indirectly in config (e.g. ${VAR} or env:VAR).',
+        })),
+    );
   },
 };
