@@ -22,16 +22,15 @@ also has an **Impact** and **Effort** tag (Low/Med/High).
 
 ## Progress
 
-| Batch                              | Items                                             | Status                                                                          |
-| ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 0.2.2 — False-positive fixes       | 2.2, 2.4 (JS), 2.5, 2.6 (ESM half), 2.7, 2.8, 2.9 | ✅ Done on branch `fp-fixes-0.2.2` (see CHANGELOG `[Unreleased]`, DECISIONS.md) |
-| 0.3.0 — Detection accuracy         | 2.1, 2.3, 3.1, 3.2, 3.3, 3.6, 3.7, 4.1, 4.2, 7.1  | Not started                                                                     |
-| 0.4.0 — Real-world coverage        | 3.9, 6.1, 6.3, 3.4                                | Not started                                                                     |
-| 0.5.0 — Supply chain + remediation | 3.5, 5, 4.3, 3.8                                  | Not started                                                                     |
+| Batch                              | Items                                             | Status                                                                                                  |
+| ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 0.2.2 — False-positive fixes       | 2.2, 2.4 (JS), 2.5, 2.6 (ESM half), 2.7, 2.8, 2.9 | ✅ Done on branch `fp-fixes-0.2.2` (see CHANGELOG `[0.2.2]`, DECISIONS.md)                              |
+| 0.3.0 — Detection accuracy         | 2.1, 2.3, 3.1, 3.2, 3.3, 3.6, 3.7, 4.1, 4.2, 7.1  | ✅ Done on branch `detection-accuracy-0.3.0` (also the Python half of 2.4 and the per-call half of 2.6) |
+| 0.4.0 — Real-world coverage        | 3.9, 6.1, 6.3, 3.4                                | Not started                                                                                             |
+| 0.5.0 — Supply chain + remediation | 3.5, 5, 4.3, 3.8                                  | Not started                                                                                             |
 
-Still open from the 0.2.2 items: the Python half of 2.4 (keyword matching
-in strings and comments), and the per-call scoping redesign in 2.6. Both
-can add findings, so they move to 0.3.0.
+The two halves carried over from 0.2.2 (the Python half of 2.4 and the
+per-call scoping redesign in 2.6) shipped with 0.3.0.
 
 ## Contents
 

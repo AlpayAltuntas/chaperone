@@ -1,4 +1,6 @@
+import type { CapabilityEvidence } from '../model/types.js';
 import type { DetectedCapabilities } from './astCapabilities.js';
+import { splitWordSegments } from './wordSegments.js';
 
 // Python capability detection (improvement_plan.md 1.9/Phase 16) — a
 // regex-over-raw-text first cut, explicitly NOT held to the AST-based
@@ -46,7 +48,20 @@ const NETWORK_PATTERNS = [
 // equivalent of a computed `import`.
 const DYNAMIC_EVAL_PATTERNS = [/\beval\(/, /\bexec\(/, /\b__import__\(/];
 
-const DESTRUCTIVE_KEYWORDS = ['delete', 'send', 'transfer', 'purchase', 'deploy', 'remove', 'pay'];
+const DESTRUCTIVE_KEYWORDS = new Set([
+  'delete',
+  'send',
+  'transfer',
+  'purchase',
+  'deploy',
+  'remove',
+  'pay',
+]);
+
+// A module-level function definition: the skill's public surface. Only
+// these names count toward destructive keywords, so a keyword in a
+// comment, a string, or a local helper doesn't (PROPOSED_FIXES.md 2.4).
+const MODULE_LEVEL_DEF = /^(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(/gm;
 
 /**
  * Regex-based Python capability detection — deliberately simpler than
@@ -55,16 +70,79 @@ const DESTRUCTIVE_KEYWORDS = ['delete', 'send', 'transfer', 'purchase', 'deploy'
  * `false` here; Phase 16's scope is capability *detection*, not porting
  * CHAP-INJ-002's taint analysis to a second language.
  */
-export function detectPythonCapabilities(source: string): DetectedCapabilities {
+export function detectPythonCapabilities(source: string, file = '<python>'): DetectedCapabilities {
+  const evidence: CapabilityEvidence[] = [
+    ...findEvidence(source, file, 'shellExec', SHELL_EXEC_PATTERNS),
+    ...findEvidence(source, file, 'networkAccess', NETWORK_PATTERNS),
+    ...findEvidence(source, file, 'dynamicEval', DYNAMIC_EVAL_PATTERNS),
+  ];
+  const scoped = FS_SCOPING_PATTERNS.some((re) => re.test(source));
+  evidence.push(
+    ...findEvidence(source, file, 'fileSystemAccess', FS_WRITE_PATTERNS).map((item) => ({
+      ...item,
+      scoped,
+    })),
+  );
+
+  const destructiveKeywords = new Set<string>();
+  for (const match of source.matchAll(MODULE_LEVEL_DEF)) {
+    const name = match[1] ?? '';
+    const keywords = splitWordSegments(name).filter((segment) => DESTRUCTIVE_KEYWORDS.has(segment));
+    if (keywords.length > 0) {
+      keywords.forEach((keyword) => destructiveKeywords.add(keyword));
+      evidence.push({
+        capability: 'destructive',
+        file,
+        line: lineOf(source, match.index),
+        api: name,
+      });
+    }
+  }
+
+  const has = (capability: CapabilityEvidence['capability']): boolean =>
+    evidence.some((e) => e.capability === capability);
   return {
-    shellExec: SHELL_EXEC_PATTERNS.some((re) => re.test(source)),
-    fileSystemAccess: FS_WRITE_PATTERNS.some((re) => re.test(source)),
-    fileSystemScoped: FS_SCOPING_PATTERNS.some((re) => re.test(source)),
-    networkAccess: NETWORK_PATTERNS.some((re) => re.test(source)),
-    dynamicEval: DYNAMIC_EVAL_PATTERNS.some((re) => re.test(source)),
-    destructiveKeywords: DESTRUCTIVE_KEYWORDS.filter((kw) =>
-      new RegExp(`\\b${kw}\\b`, 'i').test(source),
-    ).sort(),
+    shellExec: has('shellExec'),
+    fileSystemAccess: has('fileSystemAccess'),
+    fileSystemScoped: scoped,
+    networkAccess: has('networkAccess'),
+    dynamicEval: has('dynamicEval'),
+    destructiveKeywords: [...destructiveKeywords].sort(),
     dataFlowToShellExec: false,
+    evidence,
   };
+}
+
+function findEvidence(
+  source: string,
+  file: string,
+  capability: CapabilityEvidence['capability'],
+  patterns: readonly RegExp[],
+): CapabilityEvidence[] {
+  const found: CapabilityEvidence[] = [];
+  for (const pattern of patterns) {
+    const global = new RegExp(
+      pattern.source,
+      pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`,
+    );
+    for (const match of source.matchAll(global)) {
+      found.push({
+        capability,
+        file,
+        line: lineOf(source, match.index),
+        api: match[0].replace(/\($/, '').trim(),
+      });
+    }
+  }
+  return found.sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
+}
+
+function lineOf(source: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index; i++) {
+    if (source.charCodeAt(i) === 10) {
+      line++;
+    }
+  }
+  return line;
 }

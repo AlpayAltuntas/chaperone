@@ -83,10 +83,15 @@ describe('detectCapabilities — fileSystemAccess / fileSystemScoped', () => {
     expect(result.fileSystemAccess).toBe(true);
   });
 
+  // PROPOSED_FIXES.md 2.6: scoping is decided per write call, from the
+  // path argument the write actually uses.
+  const WRITE_TO_DIR = "\nimport fs from 'node:fs';\nfs.writeFileSync(path.join(dir, 'x'), 'y');\n";
+
   it('detects scoping via path.join(__dirname, ...)', () => {
     const result = detectCapabilities(
       'skill.js',
-      "const path = require('path');\nconst dir = path.join(__dirname, 'workspace');\n",
+      "const path = require('path');\nconst dir = path.join(__dirname, 'workspace');\n" +
+        WRITE_TO_DIR,
     );
     expect(result.fileSystemScoped).toBe(true);
   });
@@ -114,30 +119,52 @@ describe('detectCapabilities — fileSystemAccess / fileSystemScoped', () => {
       'a hand-rolled __dirname shim',
       "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\nconst __dirname = path.dirname(fileURLToPath(import.meta.url));\nconst dir = path.join(__dirname, 'out');\n",
     ],
+    [
+      'a fixed base-directory constant',
+      "import path from 'node:path';\nconst BASE = '/srv/agent-data';\nconst dir = path.join(BASE, 'out');\n",
+    ],
   ])('detects ESM scoping via %s', (_label, code) => {
-    const result = detectCapabilities('skill.mjs', code);
+    const result = detectCapabilities('skill.mjs', code + WRITE_TO_DIR);
     expect(result.fileSystemScoped).toBe(true);
   });
 
-  it('does not treat path.join on a variable unrelated to the module location as scoping', () => {
-    const result = detectCapabilities(
-      'skill.mjs',
+  it.each([
+    [
+      'a variable unrelated to the module location',
       "import path from 'node:path';\nconst base = process.argv[2];\nconst dir = path.join(base, 'out');\n",
-    );
+    ],
+    [
+      'a WORKSPACE-named variable holding a caller-supplied path (the name alone no longer counts)',
+      "import path from 'node:path';\nconst WORKSPACE = process.env.DIR;\nconst dir = path.join(WORKSPACE, 'out');\n",
+    ],
+    [
+      'a workspace constant that is the filesystem root',
+      "import path from 'node:path';\nconst workspaceRoot = '/';\nconst dir = path.join(workspaceRoot, 'out');\n",
+    ],
+  ])('does not treat %s as scoping', (_label, code) => {
+    const result = detectCapabilities('skill.mjs', code + WRITE_TO_DIR);
+    expect(result.fileSystemAccess).toBe(true);
     expect(result.fileSystemScoped).toBe(false);
   });
 
-  it('does not treat path.join without __dirname as scoping', () => {
+  it('is unscoped when any one write is, even if another is scoped', () => {
     const result = detectCapabilities(
       'skill.js',
-      "const path = require('path');\nconst dir = path.join('/tmp', 'workspace');\n",
+      "const fs = require('fs');\nconst path = require('path');\nfs.writeFileSync(path.join(__dirname, 'a'), 'x');\nfunction save(p, d) { fs.writeFileSync(p, d); }\n",
     );
     expect(result.fileSystemScoped).toBe(false);
+    expect(result.evidence.filter((e) => e.capability === 'fileSystemAccess')).toMatchObject([
+      { line: 3, scoped: true },
+      { line: 4, scoped: false },
+    ]);
   });
 
-  it('detects scoping via a WORKSPACE-named variable', () => {
-    const result = detectCapabilities('skill.js', "const WORKSPACE = '/tmp/sandboxed';\n");
-    expect(result.fileSystemScoped).toBe(true);
+  it('checks the destination of a two-path write like rename', () => {
+    const result = detectCapabilities(
+      'skill.js',
+      "const fs = require('fs');\nconst path = require('path');\nfs.renameSync(path.join(__dirname, 'a'), target);\n",
+    );
+    expect(result.fileSystemScoped).toBe(false);
   });
 
   it('does not fire fileSystemAccess for an unrelated writeFileSync with no fs binding', () => {
@@ -371,6 +398,7 @@ describe('detectCapabilities — parsing', () => {
       destructiveKeywords: [],
       dynamicEval: false,
       dataFlowToShellExec: false,
+      evidence: [],
     });
   });
 });
@@ -386,6 +414,7 @@ describe('mergeCapabilities', () => {
         destructiveKeywords: [],
         dynamicEval: false,
         dataFlowToShellExec: false,
+        evidence: [],
       },
       {
         shellExec: false,
@@ -395,6 +424,7 @@ describe('mergeCapabilities', () => {
         destructiveKeywords: [],
         dynamicEval: false,
         dataFlowToShellExec: false,
+        evidence: [],
       },
     ]);
     expect(merged.shellExec).toBe(true);
@@ -411,6 +441,7 @@ describe('mergeCapabilities', () => {
         destructiveKeywords: ['send'],
         dynamicEval: false,
         dataFlowToShellExec: false,
+        evidence: [],
       },
       {
         shellExec: false,
@@ -420,6 +451,7 @@ describe('mergeCapabilities', () => {
         destructiveKeywords: ['delete', 'send'],
         dynamicEval: false,
         dataFlowToShellExec: false,
+        evidence: [],
       },
     ]);
     expect(merged.destructiveKeywords).toEqual(['delete', 'send']);
@@ -434,6 +466,72 @@ describe('mergeCapabilities', () => {
       destructiveKeywords: [],
       dynamicEval: false,
       dataFlowToShellExec: false,
+      evidence: [],
     });
+  });
+});
+
+describe('mergeCapabilities — per-file scoping (PROPOSED_FIXES.md 2.6)', () => {
+  const base = {
+    shellExec: false,
+    networkAccess: false,
+    destructiveKeywords: [],
+    dynamicEval: false,
+    dataFlowToShellExec: false,
+    evidence: [],
+  };
+
+  it('a scoped file no longer clears an unscoped write in another file', () => {
+    const merged = mergeCapabilities([
+      { ...base, fileSystemAccess: true, fileSystemScoped: true },
+      { ...base, fileSystemAccess: true, fileSystemScoped: false },
+    ]);
+    expect(merged.fileSystemScoped).toBe(false);
+  });
+
+  it('ignores files that do not write', () => {
+    const merged = mergeCapabilities([
+      { ...base, fileSystemAccess: true, fileSystemScoped: true },
+      { ...base, fileSystemAccess: false, fileSystemScoped: false },
+    ]);
+    expect(merged.fileSystemScoped).toBe(true);
+  });
+});
+
+describe('detectCapabilities — evidence (PROPOSED_FIXES.md 4.2)', () => {
+  it('records file, line, and API name for each capability, with no source text', () => {
+    const result = detectCapabilities(
+      '/skills/x/index.js',
+      "const cp = require('child_process');\n\nfunction deleteAll() {\n  cp.execSync(cmd);\n  fetch(url);\n  (0, eval)(code);\n}\n",
+    );
+    expect(result.evidence).toEqual([
+      { capability: 'destructive', file: '/skills/x/index.js', line: 3, api: 'deleteAll' },
+      {
+        capability: 'shellExec',
+        file: '/skills/x/index.js',
+        line: 4,
+        api: 'child_process.execSync',
+      },
+      { capability: 'networkAccess', file: '/skills/x/index.js', line: 5, api: 'fetch' },
+      { capability: 'dynamicEval', file: '/skills/x/index.js', line: 6, api: '(0, eval)' },
+    ]);
+  });
+
+  it('uses the evidence path override for an extensionless script', () => {
+    const result = detectCapabilities(
+      '/s/bin/run.js',
+      "require('child_process').exec(c);",
+      '/s/bin/run',
+    );
+    expect(result.evidence[0]?.file).toBe('/s/bin/run');
+  });
+
+  it('caps merged evidence per capability', () => {
+    const many = Array.from({ length: 15 }, () => "require('child_process').exec(c);").join('\n');
+    const merged = mergeCapabilities([
+      detectCapabilities('a.js', many),
+      detectCapabilities('b.js', many),
+    ]);
+    expect(merged.evidence.filter((e) => e.capability === 'shellExec')).toHaveLength(10);
   });
 });

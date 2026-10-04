@@ -1,5 +1,5 @@
 import type { Check } from '../../engine/types.js';
-import { getTrustBoolean } from '../shared/configAccess.js';
+import { configLine, getTrustBoolean } from '../shared/configAccess.js';
 
 const ID = 'CHAP-INJ-004';
 const TITLE = 'Auto-execution of links/commands from messages';
@@ -34,7 +34,11 @@ export const chapInj004AutoExecuteFromMessages: Check = {
         owasp: OWASP,
         message:
           'Config auto-executes links/commands found in inbound messages with no confirmation step.',
-        location: { filePath: model.config.path, line: null, detail: 'trust.auto_execute_links' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['trust', 'auto_execute_links']),
+          detail: 'trust.auto_execute_links',
+        },
         remediation:
           'Disable auto-execution of links/commands found in messages; require explicit confirmation instead.',
       },

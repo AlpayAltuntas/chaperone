@@ -1,5 +1,5 @@
 import type { Check } from '../../engine/types.js';
-import { getTrustToolAllowlist, isAnyChannelEnabled } from '../shared/configAccess.js';
+import { configLine, getTrustToolAllowlist, isAnyChannelEnabled } from '../shared/configAccess.js';
 
 const ID = 'CHAP-INJ-003';
 const TITLE = 'Actions triggerable by inbound messages without an allowlist';
@@ -35,7 +35,11 @@ export const chapInj003NoToolAllowlist: Check = {
         owasp: OWASP,
         message:
           'At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke.',
-        location: { filePath: model.config.path, line: null, detail: 'trust.tool_allowlist' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['trust', 'tool_allowlist']),
+          detail: 'trust.tool_allowlist',
+        },
         remediation:
           'Restrict which tools each channel/sender can invoke with an explicit allowlist.',
       },

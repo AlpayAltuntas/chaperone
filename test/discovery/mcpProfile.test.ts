@@ -33,21 +33,21 @@ describe("discoverAgent — 'mcp' profile", () => {
     expect(model.skills[0]?.name).toBe('demo');
   });
 
-  it('reports a skipped entry (not an error) when no MCP config exists', () => {
+  it('reports nothing scanned (not an error) when no MCP config exists', () => {
     const { model, targetRootResolved } = discoverAgent({ targetPath: dir, profile: 'mcp' });
 
-    expect(targetRootResolved).toBe(true);
+    expect(targetRootResolved).toBe(false);
     expect(model.skills).toEqual([]);
     expect(model.skipped).toHaveLength(1);
     expect(model.skipped[0]?.reason).toContain('no MCP config found');
   });
 
-  it('reports a skipped entry (not a throw) for malformed JSON', () => {
+  it('reports nothing scanned (not a throw) for malformed JSON', () => {
     writeFileSync(path.join(dir, '.mcp.json'), '{ not json');
 
     const { model, targetRootResolved } = discoverAgent({ targetPath: dir, profile: 'mcp' });
 
-    expect(targetRootResolved).toBe(true);
+    expect(targetRootResolved).toBe(false);
     expect(model.skipped.some((s) => s.reason.includes('unparseable MCP config'))).toBe(true);
   });
 
@@ -148,6 +148,7 @@ describe("discoverAgent — 'mcp' profile", () => {
       destructiveKeywords: [],
       dynamicEval: false,
       dataFlowToShellExec: false,
+      evidence: [],
     });
   });
 

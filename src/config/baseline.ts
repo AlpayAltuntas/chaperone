@@ -73,7 +73,8 @@ export function findingFingerprint(finding: Finding, targetRoot: string): string
   ]);
 }
 
-function relativeToTarget(filePath: string | null, targetRoot: string): string | null {
+/** `filePath` relative to `targetRoot` with `/` separators, or unchanged when it isn't inside it. */
+export function relativeToTarget(filePath: string | null, targetRoot: string): string | null {
   if (filePath === null || !path.isAbsolute(filePath) || !path.isAbsolute(targetRoot)) {
     return filePath;
   }

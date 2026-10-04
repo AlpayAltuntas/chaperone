@@ -10,7 +10,7 @@ import type { AgentModel } from '../../src/model/types.js';
 
 const BASE_MODEL: AgentModel = {
   targetRoot: '/fake',
-  config: { path: '/fake/config.yaml', format: 'yaml', data: null, secretFields: [] },
+  config: { path: '/fake/config.yaml', format: 'yaml', data: null, secretFields: [], keyLines: {} },
   sidecarSecretFiles: [],
   git: {
     hasAncestorGitDir: false,

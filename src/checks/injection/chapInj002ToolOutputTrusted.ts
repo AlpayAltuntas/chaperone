@@ -1,4 +1,5 @@
 import type { Check } from '../../engine/types.js';
+import { locateEvidence } from '../shared/skillEvidence.js';
 
 const ID = 'CHAP-INJ-002';
 const TITLE = 'Tool output treated as trusted';
@@ -39,10 +40,11 @@ export const chapInj002ToolOutputTrusted: Check = {
       )
       .map((skill) => {
         const confirmed = skill.capabilities.dataFlowToShellExec;
+        const { location, related, seenAt } = locateEvidence(skill, 'shellExec');
         const severity = confirmed ? ('high' as const) : ('medium' as const);
         const message = confirmed
-          ? `Skill '${skill.name}' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match.`
-          : `Skill '${skill.name}' both ingests external data (${skill.capabilities.networkAccess ? 'network' : 'filesystem'}) and can execute shell commands, with no detected validation step in between.`;
+          ? `Skill '${skill.name}' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match.${seenAt}`
+          : `Skill '${skill.name}' both ingests external data (${skill.capabilities.networkAccess ? 'network' : 'filesystem'}) and can execute shell commands, with no detected validation step in between.${seenAt}`;
 
         return {
           checkId: ID,
@@ -51,7 +53,8 @@ export const chapInj002ToolOutputTrusted: Check = {
           category: 'injection' as const,
           owasp: OWASP,
           message,
-          location: { filePath: skill.manifestPath ?? skill.dir, line: null, detail: skill.name },
+          location,
+          ...related,
           remediation:
             "Validate/escape a tool's output before it can drive another tool; never auto-execute model or tool output.",
         };

@@ -12,6 +12,144 @@ pipeline, even though it isn't a breaking API change in the usual sense.
 
 ## [Unreleased]
 
+Detection-accuracy fixes from `PROPOSED_FIXES.md` (the 0.3.0 batch).
+
+### May change CI results
+
+- `chaperone scan <path>` now exits `1` when the path doesn't exist, is a
+  file other than the agent's config file, or is a directory with
+  neither a config file nor a `skills/` directory. Before, it exited `0`
+  with grade A, so a typo in a CI job's path passed forever. Under
+  `--profile mcp`, a missing or unparseable MCP config also exits `1`.
+  An unscanned target no longer gets phantom `CHAP-OBS-001`/`CHAP-OBS-003`
+  findings, and console/markdown/html reports show "no posture score
+  (nothing scanned)" instead of 100/100 (A).
+- Config keys are now read in camelCase and kebab-case as well as
+  snake_case (`autoExecuteLinks`, `markUntrustedInput`, `toolAllowlist`,
+  `redactSecrets`, `skillsDir`, `memoryDir`/`stateDir`). A camelCase
+  JSON config used to get false positives from `CHAP-INJ-001`/`003`/`005`,
+  missed `CHAP-INJ-004` entirely, and ignored a custom `skillsDir` (so its
+  skills were never scanned). Those findings and skills now appear.
+- `CHAP-SEC-001` (and `CHAP-SEC-006` for sidecar files) now recognizes a
+  secret by its value, not only its key name: provider-prefixed tokens
+  (`sk-ant-`, `sk-proj-`, `ghp_`, `github_pat_`, `xoxb-`, `AKIA`,
+  `AIza`, `glpat-`, `npm_`, `hf_`, `sk_live_`), `Bearer`/`Basic`
+  credentials, PEM private keys, and passwords in URLs. Keys ending in
+  `auth`, `authorization`, `bearer`, `cookie`, or `session` also count
+  when the value looks like a credential. Of five realistic secrets in a
+  probe config, one used to be caught; all five are now. `CHAP-SEC-005`
+  applies the same value patterns to log lines, so a logged
+  `Authorization: Bearer …` header is reported.
+- Skill source analysis recognizes many more APIs and indirection forms.
+  Shell: `execa`, `shelljs.exec`, `zx` `$`, `cross-spawn`, `node-pty`,
+  `child_process.fork`, `Bun.spawn`, `new Deno.Command`. Filesystem
+  writes: `fs.promises.*`, `rename`/`copyFile`/`mkdir`/`chmod`/
+  `createWriteStream` and more, `fs-extra`, `rimraf`, `del`. Network:
+  `undici`, `got`, `ky`, `superagent`, `ws`, `net`/`tls`/`dgram`/`http2`,
+  and global `WebSocket`/`XMLHttpRequest`/`EventSource`. Dynamic code
+  (`CHAP-SUP-005`): indirect eval (`(0, eval)`, `globalThis.eval`), eval
+  aliases, `vm`, non-literal `require()`/`import()`, string
+  `setTimeout`, and `module._compile`. One level of aliasing
+  (`const run = cp['exec']; run(c)`), nested namespaces, and
+  template-literal keys are resolved. Both probe skills in
+  `PROPOSED_FIXES.md` A.9 used to produce no findings and are now fully
+  detected. A locally declared `fetch`/`WebSocket`/`Bun` is no longer
+  mistaken for the global.
+- Skill scanning no longer has trivial blind spots. Dot-directories and
+  dot-files are scanned (a payload in `.lib/` used to go unseen), except
+  `.git`, `node_modules`, and Python virtualenvs. A directory past the
+  depth limit (raised from 4 to 6) is listed under Skipped instead of
+  being dropped silently. `.jsx`/`.tsx`/`.mts`/`.cts` files and
+  extensionless scripts with a `node`/`deno`/`bun`/`python` shebang are
+  analyzed. Files over 256 KB get a pattern pre-pass (`eval(`,
+  `Function(`, `atob(`, `child_process`) that feeds `CHAP-SUP-005`,
+  instead of being skipped. `CHAP-SUP-004` checks `*.sh` files at any
+  depth, the `prepare` lifecycle script, `bash <(curl …)`, PowerShell
+  `iwr … | iex`, `base64 -d … | sh`, and `| sudo bash`.
+- New check `CHAP-SEC-008` (high), "Agent files writable by other
+  users": the config file, install directory, skills directory, any
+  skill directory, or the memory directory having a group/other write
+  bit. A `chmod 777 skills/` lets any local user plant code the agent
+  runs with its own privileges, and writable memory is persistent prompt
+  injection. Discovery now records permissions for those directories.
+- `CHAP-SEC-006` looks at more sidecar secret files in the install
+  root: `.env.*` (except `.env.example`/`.sample`/`.template`/`.dist`/
+  `.defaults`), `.envrc`, `.npmrc` (`_authToken`), `.pypirc`, `.netrc`,
+  `credentials.json`, `service-account*.json`, and private keys
+  (`id_rsa`, `id_ecdsa`, `id_ed25519`, and `*.pem`/`*.key` files that
+  hold a PEM private key, not a certificate).
+- `CHAP-AGY-002` decides scoping per write call (the other half of
+  `PROPOSED_FIXES.md` 2.6). A write is scoped when its path argument is
+  the skill's own directory, a fixed non-root path, or built from one
+  with `path.join`/`path.resolve`. Any one unscoped write makes the skill
+  unscoped, even if another file is scoped, and a variable merely named
+  `workspace`/`sandbox` no longer counts (`const workspaceRoot = '/'`
+  used to clear every write in the skill).
+- Python skills: `CHAP-AGY-003` now takes destructive keywords only from
+  module-level `def` names (so `def delete_file` counts and `# delete
+old files` or `"-delete"` don't), the Python half of 2.4.
+
+- **Node.js 22 or later is now required** (`engines: >=22`). Node 20
+  reached end-of-life on 2026-04-30. CI runs on Node 22.
+
+### Changed
+
+- Skill findings (`CHAP-AGY-001..004`, `CHAP-SUP-005`, `CHAP-INJ-002`)
+  now point at the code that triggered them (`index.js:12`) instead of
+  the skill's `package.json`, list up to three call sites in the message
+  ("Seen at index.js:12 (child_process.execSync), …"), and carry the
+  rest as `relatedLocations` in JSON/SARIF. Config findings
+  (`CHAP-NET-*`, `CHAP-INJ-001/003/004/005`, `CHAP-OBS-001`) include the
+  key's line number. JSON configs now get line numbers too, including
+  `CHAP-SEC-001`/`CHAP-SEC-007`. **Baselines:** because a skill
+  finding's file path changed, re-create a `--baseline` file after
+  upgrading, or those findings will show as new once.
+- SARIF output is shaped for GitHub code scanning: file URIs are
+  relative to the git repository root (`uriBaseId: SRCROOT`) instead of
+  absolute `file://` paths, and absolute paths are also removed from
+  message text, so a shared SARIF file no longer contains the local
+  directory layout. Results carry `partialFingerprints` (the same stable
+  fingerprint `--baseline` uses), rules carry `security-severity`
+  (critical 9.5, high 8.0, medium 5.5, low 3.0), `tags`, the check's
+  full description, help text, and a `helpUri` into `CHECKS.md`. Every
+  check that ran is listed as a rule, not only those that fired.
+  `invocations[0].executionSuccessful` is false for a scan that found
+  nothing to scan. Related call sites appear as `relatedLocations`. The
+  output is validated against the SARIF 2.1.0 schema in the test suite.
+- `CHAP-SUP-004` findings for an npm lifecycle script point at the
+  skill's real `package.json` (with `scripts.<name>` in the detail)
+  instead of the pseudo-path `package.json#scripts.<name>`.
+- README: a complete GitHub Actions workflow (SARIF upload plus the HTML
+  report as an artifact).
+- The model's `SkillCapabilities` has an `evidence` array (capability,
+  file, line, API name; never source text), `ConfigModel` has
+  `keyLines`, and findings may have `relatedLocations`.
+
+- On Windows, file permission facts report group/other access as
+  unknown instead of reading Node's synthesized mode bits, so
+  `CHAP-SEC-003`, `CHAP-SEC-006`, `CHAP-OBS-004`, and `CHAP-SEC-008` no
+  longer report permission findings there that don't reflect real access
+  control.
+- Permission facts in the model carry a `role` (`config`, `log`,
+  `memory-dir`, `sidecar`, `target-root`, `skills-dir`, `skill-dir`).
+
+- `CHAP-SUP-004` no longer flags `apt-get install`/`brew install` in a
+  skill's README (they still count in install scripts), and no longer
+  mistakes `curl … | shasum` for piping into a shell.
+
+- Passing the config file itself (`chaperone scan ~/clawd/config.yaml`,
+  or an MCP config file under `--profile mcp`) scans its directory
+  instead of reporting no config found.
+
+### Security
+
+- Secrets recognized only by their value used to stay unmasked in the
+  in-memory model passed to `--plugin` checks. They're now masked, which
+  restores the documented "no literal secret is retained in the model"
+  invariant. A URL credential is masked as `https://user:***@host`.
+
+## [0.2.2] - Unreleased
+
 False-positive fixes from `PROPOSED_FIXES.md` (the 0.2.2 batch). Every
 change here can only remove a finding or lower its severity, never add
 one, so no existing `--fail-on` pipeline can go from passing to failing.

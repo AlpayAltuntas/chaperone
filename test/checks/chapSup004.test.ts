@@ -14,8 +14,15 @@ describe('CHAP-SUP-004 — dangerous install pattern', () => {
     expect(findings).toHaveLength(2);
     for (const finding of findings) {
       expect(finding.checkId).toBe('CHAP-SUP-004');
-      expect(finding.location.detail).toBe('shell-runner');
+      expect(finding.location.detail).toMatch(/^shell-runner/);
     }
+    // The npm script points at the real package.json, with the script name in detail.
+    expect(findings.map((f) => f.location.detail).sort()).toEqual([
+      'shell-runner',
+      'shell-runner scripts.postinstall',
+    ]);
+    const npm = findings.find((f) => f.location.detail === 'shell-runner scripts.postinstall');
+    expect(npm?.location.filePath).toMatch(/shell-runner[/\\]package\.json$/);
   });
 
   it('stays silent on the clean fixture (no dangerous install patterns)', () => {

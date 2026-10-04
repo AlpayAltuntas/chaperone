@@ -1,0 +1,4 @@
+# DUMMY fixture for Chaperone's own test suite (PROPOSED_FIXES.md 3.3).
+# Each skill hides a capability in a place the scanner used to skip.
+llm:
+  provider: anthropic

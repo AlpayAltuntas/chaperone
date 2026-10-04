@@ -264,6 +264,7 @@ function scanOneTarget(
   // never this filtered view (improvement_plan.md 3.8).
   const displayFindings = applyDisplayFilters(findings, options);
 
+  const checksRun = new Set(suite?.checksRun ?? []);
   const metadata: ScanMetadata = {
     target: spec.displayTarget ?? model.targetRoot,
     targetRootResolved,
@@ -271,6 +272,8 @@ function scanOneTarget(
     toolVersion: VERSION,
     inspected: model.inspected,
     skipped,
+    checks: checks.filter((check) => checksRun.has(check.id)),
+    sourceRoot: model.git.gitRootPath ?? model.targetRoot,
   };
 
   return { metadata, findings, displayFindings, targetRootResolved };

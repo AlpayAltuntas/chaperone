@@ -72,11 +72,17 @@ export const SecretFieldSchema = z.object({
   keyPath: z.string(),
   displayValue: z.string(),
   looksLikeEnvReference: z.boolean(),
-  // 1-indexed source line, for a YAML config only (improvement_plan.md
-  // 1.17, via YAML.parseDocument's source ranges) — a JSON config has
-  // no natural CST-with-positions the way `yaml` gives us for free, so
-  // this stays null there. Documented, not a silent inconsistency.
+  // 1-indexed source line (improvement_plan.md 1.17), for YAML and JSON
+  // configs alike via YAML.parseDocument (PROPOSED_FIXES.md 4.2). null
+  // when the key path can't be located (e.g. a sidecar file).
   line: z.number().nullable(),
+  // How the field was recognized (PROPOSED_FIXES.md 3.1): its key name
+  // (`api_key`), or its value alone (a `ghp_…` token under `github`).
+  detectedBy: z.enum(['key-name', 'value-pattern']),
+  // The value pattern that matched (e.g. "GitHub token"), if any. Set for
+  // every value-pattern field, and for a key-name field whose value also
+  // matches one.
+  pattern: z.string().nullable(),
 });
 export type SecretField = z.infer<typeof SecretFieldSchema>;
 
@@ -85,6 +91,9 @@ export const ConfigModelSchema = z.object({
   format: z.enum(['yaml', 'json']).nullable(),
   data: JsonValueSchema.nullable(),
   secretFields: z.array(SecretFieldSchema),
+  // keyPath (as maskConfig writes it) -> 1-indexed source line, for YAML
+  // and JSON configs alike. Used to point config findings at their line.
+  keyLines: z.record(z.string(), z.number()),
 });
 export type ConfigModel = z.infer<typeof ConfigModelSchema>;
 
@@ -96,7 +105,7 @@ export type ConfigModel = z.infer<typeof ConfigModelSchema>;
 
 export const SidecarSecretFileSchema = z.object({
   path: z.string(),
-  format: z.enum(['dotenv', 'yaml', 'json']),
+  format: z.enum(['dotenv', 'yaml', 'json', 'ini', 'netrc', 'key']),
   secretFields: z.array(SecretFieldSchema),
 });
 export type SidecarSecretFile = z.infer<typeof SidecarSecretFileSchema>;
@@ -151,11 +160,29 @@ export type GitContext = z.infer<typeof GitContextSchema>;
 // File permissions (feeds CHAP-SEC-003)
 // ---------------------------------------------------------------------------
 
+// What a permission fact is about, so a check can pick the paths it
+// cares about (CHAP-SEC-008 looks at everything that controls what the
+// agent runs; CHAP-SEC-003 only at the config file).
+export const PermissionRoleSchema = z.enum([
+  'config',
+  'log',
+  'memory-dir',
+  'sidecar',
+  'target-root',
+  'skills-dir',
+  'skill-dir',
+]);
+export type PermissionRole = z.infer<typeof PermissionRoleSchema>;
+
 export const FilePermissionFactSchema = z.object({
   path: z.string(),
+  role: PermissionRoleSchema,
   exists: z.boolean(),
   mode: z.number().nullable(),
   isDirectory: z.boolean(),
+  // null when the path doesn't exist, or on Windows, where POSIX mode
+  // bits don't reflect real access control (the reported mode is
+  // synthesized from the read-only attribute).
   groupOrOtherReadable: z.boolean().nullable(),
   groupOrOtherWritable: z.boolean().nullable(),
 });
@@ -164,6 +191,27 @@ export type FilePermissionFact = z.infer<typeof FilePermissionFactSchema>;
 // ---------------------------------------------------------------------------
 // Skills
 // ---------------------------------------------------------------------------
+
+// Where a capability was seen (PROPOSED_FIXES.md 4.2): the file, the
+// 1-indexed line (null when only a pattern pre-pass ran), and the API
+// name (`child_process.execSync`, `fetch`, `deleteFile`). Never a source
+// snippet.
+export const CapabilityEvidenceSchema = z.object({
+  capability: z.enum([
+    'shellExec',
+    'fileSystemAccess',
+    'networkAccess',
+    'dynamicEval',
+    'destructive',
+  ]),
+  file: z.string(),
+  line: z.number().nullable(),
+  api: z.string(),
+  // fileSystemAccess only: whether this write's path is scoped to the
+  // skill's own directory or a fixed base (PROPOSED_FIXES.md 2.6).
+  scoped: z.boolean().optional(),
+});
+export type CapabilityEvidence = z.infer<typeof CapabilityEvidenceSchema>;
 
 export const SkillCapabilitiesSchema = z.object({
   shellExec: z.boolean(),
@@ -181,6 +229,8 @@ export const SkillCapabilitiesSchema = z.object({
   // limited) data-flow signal CHAP-INJ-002 uses to distinguish a
   // confirmed chain from a mere shape-match (improvement_plan.md 1.16).
   dataFlowToShellExec: z.boolean(),
+  // Capped per capability (see mergeCapabilities); in source order.
+  evidence: z.array(CapabilityEvidenceSchema),
 });
 export type SkillCapabilities = z.infer<typeof SkillCapabilitiesSchema>;
 
@@ -321,6 +371,9 @@ export const FindingSchema = z.object({
   owasp: z.string(),
   message: z.string(),
   location: FindingLocationSchema,
+  // Further places the same finding applies to (e.g. every shell-exec
+  // call in a skill after the first); emitted as SARIF relatedLocations.
+  relatedLocations: z.array(FindingLocationSchema).optional(),
   remediation: z.string(),
 });
 export type Finding = z.infer<typeof FindingSchema>;

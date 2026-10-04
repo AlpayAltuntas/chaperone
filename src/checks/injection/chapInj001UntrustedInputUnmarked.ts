@@ -1,5 +1,5 @@
 import type { Check } from '../../engine/types.js';
-import { getTrustBoolean, isAnyChannelEnabled } from '../shared/configAccess.js';
+import { configLine, getTrustBoolean, isAnyChannelEnabled } from '../shared/configAccess.js';
 
 const ID = 'CHAP-INJ-001';
 const TITLE = 'Untrusted input flows straight to the model';
@@ -36,7 +36,11 @@ export const chapInj001UntrustedInputUnmarked: Check = {
         owasp: OWASP,
         message:
           'At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model.',
-        location: { filePath: model.config.path, line: null, detail: 'trust.mark_untrusted_input' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['trust', 'mark_untrusted_input']),
+          detail: 'trust.mark_untrusted_input',
+        },
         remediation:
           'Mark untrusted inbound content explicitly and keep it separated from system instructions in the prompt; filter before forwarding it to the model.',
       },

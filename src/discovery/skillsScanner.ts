@@ -1,4 +1,12 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  statSync,
+} from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import type { InspectedEntry, Skill, SkippedEntry, SkillProvenance } from '../model/types.js';
@@ -15,20 +23,87 @@ const MANIFEST_FILENAMES = ['package.json', 'skill.json', 'skill.yaml', 'skill.y
 // JS/TS get the AST-based detectCapabilities (Phase 10); .py gets the
 // regex-based detectPythonCapabilities (Phase 16, improvement_plan.md
 // 1.9) — dispatched in detectCapabilitiesForFile below.
-const JS_TS_SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts']);
+const JS_TS_SOURCE_EXTENSIONS = new Set([
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.jsx',
+  '.ts',
+  '.mts',
+  '.cts',
+  '.tsx',
+]);
 const PYTHON_SOURCE_EXTENSIONS = new Set(['.py']);
-const SOURCE_EXTENSIONS = new Set([...JS_TS_SOURCE_EXTENSIONS, ...PYTHON_SOURCE_EXTENSIONS]);
 const LOCKFILE_NAMES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
 const MAX_SOURCE_FILE_BYTES = 256 * 1024;
-const MAX_SCAN_DEPTH = 4;
+// Files over MAX_SOURCE_FILE_BYTES get a pattern pre-pass instead of the
+// AST (PROPOSED_FIXES.md 3.3), reading at most this much of each.
+const MAX_PREPASS_BYTES = 16 * 1024 * 1024;
+const MAX_SCAN_DEPTH = 6;
 
-const DANGEROUS_INSTALL_PATTERNS = [
-  /curl[^\n]*\|\s*(?:ba)?sh/i,
-  /wget[^\n]*\|\s*(?:ba)?sh/i,
-  /\bsudo\b/i,
-  /\bapt-get install\b/i,
-  /\bbrew install\b/i,
+// Directories that are never skill code: dependency trees and VCS
+// metadata. Every other directory, including dot-directories, is scanned,
+// since skipping `.lib/` let a skill hide its payload there
+// (PROPOSED_FIXES.md 3.3).
+const SKIPPED_DIRECTORIES = new Set([
+  'node_modules',
+  '.git',
+  '.hg',
+  '.svn',
+  '.venv',
+  'venv',
+  '__pycache__',
+]);
+
+// Extensionless files with one of these shebang interpreters are source.
+const NODE_SHEBANG = /^#!.*\b(?:node|deno|bun|tsx|ts-node)\b/;
+const PYTHON_SHEBANG = /^#!.*\bpython[0-9.]*\b/;
+
+// Patterns the large-file pre-pass treats as dynamic-code evidence.
+// Minified bundles are the usual shape for an obfuscated payload, so
+// skipping them outright was the worst possible blind spot.
+const PREPASS_PATTERNS: ReadonlyArray<{ name: string; regex: RegExp }> = [
+  { name: 'eval(', regex: /\beval\s*\(/ },
+  { name: 'Function(', regex: /\bFunction\s*\(/ },
+  { name: 'atob(', regex: /\batob\s*\(/ },
+  { name: 'child_process', regex: /\bchild_process\b/ },
 ];
+
+interface DangerousPattern {
+  regex: RegExp;
+  /** Only meaningful in an actual install script, not in a README's prose. */
+  installScriptOnly: boolean;
+}
+
+// `(?:sudo\s+)?(?:ba|z|da)?sh\b`: a shell at a word boundary, so `| bash`,
+// `| sudo sh`, and `| bash -s` match but `| shasum` doesn't.
+const PIPE_TO_SHELL = String.raw`\|\s*(?:sudo\s+)?(?:ba|z|da)?sh\b`;
+const DANGEROUS_INSTALL_PATTERNS: readonly DangerousPattern[] = [
+  { regex: new RegExp(String.raw`curl[^\n]*${PIPE_TO_SHELL}`, 'i'), installScriptOnly: false },
+  { regex: new RegExp(String.raw`wget[^\n]*${PIPE_TO_SHELL}`, 'i'), installScriptOnly: false },
+  // bash <(curl ...) — process substitution instead of a pipe.
+  { regex: /\b(?:ba|z)?sh\s+<\(\s*(?:curl|wget)\b[^\n]*/i, installScriptOnly: false },
+  // PowerShell: iwr/irm ... | iex
+  {
+    regex:
+      /\b(?:iwr|irm|Invoke-WebRequest|Invoke-RestMethod)\b[^\n]*\|\s*(?:iex|Invoke-Expression)\b/i,
+    installScriptOnly: false,
+  },
+  // A decoded blob piped straight into a shell.
+  {
+    regex: new RegExp(String.raw`base64\s+(?:-d|--decode|-D)\b[^\n]*${PIPE_TO_SHELL}`, 'i'),
+    installScriptOnly: false,
+  },
+  { regex: /\bsudo\b/i, installScriptOnly: false },
+  // Installing system packages is normal README advice ("brew install
+  // jq"), so these only count inside an install script.
+  { regex: /\bapt-get install\b/i, installScriptOnly: true },
+  { regex: /\bbrew install\b/i, installScriptOnly: true },
+];
+
+// npm lifecycle scripts that run on install. `prepare` also runs when a
+// package is installed from git, which is how skills are often installed.
+const NPM_INSTALL_LIFECYCLE_SCRIPTS = ['preinstall', 'install', 'postinstall', 'prepare'];
 
 export interface SkillsScanResult {
   skills: Skill[];
@@ -65,11 +140,13 @@ function scanOneSkill(
   const manifestPath = findFirstExisting(dir, MANIFEST_FILENAMES);
   const manifest = manifestPath ? readManifest(manifestPath, inspected, skipped) : null;
 
-  const sourceFiles = listSourceFiles(dir);
+  const sourceFiles = listSkillFiles(dir, skipped);
   const sourceContents = readSourceFiles(sourceFiles, inspected, skipped);
   const capabilities = mergeCapabilities(
-    sourceContents.map(({ path: filePath, content }) =>
-      detectCapabilitiesForFile(filePath, content),
+    sourceContents.map((source) =>
+      'prepass' in source
+        ? source.prepass
+        : detectCapabilitiesForFile(source.path, source.kind, source.content),
     ),
   );
 
@@ -213,17 +290,70 @@ function readManifest(
   }
 }
 
-/** Dispatches to the AST-based JS/TS detector or the regex-based Python one (Phase 16), by extension. */
-function detectCapabilitiesForFile(filePath: string, content: string): DetectedCapabilities {
-  return PYTHON_SOURCE_EXTENSIONS.has(path.extname(filePath))
-    ? detectPythonCapabilities(content)
-    : detectCapabilities(filePath, content);
+type SourceKind = 'js' | 'python';
+
+/** Whether a file is skill source: by extension, or by shebang for an extensionless script. */
+function sourceKindFor(file: string): SourceKind | null {
+  const ext = path.extname(file).toLowerCase();
+  if (JS_TS_SOURCE_EXTENSIONS.has(ext)) {
+    return 'js';
+  }
+  if (PYTHON_SOURCE_EXTENSIONS.has(ext)) {
+    return 'python';
+  }
+  if (ext !== '') {
+    return null;
+  }
+  const firstLine = readFirstLine(file);
+  if (firstLine === null) {
+    return null;
+  }
+  if (NODE_SHEBANG.test(firstLine)) {
+    return 'js';
+  }
+  return PYTHON_SHEBANG.test(firstLine) ? 'python' : null;
 }
 
-function listSourceFiles(dir: string, depth = 0): string[] {
-  if (depth > MAX_SCAN_DEPTH) {
-    return [];
+function readFirstLine(file: string): string | null {
+  let fd: number | null = null;
+  try {
+    fd = openSync(file, 'r');
+    const buffer = Buffer.alloc(256);
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0);
+    const text = buffer.subarray(0, bytesRead).toString('utf8');
+    return text.startsWith('#!') ? (text.split('\n')[0] ?? null) : null;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== null) {
+      closeSync(fd);
+    }
   }
+}
+
+/** Dispatches to the AST-based JS/TS detector or the regex-based Python one (Phase 16). */
+function detectCapabilitiesForFile(
+  filePath: string,
+  kind: SourceKind,
+  content: string,
+): DetectedCapabilities {
+  if (kind === 'python') {
+    return detectPythonCapabilities(content, filePath);
+  }
+  // An extensionless Node script is parsed as plain JS.
+  return detectCapabilities(
+    path.extname(filePath) === '' ? `${filePath}.js` : filePath,
+    content,
+    filePath,
+  );
+}
+
+/**
+ * Every file in a skill directory, recursively, minus SKIPPED_DIRECTORIES.
+ * A directory past MAX_SCAN_DEPTH is recorded as skipped rather than
+ * silently ignored, so code nested deeper still shows in the report.
+ */
+function listSkillFiles(dir: string, skipped: SkippedEntry[], depth = 0): string[] {
   let entries: import('node:fs').Dirent[];
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -233,18 +363,29 @@ function listSourceFiles(dir: string, depth = 0): string[] {
 
   const files: string[] = [];
   for (const entry of entries) {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
-      continue;
-    }
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...listSourceFiles(full, depth + 1));
-    } else if (SOURCE_EXTENSIONS.has(path.extname(entry.name))) {
+      if (SKIPPED_DIRECTORIES.has(entry.name)) {
+        continue;
+      }
+      if (depth >= MAX_SCAN_DEPTH) {
+        skipped.push({
+          path: full,
+          reason: `directory too deep to scan (more than ${String(MAX_SCAN_DEPTH)} levels inside the skill)`,
+        });
+        continue;
+      }
+      files.push(...listSkillFiles(full, skipped, depth + 1));
+    } else if (entry.isFile()) {
       files.push(full);
     }
   }
   return files;
 }
+
+type SourceRead =
+  | { path: string; kind: SourceKind; content: string }
+  | { path: string; prepass: DetectedCapabilities };
 
 /**
  * Reads each source file individually (not concatenated into one blob —
@@ -254,27 +395,77 @@ function listSourceFiles(dir: string, depth = 0): string[] {
  * strictly need this — it doesn't care about file boundaries — but stays
  * on the same per-file path for one consistent merge step via
  * mergeCapabilities, rather than special-casing Python's aggregation.
+ *
+ * A file over MAX_SOURCE_FILE_BYTES gets a pattern pre-pass instead of
+ * being skipped (PROPOSED_FIXES.md 3.3), and is listed under Skipped with
+ * that explanation so the reduced analysis is visible.
  */
 function readSourceFiles(
   files: string[],
   inspected: InspectedEntry[],
   skipped: SkippedEntry[],
-): Array<{ path: string; content: string }> {
-  const results: Array<{ path: string; content: string }> = [];
+): SourceRead[] {
+  const results: SourceRead[] = [];
   for (const file of files) {
+    const kind = sourceKindFor(file);
+    if (kind === null) {
+      continue;
+    }
     try {
       const stat = statSync(file);
       if (stat.size > MAX_SOURCE_FILE_BYTES) {
-        skipped.push({ path: file, reason: 'source file too large to scan (>256KB)' });
+        const hits = prepassLargeFile(file);
+        skipped.push({
+          path: file,
+          reason:
+            hits.length > 0
+              ? `source file too large for full analysis (>256KB); pattern pre-pass found ${hits.join(', ')}`
+              : 'source file too large for full analysis (>256KB); pattern pre-pass found nothing',
+        });
+        inspected.push({ path: file, kind: 'skill-source' });
+        results.push({
+          path: file,
+          prepass: {
+            shellExec: false,
+            fileSystemAccess: false,
+            fileSystemScoped: false,
+            networkAccess: false,
+            destructiveKeywords: [],
+            dynamicEval: hits.length > 0,
+            dataFlowToShellExec: false,
+            evidence: hits.map((hit) => ({
+              capability: 'dynamicEval' as const,
+              file,
+              line: null,
+              api: `${hit} (pattern pre-pass)`,
+            })),
+          },
+        });
         continue;
       }
-      results.push({ path: file, content: readFileSync(file, 'utf8') });
+      results.push({ path: file, kind, content: readFileSync(file, 'utf8') });
       inspected.push({ path: file, kind: 'skill-source' });
     } catch (err) {
       skipped.push({ path: file, reason: `unreadable source: ${errorMessage(err)}` });
     }
   }
   return results;
+}
+
+/** Names of PREPASS_PATTERNS found in the first MAX_PREPASS_BYTES of a large file. */
+function prepassLargeFile(file: string): string[] {
+  let fd: number | null = null;
+  try {
+    fd = openSync(file, 'r');
+    const buffer = Buffer.alloc(Math.min(statSync(file).size, MAX_PREPASS_BYTES));
+    const bytesRead = readSync(fd, buffer, 0, buffer.length, 0);
+    const text = buffer.subarray(0, bytesRead).toString('utf8');
+    return PREPASS_PATTERNS.filter(({ regex }) => regex.test(text)).map(({ name }) => name);
+  } finally {
+    if (fd !== null) {
+      closeSync(fd);
+    }
+  }
 }
 
 function scanInstallScripts(
@@ -287,10 +478,10 @@ function scanInstallScripts(
 
   const npmScripts = manifest && isRecord(manifest['scripts']) ? manifest['scripts'] : null;
   if (npmScripts) {
-    for (const key of ['preinstall', 'install', 'postinstall']) {
+    for (const key of NPM_INSTALL_LIFECYCLE_SCRIPTS) {
       const value = npmScripts[key];
       if (typeof value === 'string') {
-        const matched = matchDangerousPatterns(value);
+        const matched = matchDangerousPatterns(value, true);
         if (matched.length > 0) {
           results.push({ path: `package.json#scripts.${key}`, dangerousPatterns: matched });
         }
@@ -298,24 +489,24 @@ function scanInstallScripts(
     }
   }
 
-  let entries: string[];
+  // Shell scripts anywhere in the skill (`scripts/setup.sh`, not only
+  // top-level), plus a top-level README, whose install instructions a
+  // user is likely to copy and run.
+  const shellScripts = listSkillFiles(dir, []).filter((file) => file.endsWith('.sh'));
+  let readmes: string[];
   try {
-    entries = readdirSync(dir);
+    readmes = readdirSync(dir)
+      .filter((entry) => /^readme/i.test(entry))
+      .map((entry) => path.join(dir, entry));
   } catch {
-    entries = [];
+    readmes = [];
   }
 
-  for (const entry of entries) {
-    const isShellScript = entry.endsWith('.sh');
-    const isReadme = /^readme/i.test(entry);
-    if (!isShellScript && !isReadme) {
-      continue;
-    }
-    const full = path.join(dir, entry);
+  for (const full of [...shellScripts.sort(), ...readmes.sort()]) {
     try {
       const content = readFileSync(full, 'utf8');
       inspected.push({ path: full, kind: 'skill-install-script' });
-      const matched = matchDangerousPatterns(content);
+      const matched = matchDangerousPatterns(content, full.endsWith('.sh'));
       if (matched.length > 0) {
         results.push({ path: full, dangerousPatterns: matched });
       }
@@ -327,10 +518,13 @@ function scanInstallScripts(
   return { scripts: results };
 }
 
-function matchDangerousPatterns(text: string): string[] {
+function matchDangerousPatterns(text: string, isInstallScript: boolean): string[] {
   const matches: string[] = [];
-  for (const re of DANGEROUS_INSTALL_PATTERNS) {
-    const match = re.exec(text);
+  for (const { regex, installScriptOnly } of DANGEROUS_INSTALL_PATTERNS) {
+    if (installScriptOnly && !isInstallScript) {
+      continue;
+    }
+    const match = regex.exec(text);
     if (match) {
       matches.push(match[0]);
     }

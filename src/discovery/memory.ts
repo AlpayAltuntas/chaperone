@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { MemoryModel } from '../model/types.js';
-import { isRecord } from './jsonUtils.js';
+import { getConfigField, isRecord } from './jsonUtils.js';
 import { expandHome } from './pathUtils.js';
 
 const EMPTY_MEMORY: MemoryModel = { present: false, dir: null };
@@ -17,12 +17,10 @@ export function extractMemoryModel(rawConfig: unknown, targetRoot: string): Memo
   if (!isRecord(rawConfig)) {
     return EMPTY_MEMORY;
   }
+  const memoryDir = getConfigField(rawConfig, 'memory_dir');
+  const stateDir = getConfigField(rawConfig, 'state_dir');
   const raw =
-    typeof rawConfig['memory_dir'] === 'string'
-      ? rawConfig['memory_dir']
-      : typeof rawConfig['state_dir'] === 'string'
-        ? rawConfig['state_dir']
-        : null;
+    typeof memoryDir === 'string' ? memoryDir : typeof stateDir === 'string' ? stateDir : null;
   if (raw === null) {
     return EMPTY_MEMORY;
   }

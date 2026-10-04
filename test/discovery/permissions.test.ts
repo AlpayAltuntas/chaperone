@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -23,7 +23,7 @@ describe('getFilePermissionFact', () => {
     const filePath = path.join(dir, 'config.yaml');
     writeFileSync(filePath, 'a: 1\n', { mode: 0o644 });
 
-    const fact = getFilePermissionFact(filePath);
+    const fact = getFilePermissionFact(filePath, 'config');
 
     expect(fact.exists).toBe(true);
     expect(fact.mode).toBe(0o644);
@@ -34,7 +34,7 @@ describe('getFilePermissionFact', () => {
     const filePath = path.join(dir, 'config.yaml');
     writeFileSync(filePath, 'a: 1\n', { mode: 0o600 });
 
-    const fact = getFilePermissionFact(filePath);
+    const fact = getFilePermissionFact(filePath, 'config');
 
     expect(fact.mode).toBe(0o600);
     expect(fact.groupOrOtherReadable).toBe(false);
@@ -42,10 +42,35 @@ describe('getFilePermissionFact', () => {
   });
 
   it('degrades gracefully for a missing file instead of throwing', () => {
-    const fact = getFilePermissionFact(path.join(dir, 'does-not-exist.yaml'));
+    const fact = getFilePermissionFact(path.join(dir, 'does-not-exist.yaml'), 'config');
 
     expect(fact.exists).toBe(false);
     expect(fact.mode).toBeNull();
     expect(fact.groupOrOtherReadable).toBeNull();
+  });
+
+  it('reports a group/other-writable directory', () => {
+    const sub = path.join(dir, 'skills');
+    mkdirSync(sub);
+    chmodSync(sub, 0o777);
+
+    const fact = getFilePermissionFact(sub, 'skills-dir');
+
+    expect(fact).toMatchObject({
+      role: 'skills-dir',
+      isDirectory: true,
+      groupOrOtherWritable: true,
+    });
+  });
+
+  it('reports readable/writable as unknown on Windows, where mode bits are synthesized', () => {
+    const filePath = path.join(dir, 'config.yaml');
+    writeFileSync(filePath, 'a: 1\n', { mode: 0o666 });
+
+    const fact = getFilePermissionFact(filePath, 'config', 'win32');
+
+    expect(fact.exists).toBe(true);
+    expect(fact.groupOrOtherReadable).toBeNull();
+    expect(fact.groupOrOtherWritable).toBeNull();
   });
 });

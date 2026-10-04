@@ -1,4 +1,4 @@
-import type { InspectedEntry, SkippedEntry } from '../model/types.js';
+import type { CheckCategory, InspectedEntry, Severity, SkippedEntry } from '../model/types.js';
 
 /**
  * Presentation-layer metadata every reporter (console, json, sarif)
@@ -18,4 +18,27 @@ export interface ScanMetadata {
   toolVersion: string;
   inspected: InspectedEntry[];
   skipped: SkippedEntry[];
+  /**
+   * The checks that ran, for reporters that describe every rule, not only
+   * those that fired (SARIF, so code scanning can close fixed alerts).
+   * Omitted by callers that only have findings.
+   */
+  checks?: readonly RuleDescription[];
+  /**
+   * The directory finding paths are reported relative to in SARIF: the
+   * enclosing git repository's root when there is one (what code scanning
+   * maps results against), else the scan target.
+   */
+  sourceRoot?: string;
+}
+
+export interface RuleDescription {
+  id: string;
+  title: string;
+  severity: Severity;
+  category: CheckCategory;
+  owasp: string;
+  detects: string;
+  heuristic: string;
+  remediation: string;
 }

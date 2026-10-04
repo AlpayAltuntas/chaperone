@@ -11,6 +11,11 @@ Run `chaperone scan <path>` to run every check below against an install.
 `chaperone explain <check-id>` prints one check's full detail from the
 same source this file is generated from.
 
+Config keys are written in snake_case below (`trust.auto_execute_links`),
+but the camelCase and kebab-case spellings of the same key
+(`autoExecuteLinks`, `auto-execute-links`) are read identically. If a
+section holds more than one spelling, the snake_case one wins.
+
 ## Posture score
 
 Start at 100 and subtract a fixed weight for every finding, by severity,
@@ -54,8 +59,8 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** High
 - **OWASP:** LLM06 — Sensitive Information Disclosure
-- **Detects:** API keys, tokens, passwords, and similar credentials stored directly in the config file as literal values.
-- **Heuristic:** A config key whose name looks secret-bearing (`api_key`, `token`, `secret`, `password`, `credential`, case-insensitive) holds a literal string value rather than an indirect reference (`${VAR}`, `$VAR`, `env:VAR`). The literal value is masked (e.g. `sk-…wxyz`) before it ever reaches this check or any report — the real value is never printed. For a YAML config, the finding includes a real source line number (via `YAML.parseDocument`); a JSON config has no equivalent free CST-with-positions, so its findings report a `null` line.
+- **Detects:** API keys, tokens, passwords, and similar credentials stored directly in the config file as literal values, whether under a secret-named key or recognizable from the value itself.
+- **Heuristic:** A config key whose name looks secret-bearing (`api_key`, `token`, `secret`, `password`, `credential`, case-insensitive) holds a literal string value rather than an indirect reference (`${VAR}`, `$VAR`, `env:VAR`). Keys ending in `auth`, `authorization`, `bearer`, `cookie`, or `session` count only when the value looks like a credential rather than a word. Independently of the key name, a value is flagged when it matches a high-precision pattern: a provider-prefixed token (`sk-ant-`, `sk-proj-`, `ghp_`, `github_pat_`, `xoxb-`, `AKIA`, `AIza`, `glpat-`, `npm_`, `hf_`, `sk_live_`), a `Bearer`/`Basic` credential, a PEM private key, or a password in a URL (`https://user:pass@host`). No entropy guessing. The literal value is masked (e.g. `sk-…wxyz`) before it ever reaches this check or any report — the real value is never printed. Findings include the source line, for YAML and JSON configs alike (JSON is parsed for positions with `YAML.parseDocument`).
 - **Remediation:** Move the value to an environment variable or a secrets manager and reference it indirectly in config.
 
 ### CHAP-SEC-002 — Secrets in a git-tracked path
@@ -87,15 +92,15 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** High
 - **OWASP:** LLM06 — Sensitive Information Disclosure
 - **Detects:** A secret-shaped value already written into the log file's existing content — distinct from CHAP-SEC-004/CHAP-OBS-002, which only reason about whether logging config is likely to leak going forward, not whether it already has.
-- **Heuristic:** (Deliberately simple, v1.) Scans up to the last 256 KiB of the log file (bounded — see `discovery/logContentScanner.ts`) for `key=value`/`"key": "value"`-shaped substrings where the key looks secret-bearing (the same `looksLikeSecretKeyName` heuristic CHAP-SEC-001 uses) and the value is at least 8 characters. A generic high-entropy-string scanner was the documented alternative (`improvement_plan.md` 2.1); this reuses existing, tested logic instead. Matched values are masked before ever reaching the model — the real value is never retained or printed, same guarantee as config secrets.
+- **Heuristic:** (Deliberately simple, v1.) Scans up to the last 256 KiB of the log file (bounded — see `discovery/logContentScanner.ts`) for `key=value`/`"key": "value"`-shaped substrings where the key looks secret-bearing (the same `looksLikeSecretKeyName` heuristic CHAP-SEC-001 uses) and the value is at least 8 characters. Independently, it flags secret-shaped values anywhere in a line using the same high-precision value patterns as CHAP-SEC-001 (provider-prefixed tokens, a logged `Authorization: Bearer …` header, a password in a URL); a value already matched by the key=value pass is not reported twice. A generic high-entropy-string scanner was the documented alternative (`improvement_plan.md` 2.1); this reuses existing, tested logic instead. Matched values are masked before ever reaching the model — the real value is never retained or printed, same guarantee as config secrets.
 - **Remediation:** Rotate the leaked credential, purge or redact the log file, and fix the logging behavior that caused it to be written.
 
 ### CHAP-SEC-006 — Sidecar secret file exposed
 
 - **Severity:** High
 - **OWASP:** LLM06 — Sensitive Information Disclosure
-- **Detects:** A sidecar secret file (`.env`, `.env.local`, `secrets.yaml`, `secrets.yml`, `secrets.json`) discovered alongside the main config, holding a literal secret that's either git-tracked and not gitignored, or readable by group/other.
-- **Heuristic:** Applies the exact same two checks CHAP-SEC-002/CHAP-SEC-003 apply to the main config file, to each discovered sidecar file instead: the file holds at least one literal (non-env-reference) secret field (masked the same way `config.yaml` is — see `discovery/configParser.ts`/`discovery/sidecarSecrets.ts`), and either its path relative to an ancestor git root isn't covered by the repo's `.gitignore`, or its POSIX mode is broader than `0600`. Both reasons are reported together in one finding when both hold.
+- **Detects:** A sidecar secret file discovered alongside the main config (`.env`, `.env.*` except example/sample/template files, `.envrc`, `secrets.yaml/.yml/.json`, `credentials.json`, `service-account*.json`, `.npmrc`, `.pypirc`, `.netrc`, or a private key: `id_rsa`/`id_ecdsa`/`id_ed25519`, `*.pem`/`*.key` holding a PEM private key), holding a literal secret that's either git-tracked and not gitignored, or readable by group/other.
+- **Heuristic:** Applies the exact same two checks CHAP-SEC-002/CHAP-SEC-003 apply to the main config file, to each discovered sidecar file instead: the file holds at least one literal (non-env-reference) secret field, recognized by key name or by value pattern exactly as in CHAP-SEC-001 (masked the same way `config.yaml` is — see `discovery/configParser.ts`/`discovery/sidecarSecrets.ts`), and either its path relative to an ancestor git root isn't covered by the repo's `.gitignore`, or its POSIX mode is broader than `0600`. Both reasons are reported together in one finding when both hold.
 - **Remediation:** Add the file to .gitignore, rotate any key that may already have been committed, and restrict it to owner-only access (chmod 600).
 
 ### CHAP-SEC-007 — Config references an environment variable that isn't set
@@ -103,8 +108,16 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Low
 - **OWASP:** LLM06 — Sensitive Information Disclosure
 - **Detects:** A config field using a bare `${VAR}`/`$VAR`/`env:VAR` reference where `VAR` isn't set (or is empty) in Chaperone's own process environment at scan time.
-- **Heuristic:** (Explicitly advisory/low-confidence.) Chaperone runs as a separate process from the agent and may not share its real environment — e.g. the agent could be launched via `systemd`/`launchd` with its own `EnvironmentFile` Chaperone never sees. The finding message states this caveat directly, not just here. Only bare references are checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default resolves to something even when the variable itself is unset, so it's silently skipped rather than risk a false positive. Reports a real source line number for a YAML config, `null` for JSON (see CHAP-SEC-001).
+- **Heuristic:** (Explicitly advisory/low-confidence.) Chaperone runs as a separate process from the agent and may not share its real environment — e.g. the agent could be launched via `systemd`/`launchd` with its own `EnvironmentFile` Chaperone never sees. The finding message states this caveat directly, not just here. Only bare references are checked; a reference with a `:-`/`:=`/`:?`/`:+` fallback/default resolves to something even when the variable itself is unset, so it's silently skipped rather than risk a false positive. Reports the source line number for YAML and JSON configs (see CHAP-SEC-001).
 - **Remediation:** Confirm the variable is actually set in the environment the agent runs under; an unresolved reference can mean the agent starts with an empty or broken credential.
+
+### CHAP-SEC-008 — Agent files writable by other users
+
+- **Severity:** High
+- **OWASP:** LLM05 — Supply Chain
+- **Detects:** The config file, install directory, skills directory, any skill directory, or the memory directory being writable by users other than the owner.
+- **Heuristic:** POSIX mode with a group or other write bit (`0o022`) set on any of those paths. A writable skills directory lets any local user or process plant code that the agent runs with its own privileges (a local privilege escalation); writable memory lets them inject persistent instructions. Meaningful on macOS/Linux only: on Windows, Node's reported mode doesn't reflect other users' access, so no finding is reported there.
+- **Remediation:** Remove group/other write access, e.g. `chmod go-w <path>` (`chmod -R go-w` for a skills directory), and make sure the agent runs as a dedicated user that owns its files.
 
 ## Category B — Excessive agency & permissions
 
@@ -113,7 +126,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Critical (High when the skill declares `confirmationRequired: true`)
 - **OWASP:** LLM08 — Excessive Agency
 - **Detects:** Skills/plugins that can run arbitrary shell commands.
-- **Heuristic:** A skill's source contains a shell/exec/spawn capability (`child_process`, `exec`/`execSync`, `spawn`/`spawnSync`). A command allowlist isn't detected, so any detected shell capability is treated as unrestricted. If the skill's manifest declares `confirmationRequired: true`, the finding is downgraded to High: the gate is self-declared and can't be verified statically.
+- **Heuristic:** A skill's source contains a shell/exec/spawn capability: `child_process` (`exec`/`execFile`/`spawn`/`fork` and their sync forms), `execa`, `shelljs.exec`, `zx` `$`, `cross-spawn`, `node-pty`, `Bun.spawn`, or `new Deno.Command`. One level of aliasing (`const run = cp['exec']`), nested and template-literal member access, and inline `require(...)` are resolved. A command allowlist isn't detected, so any detected shell capability is treated as unrestricted. If the skill's manifest declares `confirmationRequired: true`, the finding is downgraded to High: the gate is self-declared and can't be verified statically.
 - **Remediation:** Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
 
 ### CHAP-AGY-002 — Unrestricted filesystem access
@@ -121,7 +134,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** High
 - **OWASP:** LLM08 — Excessive Agency
 - **Detects:** Skills that write/delete files with no scoping to a fixed workspace directory.
-- **Heuristic:** The skill writes files (`fs.writeFile`/`unlink`/etc.) and its source shows no evidence of scoping — no `path.join(__dirname, ...)` (or `.resolve`) pattern and no constant named like `WORKSPACE`/`SANDBOX`/`SCOPED`. A static proxy for "no path scoping", not true taint tracking.
+- **Heuristic:** The skill writes files (`fs`/`fs/promises`/`fs-extra` writes, renames, copies, deletes, `mkdir`/`chmod`/`createWriteStream`, including `fs.promises.*`; or any call into `rimraf`/`del`) and at least one write's path isn't scoped. Scoping is decided per write call: a path is scoped when it is the skill's own directory (`__dirname`, `import.meta.dirname`/`url`, or a variable derived from them), a fixed literal path other than a filesystem root, a variable holding one of those, or `path.join`/`path.resolve` whose first argument is one of those. A caller-supplied path is unscoped, and one unscoped write anywhere in the skill is enough. Path traversal through a joined segment (`../`) isn't modeled. Python skills still use a file-level pattern (`os.path.dirname(__file__)`, a `WORKSPACE`/`SANDBOX`-named variable).
 - **Remediation:** Scope the skill's file access to a dedicated workspace directory and deny path traversal outside it.
 
 ### CHAP-AGY-003 — Destructive action without confirmation
@@ -129,7 +142,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** High
 - **OWASP:** LLM08 — Excessive Agency
 - **Detects:** Skills that can delete data, send messages, spend money, or otherwise act irreversibly with no human-in-the-loop gate.
-- **Heuristic:** The skill's source contains a destructive-action keyword as a standalone word (`delete`, `send`, `transfer`, `purchase`, `deploy`, `remove`, `pay`), and its manifest does not declare `confirmationRequired: true` (checked at the manifest's top level or nested under `capabilities`) — an invented-but-documented convention, no real manifest schema exists for these example agents (see DECISIONS.md).
+- **Heuristic:** The skill's code names a destructive action (`delete`, `send`, `transfer`, `purchase`, `deploy`, `remove`, `pay` as a whole word segment, so `deleteFile` and `delete_file` count): a JS/TS function or method name, or a call to one (bare `.send()`/`.delete()`/`.remove()` member calls on objects are ignored), or a module-level Python `def` name. Comments and strings never count, and its manifest does not declare `confirmationRequired: true` (checked at the manifest's top level or nested under `capabilities`) — an invented-but-documented convention, no real manifest schema exists for these example agents (see DECISIONS.md).
 - **Remediation:** Require explicit confirmation before this action runs (or add a dry-run mode).
 
 ### CHAP-AGY-004 — Broad network egress from a skill
@@ -137,7 +150,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Medium
 - **OWASP:** LLM08 — Excessive Agency / LLM06
 - **Detects:** Skills permitted to call arbitrary external endpoints.
-- **Heuristic:** The skill's source shows network capability (`fetch`, `http(s).request`, `axios`/`node-fetch`) and its manifest declares no non-empty `domainAllowlist` array (same manifest-convention caveat as CHAP-AGY-003).
+- **Heuristic:** The skill's source shows network capability (global `fetch`/`WebSocket`/`XMLHttpRequest`/`EventSource`, or any call into `http`/`https`/`http2`/`net`/`tls`/`dgram`, `axios`, `node-fetch`, `undici`, `got`, `ky`, `superagent`, `ws`) and its manifest declares no non-empty `domainAllowlist` array (same manifest-convention caveat as CHAP-AGY-003).
 - **Remediation:** Allowlist the specific destination domain(s) the skill needs and log outbound calls.
 
 ## Category C — Supply chain & skill provenance
@@ -171,7 +184,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Medium
 - **OWASP:** LLM05 — Supply Chain
 - **Detects:** Skill install scripts/docs that pipe a remote script into a shell, use `sudo`, or bootstrap a system package manager.
-- **Heuristic:** `curl`/`wget` piped into `sh`/`bash`, `sudo`, `apt-get install`, or `brew install`, found in `package.json`'s `preinstall`/`install`/`postinstall` scripts, any `*.sh` file, or any `README*` in the skill directory.
+- **Heuristic:** A download executed by a shell: `curl`/`wget` piped into `sh`/`bash`/`zsh` (including `| sudo bash` and `| bash -s`), `bash <(curl …)`, PowerShell `iwr`/`irm … | iex`, or `base64 -d … | sh`; plus `sudo`. Searched in `package.json`'s `preinstall`/`install`/`postinstall`/`prepare` scripts (`prepare` runs on a git install), every `*.sh` file anywhere in the skill, and any top-level `README*`. `apt-get install`/`brew install` count only in install scripts and `*.sh` files, since a README recommending a package manager is normal.
 - **Remediation:** Review the install script by hand; prefer a vetted, minimal setup with no piped-shell or sudo steps.
 
 ### CHAP-SUP-005 — Obfuscated or dynamically-evaluated code
@@ -179,7 +192,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Critical
 - **OWASP:** LLM05 — Supply Chain
 - **Detects:** A skill using eval(), the Function constructor, or a decode-then-execute chain (e.g. eval(atob(payload))) to run dynamically-constructed code.
-- **Heuristic:** Any call to the `eval`/`Function` globals (bare, or `new Function(...)`) in a skill's source. Flagged unconditionally regardless of what's being evaluated — a real backdoor and a benign use are equally invisible to static review once code is constructed/evaluated at runtime, so there's no confident way to distinguish them from source alone.
+- **Heuristic:** Any call to the `eval`/`Function` globals in a skill's source: bare, `new Function(...)`, indirect (`(0, eval)(...)`), through a global object (`globalThis.eval`, `window.eval`, `self['eval']`), or through a local alias. Also `vm` code execution (`runInNewContext`, `runInThisContext`, `new vm.Script`, `compileFunction`), `require`/`import()` of a non-literal module name, `setTimeout`/`setInterval` with a string, and `module._compile`. Files over 256 KB (typically minified bundles) aren't parsed; a pattern pre-pass looks for `eval(`, `Function(`, `atob(`, or `child_process` instead, and the report's Skipped section says which matched. Flagged unconditionally regardless of what's being evaluated — a real backdoor and a benign use are equally invisible to static review once code is constructed/evaluated at runtime, so there's no confident way to distinguish them from source alone.
 - **Remediation:** Avoid dynamic code evaluation entirely. If genuinely needed, review the exact string being evaluated by hand and vendor/pin it rather than constructing or fetching it at runtime.
 
 ### CHAP-SUP-006 — Typosquat-risk dependency name

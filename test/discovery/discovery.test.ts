@@ -1,5 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { discoverAgent } from '../../src/discovery/index.js';
 
 const VULNERABLE_FIXTURE = path.join('test', 'fixtures', 'vulnerable-agent');
@@ -94,14 +96,16 @@ describe('discoverAgent — clean-agent fixture', () => {
 });
 
 describe('discoverAgent — graceful degradation', () => {
-  it('does not throw and reports a skipped entry for a nonexistent target', () => {
+  it('reports a nonexistent explicit path as nothing scanned', () => {
     const { model, targetRootResolved } = discoverAgent({
       targetPath: '/nonexistent/chaperone-target-xyz',
     });
 
-    expect(targetRootResolved).toBe(true); // explicit path always "resolves" to an absolute path
+    expect(targetRootResolved).toBe(false);
     expect(model.config.path).toBeNull();
-    expect(model.skipped.length).toBeGreaterThan(0);
+    expect(model.skipped).toEqual([
+      { path: path.resolve('/nonexistent/chaperone-target-xyz'), reason: 'path does not exist' },
+    ]);
     expect(model.skills).toEqual([]);
   });
 
@@ -118,5 +122,62 @@ describe('discoverAgent — graceful degradation', () => {
     expect(reason).toContain('no agent installation found at any default location');
     expect(reason).toContain('.clawd');
     expect(reason).toContain('chaperone scan <path>');
+  });
+});
+
+// PROPOSED_FIXES.md 2.1: an explicit path that isn't an agent install is
+// "nothing scanned", never an empty model that grades "A".
+describe('discoverAgent — explicit target validation', () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'chaperone-target-test-'));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('reports an empty directory as nothing scanned', () => {
+    const { model, targetRootResolved } = discoverAgent({ targetPath: dir });
+
+    expect(targetRootResolved).toBe(false);
+    expect(model.skipped).toHaveLength(1);
+    expect(model.skipped[0]?.reason).toContain("doesn't look like an agent installation");
+  });
+
+  it('reports a non-config file as nothing scanned', () => {
+    const file = path.join(dir, 'notes.txt');
+    writeFileSync(file, 'hello\n');
+
+    const { model, targetRootResolved } = discoverAgent({ targetPath: file });
+
+    expect(targetRootResolved).toBe(false);
+    expect(model.skipped[0]?.reason).toContain('path is a file, not an agent directory');
+  });
+
+  it.each(['config.yaml', 'config.json'])(
+    'treats a path to %s itself as its containing directory',
+    (filename) => {
+      const file = path.join(dir, filename);
+      writeFileSync(file, filename.endsWith('.json') ? '{}' : 'agent: {}\n');
+
+      const { model, targetRootResolved } = discoverAgent({ targetPath: file });
+
+      expect(targetRootResolved).toBe(true);
+      expect(model.targetRoot).toBe(dir);
+      expect(model.config.path).toBe(file);
+    },
+  );
+
+  it('resolves a directory with a skills/ dir but no config, and notes the missing config', () => {
+    mkdirSync(path.join(dir, 'skills'));
+
+    const { model, targetRootResolved } = discoverAgent({ targetPath: dir });
+
+    expect(targetRootResolved).toBe(true);
+    expect(model.skipped.some((s) => s.reason.includes('no config.yaml/.yml/.json found'))).toBe(
+      true,
+    );
   });
 });

@@ -1,7 +1,8 @@
 import pc from 'picocolors';
-import { compareSeverity, computeScore, SEVERITY_ORDER } from '../engine/severity.js';
+import { compareSeverity, SEVERITY_ORDER } from '../engine/severity.js';
 import type { Finding, FindingLocation, Severity } from '../model/types.js';
 import type { ScanMetadata } from './types.js';
+import { formatScoreLabel } from './scoreLabel.js';
 
 const SEVERITY_LABEL: Record<Severity, string> = {
   critical: 'CRITICAL',
@@ -154,11 +155,10 @@ function formatSummary(
   for (const finding of findings) {
     counts[finding.severity] += 1;
   }
-  const { score, band } = computeScore(findings, scoreWeights);
   const countLine =
     `Summary: ${String(findings.length)} finding${findings.length === 1 ? '' : 's'} ` +
     `(${String(counts.critical)} critical, ${String(counts.high)} high, ${String(counts.medium)} medium, ` +
-    `${String(counts.low)} low, ${String(counts.info)} info) — posture score ${String(score)}/100 (${band})`;
+    `${String(counts.low)} low, ${String(counts.info)} info) — ${formatScoreLabel(findings, metadata, scoreWeights)}`;
   const inspectedCount = metadata.inspected.length;
   const skippedCount = metadata.skipped.length;
   const inspectedLine = `Inspected ${String(inspectedCount)} path${inspectedCount === 1 ? '' : 's'}, skipped ${String(skippedCount)}.`;

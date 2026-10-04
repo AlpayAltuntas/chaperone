@@ -1,5 +1,6 @@
 import { BlockList, isIP } from 'node:net';
 import type { Check } from '../../engine/types.js';
+import { configLine } from '../shared/configAccess.js';
 
 const ID = 'CHAP-NET-001';
 const TITLE = 'Gateway bound beyond localhost';
@@ -83,7 +84,11 @@ export const chapNet001GatewayExposed: Check = {
         category: 'network',
         owasp: OWASP,
         message: `The gateway is bound to '${gateway.bindHost}', not localhost, making it reachable from other hosts on the network.`,
-        location: { filePath: model.config.path, line: null, detail: 'gateway.host' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['gateway', 'host']),
+          detail: 'gateway.host',
+        },
         remediation:
           'Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.',
       },

@@ -1,5 +1,5 @@
 import type { Check } from '../../engine/types.js';
-import { getEnabledChannels, getTrustToolAllowlist } from '../shared/configAccess.js';
+import { configLine, getEnabledChannels, getTrustToolAllowlist } from '../shared/configAccess.js';
 
 const ID = 'CHAP-INJ-005';
 const TITLE = 'Inbound channels do not distinguish trust level';
@@ -59,7 +59,11 @@ export const chapInj005ChannelTrustLevel: Check = {
         category: 'injection',
         owasp: OWASP,
         message: `The global tool allowlist is applied uniformly to public channel(s) (${publicNames}) alongside at least one private channel, with no channel-specific restriction narrowing what the public channel(s) can invoke.`,
-        location: { filePath: model.config.path, line: null, detail: 'trust.tool_allowlist' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['trust', 'tool_allowlist']),
+          detail: 'trust.tool_allowlist',
+        },
         remediation:
           'Declare a channel-specific tool_allowlist for each public/untrusted channel, narrower than what private/admin-only channels are permitted to invoke.',
       },

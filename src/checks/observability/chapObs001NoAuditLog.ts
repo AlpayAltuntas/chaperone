@@ -1,4 +1,5 @@
 import type { Check } from '../../engine/types.js';
+import { configLine } from '../shared/configAccess.js';
 
 const ID = 'CHAP-OBS-001';
 const TITLE = 'No audit log of agent actions';
@@ -31,7 +32,11 @@ export const chapObs001NoAuditLog: Check = {
         message: model.logging.present
           ? 'Logging is configured but the audit log of tool invocations/actions is disabled.'
           : 'No logging is configured at all, so there is no audit log of tool invocations/actions.',
-        location: { filePath: model.config.path, line: null, detail: 'logging.audit.enabled' },
+        location: {
+          filePath: model.config.path,
+          line: configLine(model, ['logging', 'audit', 'enabled']),
+          detail: 'logging.audit.enabled',
+        },
         remediation:
           'Enable an append-only audit log of every tool invocation/action the agent takes.',
       },

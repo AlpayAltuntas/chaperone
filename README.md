@@ -44,7 +44,7 @@ npm run build
 node dist/cli.js scan ~/clawd   # or: npm link, then use `chaperone` directly
 ```
 
-Requires Node.js ≥ 20.
+Requires Node.js ≥ 22.
 
 ## Quickstart
 
@@ -133,24 +133,24 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 39 findings across all 29 checks):
+the real run reports 39 findings across all 30 checks):
 
 ```
 Chaperone scan report
 Target: ~/clawd
-Scanned at 2026-09-20T22:16:32.871Z — chaperone v0.2.0
+Scanned at 2026-10-03T19:49:13.889Z — chaperone v0.3.0
 
 CRITICAL (5)
 
   [CHAP-AGY-001] Unrestricted shell execution
-    Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate.
-    Location: ~/clawd/skills/command-relay/package.json (command-relay)
+    Skill 'command-relay' can execute arbitrary shell commands with no detected command allowlist or confirmation gate. Seen at index.js:9 (child_process.exec).
+    Location: ~/clawd/skills/command-relay/index.js:9 (command-relay)
     OWASP: LLM08: Excessive Agency
     Remediation: Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
 
   [CHAP-NET-001] Gateway bound beyond localhost
     The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network.
-    Location: ~/clawd/config.yaml (gateway.host)
+    Location: ~/clawd/config.yaml:16 (gateway.host)
     OWASP: LLM06 / general
     Remediation: Bind the gateway to 127.0.0.1/localhost; put anything that must be remote behind a tunnel with authentication.
 
@@ -217,7 +217,12 @@ never accidentally hide a real failure from CI. `--quiet` and
 Exit code is `0` when no finding meets the `--fail-on` threshold (and an
 installation was actually found), `1` otherwise — including when Chaperone
 couldn't locate an installation to scan at all, so a CI pipeline never
-mistakes "nothing was scanned" for "nothing was found."
+mistakes "nothing was scanned" for "nothing was found." An explicit path
+counts as "nothing scanned" when it doesn't exist, is a file other than
+the config file, or is a directory with neither a config file nor a
+`skills/` directory (for `--profile mcp`: no parseable MCP config). Such
+a report shows no posture score. Passing the config file itself
+(`chaperone scan ~/clawd/config.yaml`) scans its directory.
 
 ### Suppressions & overrides (`.chaperonerc.json`)
 
@@ -451,20 +456,57 @@ CLI that makes an outbound network call outside `npm run refresh:vulndb`
 (see [Security & ethics](#security--ethics)) — and even here, only when
 you explicitly ask for it.
 
-A minimal CI job that fails the build on high+ findings and uploads results
-to GitHub code scanning:
+A complete GitHub Actions workflow that fails the build on high+
+findings, uploads results to GitHub code scanning, and keeps the HTML
+report as a build artifact:
 
 ```yaml
-- name: Chaperone security scan
-  run: |
-    chaperone scan ~/clawd --format sarif --output chaperone.sarif --fail-on high
+name: chaperone
+on: [push, pull_request]
 
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  if: always()
-  with:
-    sarif_file: chaperone.sarif
+permissions:
+  contents: read
+  security-events: write # upload-sarif
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm install -g @alpay_altuntas/chaperone
+
+      - name: Chaperone security scan
+        run: chaperone scan ./agent --format sarif --output chaperone.sarif --fail-on high
+
+      - name: HTML report
+        if: always()
+        run: chaperone scan ./agent --format html --output chaperone.html --fail-on critical || true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: chaperone.sarif
+          category: chaperone
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chaperone-report
+          path: chaperone.html
 ```
+
+The SARIF output is shaped for code scanning. File paths are relative to
+the enclosing git repository (`uriBaseId: SRCROOT`), so alerts land on
+the right files and the report never contains your local directory
+layout. Each result carries a stable `partialFingerprints` entry, so an
+alert keeps its identity across runs. Each rule has a
+`security-severity`, so the Critical/High/Medium/Low label shows in the
+Security tab. Every check that ran is listed as a rule, so fixing a
+finding closes its alert.
 
 Two lighter-weight GitHub-native alternatives, when the full code-scanning
 upload flow is more than a given job needs:
@@ -484,7 +526,7 @@ upload flow is more than a given job needs:
 
 ## Checks
 
-Chaperone runs 29 checks across six categories — secrets & credential
+Chaperone runs 30 checks across six categories — secrets & credential
 hygiene, excessive agency & permissions, supply chain & skill provenance,
 prompt-injection surface, exposure & network posture, and observability &
 recoverability. Every check maps to an OWASP LLM Top 10 category and ships

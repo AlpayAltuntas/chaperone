@@ -54,6 +54,11 @@ Run \`chaperone scan <path>\` to run every check below against an install.
 \`chaperone explain <check-id>\` prints one check's full detail from the
 same source this file is generated from.
 
+Config keys are written in snake_case below (\`trust.auto_execute_links\`),
+but the camelCase and kebab-case spellings of the same key
+(\`autoExecuteLinks\`, \`auto-execute-links\`) are read identically. If a
+section holds more than one spelling, the snake_case one wins.
+
 ## Posture score
 
 Start at 100 and subtract a fixed weight for every finding, by severity,
