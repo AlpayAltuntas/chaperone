@@ -159,8 +159,8 @@ describe('formatHtmlReport', () => {
     const withoutOverride = formatHtmlReport(findings, METADATA);
     const withOverride = formatHtmlReport(findings, METADATA, { medium: 20 });
 
-    expect(withoutOverride).toContain('Posture score: 86/100');
-    expect(withOverride).toContain('Posture score: 60/100');
+    expect(withoutOverride).toContain('Posture score: 90/100');
+    expect(withOverride).toContain('Posture score: 70/100');
   });
 
   it('never leaks a masked secret value verbatim', () => {

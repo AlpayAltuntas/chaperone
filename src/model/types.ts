@@ -246,6 +246,9 @@ export const SkillDependencyInfoSchema = z.object({
   // 3.4); null when there's no manifest. CHAP-SUP-003/006 only have npm
   // data, so they skip PyPI dependencies.
   ecosystem: z.enum(['npm', 'pypi']).nullable(),
+  // Exact versions from the lockfile, direct and transitive
+  // (PROPOSED_FIXES.md 3.5); null when there's no readable npm lockfile.
+  resolved: z.array(z.object({ name: z.string(), version: z.string() })).nullable(),
   manifestPath: z.string().nullable(),
   lockfilePath: z.string().nullable(),
   // Declared dependency names (package.json's "dependencies" keys) — feeds
@@ -348,6 +351,11 @@ export const GatewayModelSchema = z.object({
   port: z.number().nullable(),
   authConfigured: z.boolean().nullable(),
   authTokenIsDefaultOrEmpty: z.boolean().nullable(),
+  // Why a literal token is weak (PROPOSED_FIXES.md 3.8): empty, a common
+  // default, under 16 characters, or the same value as another secret in
+  // the config. null when there's no token, it's an env-var reference, or
+  // it looks strong.
+  authTokenWeakness: z.enum(['empty', 'default', 'short', 'reused']).nullable(),
   tlsEnabled: z.boolean().nullable(),
 });
 export type GatewayModel = z.infer<typeof GatewayModelSchema>;

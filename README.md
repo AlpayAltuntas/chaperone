@@ -133,13 +133,14 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 39 findings across all 37 checks):
+the real run reports 39 findings across all 38 checks):
 
 ```
 Chaperone scan report
 Target: ~/clawd
 Profile: default (detected)
-Scanned at 2026-10-03T20:17:11.162Z — chaperone v0.4.0
+Vulnerability data: OSV snapshot 2026-10-04 (606 advisories)
+Scanned at 2026-10-04T08:22:57.906Z — chaperone v0.5.0
 
 CRITICAL (5)
 
@@ -191,25 +192,26 @@ chaperone scan test/fixtures/clean-agent        # hardened sample
 Full flag reference (see [How to use](#how-to-use) above for examples of
 each):
 
-| Flag                          | Effect                                                                         | Env var                   |
-| ----------------------------- | ------------------------------------------------------------------------------ | ------------------------- |
-| `--format <format>`           | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`    | `CHAPERONE_FORMAT`        |
-| `--fail-on <severity>`        | Minimum severity for a non-zero exit code (default: `high`)                    | `CHAPERONE_FAIL_ON`       |
-| `--output <file>`             | Write the report to a file instead of stdout                                   | `CHAPERONE_OUTPUT`        |
-| `--only <ids>`                | Run only the listed check IDs (comma-separated)                                |                           |
-| `--skip <ids>`                | Skip the listed check IDs (comma-separated)                                    |                           |
-| `--only-category <cats>`      | Display filter: only show findings in these categories (comma-separated)       | `CHAPERONE_ONLY_CATEGORY` |
-| `--skip-category <cats>`      | Display filter: hide findings in these categories (comma-separated)            | `CHAPERONE_SKIP_CATEGORY` |
-| `--min-severity <severity>`   | Display filter: only show findings at or above this severity                   | `CHAPERONE_MIN_SEVERITY`  |
-| `--quiet`                     | One compact line per finding (id + severity) instead of full detail            |                           |
-| `--summary-only`              | Print only the summary line and posture score, no per-finding detail           |                           |
-| `--no-color`                  | Disable colored console output                                                 |                           |
-| `--config <file>`             | Suppression/override config file (default: `./.chaperonerc.json` if present)   | `CHAPERONE_CONFIG`        |
-| `--baseline <file>`           | A prior saved JSON report — report (and fail on) only findings new since it    | `CHAPERONE_BASELINE`      |
-| `--profile <profile>`         | Discovery profile: `default`, `mcp`, or `claude-code` (auto-detected if unset) | `CHAPERONE_PROFILE`       |
-| `--all <pattern>`             | Scan every immediate subdirectory of a parent, one aggregate report            | `CHAPERONE_ALL`           |
-| `--docker <container[:path]>` | Scan a container's filesystem via `docker cp` (read-only)                      | `CHAPERONE_DOCKER`        |
-| `--plugin <path>`             | Load a third-party check module (repeatable) — no sandboxing, trust it fully   |                           |
+| Flag                          | Effect                                                                           | Env var                   |
+| ----------------------------- | -------------------------------------------------------------------------------- | ------------------------- |
+| `--format <format>`           | `console` (default, colored), `json`, `sarif`, `markdown`, `gha`, or `html`      | `CHAPERONE_FORMAT`        |
+| `--fail-on <severity>`        | Minimum severity for a non-zero exit code (default: `high`)                      | `CHAPERONE_FAIL_ON`       |
+| `--output <file>`             | Write the report to a file instead of stdout                                     | `CHAPERONE_OUTPUT`        |
+| `--only <ids>`                | Run only the listed check IDs (comma-separated)                                  |                           |
+| `--skip <ids>`                | Skip the listed check IDs (comma-separated)                                      |                           |
+| `--only-category <cats>`      | Display filter: only show findings in these categories (comma-separated)         | `CHAPERONE_ONLY_CATEGORY` |
+| `--skip-category <cats>`      | Display filter: hide findings in these categories (comma-separated)              | `CHAPERONE_SKIP_CATEGORY` |
+| `--min-severity <severity>`   | Display filter: only show findings at or above this severity                     | `CHAPERONE_MIN_SEVERITY`  |
+| `--quiet`                     | One compact line per finding (id + severity) instead of full detail              |                           |
+| `--summary-only`              | Print only the summary line and posture score, no per-finding detail             |                           |
+| `--no-color`                  | Disable colored console output                                                   |                           |
+| `--config <file>`             | Suppression/override config file (default: `./.chaperonerc.json` if present)     | `CHAPERONE_CONFIG`        |
+| `--vuln-db <file>`            | An OSV JSON export to match dependencies against, alongside the bundled snapshot | `CHAPERONE_VULN_DB`       |
+| `--baseline <file>`           | A prior saved JSON report — report (and fail on) only findings new since it      | `CHAPERONE_BASELINE`      |
+| `--profile <profile>`         | Discovery profile: `default`, `mcp`, or `claude-code` (auto-detected if unset)   | `CHAPERONE_PROFILE`       |
+| `--all <pattern>`             | Scan every immediate subdirectory of a parent, one aggregate report              | `CHAPERONE_ALL`           |
+| `--docker <container[:path]>` | Scan a container's filesystem via `docker cp` (read-only)                        | `CHAPERONE_DOCKER`        |
+| `--plugin <path>`             | Load a third-party check module (repeatable) — no sandboxing, trust it fully     |                           |
 
 `--only-category`/`--skip-category`/`--min-severity` are **display
 filters only** — they change what's printed, never what's checked or
@@ -472,19 +474,34 @@ confusable:
 ```bash
 chaperone fix CHAP-SEC-001 ~/clawd                    # always prints the proposed change; writes nothing
 chaperone fix CHAP-SEC-001 ~/clawd --dry-run --write  # review it, then actually apply it
+chaperone fix --all ~/clawd --dry-run                 # preview every available fix from one scan
 ```
 
 `--write` **requires** `--dry-run` to also be passed — the proposed
 change is always shown immediately before anything is written, in that
-order, every time; there is no way to write without it. Only `CHAP-SEC-001`
-has a working fixer in this release (replaces a literal secret in
-`config.yaml`/`.json` with a `${SUGGESTED_ENV_VAR_NAME}` reference,
-preserving the rest of the file's formatting and comments via a
-round-trip-preserving YAML edit) — a deliberately narrow v1, not parity
-with the full check catalog. The proposed change is always a masked,
-field-level summary (`llm.api_key: sk-…wxyz -> ${LLM_API_KEY}`), never a
-raw line diff of file text, so a real secret is never printed even in
-the "before" column.
+order, every time; there is no way to write without it. Every fix is
+local and reversible:
+
+| Check          | Fix                                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `CHAP-SEC-001` | replace each literal secret with a `${SUGGESTED_NAME}` reference (`--write-env` also moves the values into a `0600` `.env`, gitignored) |
+| `CHAP-SEC-002` | add the config file to the repository's `.gitignore`                                                                                    |
+| `CHAP-SEC-003` | `chmod 600` the config file                                                                                                             |
+| `CHAP-SEC-006` | gitignore and/or `chmod 600` each exposed sidecar file                                                                                  |
+| `CHAP-SEC-008` | remove group/other write from each flagged file or directory                                                                            |
+| `CHAP-OBS-004` | `chmod 700` the memory directory and gitignore it                                                                                       |
+| `CHAP-NET-001` | set `gateway.host` to `127.0.0.1`                                                                                                       |
+| `CHAP-INJ-004` | set `trust.auto_execute_links` to `false`                                                                                               |
+
+Config edits keep the file's formatting: YAML comments and layout
+survive, and JSON is edited in place, so key order and indentation are
+unchanged. The proposed change is always a masked, field-level summary
+(`llm.api_key: sk-…wxyz -> ${LLM_API_KEY}`), never a raw line diff, so a
+real secret is never printed even in the "before" column. Without
+`--write-env`, `CHAP-SEC-001` never reads the real values; store them
+somewhere the agent can read before applying it. The plan also reminds
+you to rotate credentials when the config is in a git repository, since
+removing a value doesn't remove it from history.
 
 ### Checking for updates (`chaperone check-update`)
 
@@ -571,7 +588,7 @@ upload flow is more than a given job needs:
 
 ## Checks
 
-Chaperone runs 37 checks across six categories — secrets & credential
+Chaperone runs 38 checks across six categories — secrets & credential
 hygiene, excessive agency & permissions, supply chain & skill provenance,
 prompt-injection surface, exposure & network posture, and observability &
 recoverability. Every check maps to an OWASP LLM Top 10 category and ships

@@ -61,8 +61,14 @@ section holds more than one spelling, the snake_case one wins.
 
 ## Posture score
 
-Start at 100 and subtract a fixed weight for every finding, by severity,
-then floor at 0:
+Start at 100 and subtract a weight per finding, by severity, then round
+and floor at 0. Repeats of the same check diminish: within one check, the
+most severe finding costs its full weight, each further one half the
+previous (w, w/2, w/4, ...), and the check's total is capped at twice its
+largest weight. So one problem repeated across ten skills costs at most
+2× its weight, and the score keeps moving as you fix things. This is
+scoring version 2 (\`summary.scoreVersion\` in the JSON report); version
+1 subtracted the full weight for every finding.
 
 | Severity | Weight |
 | -------- | -----: |

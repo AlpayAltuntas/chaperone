@@ -36,6 +36,7 @@ import { chapSup003KnownVulnerableDependencies } from './supplyChain/chapSup003K
 import { chapSup004DangerousInstallPatterns } from './supplyChain/chapSup004DangerousInstallPatterns.js';
 import { chapSup005ObfuscatedCode } from './supplyChain/chapSup005ObfuscatedCode.js';
 import { chapSup006TyposquatRisk } from './supplyChain/chapSup006TyposquatRisk.js';
+import { chapSup007KnownMaliciousVersion } from './supplyChain/chapSup007KnownMaliciousVersion.js';
 
 // Extending Chaperone with a new check means adding one module under
 // src/checks/<category>/ and registering it here — the engine itself
@@ -67,6 +68,7 @@ export const ALL_CHECKS: readonly Check[] = [
   chapSup004DangerousInstallPatterns,
   chapSup005ObfuscatedCode,
   chapSup006TyposquatRisk,
+  chapSup007KnownMaliciousVersion,
   chapSup008AutoApprovedMcpServers,
   chapSup009DangerousSettingsCommand,
   // Prompt-injection surface

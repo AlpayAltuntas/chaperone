@@ -1,4 +1,5 @@
 import type { GatewayModel } from '../model/types.js';
+import { looksLikeEnvReference, looksLikeSecretKeyName } from './configParser.js';
 import { isRecord } from './jsonUtils.js';
 
 // Values commonly used as stand-ins for "no real credential configured".
@@ -10,8 +11,55 @@ const EMPTY_GATEWAY: GatewayModel = {
   port: null,
   authConfigured: null,
   authTokenIsDefaultOrEmpty: null,
+  authTokenWeakness: null,
   tlsEnabled: null,
 };
+
+// A random token shorter than this is brute-forceable against an API
+// that doesn't rate-limit (PROPOSED_FIXES.md 3.8).
+const MIN_TOKEN_LENGTH = 16;
+
+/** Every literal string under a secret-shaped key, except at `skipPath`. */
+function otherSecretValues(node: unknown, skipPath: string, prefix = ''): string[] {
+  if (Array.isArray(node)) {
+    return node.flatMap((item, i) => otherSecretValues(item, skipPath, `${prefix}[${String(i)}]`));
+  }
+  if (!isRecord(node)) {
+    return [];
+  }
+  return Object.entries(node).flatMap(([key, value]) => {
+    const keyPath = prefix ? `${prefix}.${key}` : key;
+    if (keyPath === skipPath) {
+      return [];
+    }
+    if (typeof value === 'string') {
+      return looksLikeSecretKeyName(key) && !looksLikeEnvReference(value) && value !== ''
+        ? [value]
+        : [];
+    }
+    return otherSecretValues(value, skipPath, keyPath);
+  });
+}
+
+function tokenWeakness(
+  token: string | null,
+  rawConfig: Record<string, unknown>,
+): GatewayModel['authTokenWeakness'] {
+  if (token === null || looksLikeEnvReference(token)) {
+    return null;
+  }
+  const trimmed = token.trim();
+  if (trimmed === '') {
+    return 'empty';
+  }
+  if (WEAK_TOKENS.has(trimmed.toLowerCase())) {
+    return 'default';
+  }
+  if (otherSecretValues(rawConfig, 'gateway.auth.token').includes(token)) {
+    return 'reused';
+  }
+  return trimmed.length < MIN_TOKEN_LENGTH ? 'short' : null;
+}
 
 /**
  * Projects gateway/network facts out of the RAW (pre-mask) parsed config.
@@ -46,5 +94,14 @@ export function extractGatewayModel(rawConfig: unknown): GatewayModel {
         ? tls['enabled']
         : null;
 
-  return { present: true, bindHost, port, authConfigured, authTokenIsDefaultOrEmpty, tlsEnabled };
+  const authTokenWeakness = tokenWeakness(token, rawConfig);
+  return {
+    present: true,
+    bindHost,
+    port,
+    authConfigured,
+    authTokenIsDefaultOrEmpty,
+    authTokenWeakness,
+    tlsEnabled,
+  };
 }

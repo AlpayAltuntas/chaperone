@@ -74,7 +74,8 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
       "info": 0
     },
     "score": 100,
-    "band": "A"
+    "band": "A",
+    "scoreVersion": 2
   },
   "findings": [],
   "inspected": [
@@ -710,11 +711,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
                 "text": "Known-vulnerable dependency"
               },
               "fullDescription": {
-                "text": "A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced)."
+                "text": "A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with \`--vuln-db\`)."
               },
               "help": {
-                "text": "A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced).\\n\\nHow it's detected: Compares each skill's package.json dependency version specifiers against \`shared/vulnDb.ts\`, a curated, offline snapshot of real advisories for a small set of well-known npm packages, refreshed out-of-band via \`npm run refresh:vulndb\` (never during a scan — see \`scripts/refreshVulnDb.ts\`). A specifier's first X.Y.Z-shaped token stands in for the version, since no lockfile/node_modules resolution is available in a static config-only scan; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped rather than guessed at. Not exhaustive — only tracks the packages in the bundled snapshot, not the full OSV/npm-advisory database.\\n\\nRemediation: Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live, comprehensive check beyond this offline snapshot.",
-                "markdown": "A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced).\\n\\n**How it's detected:** Compares each skill's package.json dependency version specifiers against \`shared/vulnDb.ts\`, a curated, offline snapshot of real advisories for a small set of well-known npm packages, refreshed out-of-band via \`npm run refresh:vulndb\` (never during a scan — see \`scripts/refreshVulnDb.ts\`). A specifier's first X.Y.Z-shaped token stands in for the version, since no lockfile/node_modules resolution is available in a static config-only scan; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped rather than guessed at. Not exhaustive — only tracks the packages in the bundled snapshot, not the full OSV/npm-advisory database.\\n\\n**Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live, comprehensive check beyond this offline snapshot."
+                "text": "A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with \`--vuln-db\`).\\n\\nHow it's detected: When the skill has a \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`yarn.lock\`, or \`pnpm-lock.yaml\`, every resolved package version in it, direct and transitive, is matched exactly. Without a lockfile, each \`package.json\` specifier's first X.Y.Z token stands in for the version, and the message says so; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped. The bundled snapshot (\`shared/vulnDb.ts\`) covers about 80 packages agent skills commonly use and is refreshed out-of-band with \`npm run refresh:vulndb\`, never during a scan. Its date is shown in the report header. npm dependencies only.\\n\\nRemediation: Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live check beyond the offline snapshot, or pass a full OSV export with \`--vuln-db\`.",
+                "markdown": "A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with \`--vuln-db\`).\\n\\n**How it's detected:** When the skill has a \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`yarn.lock\`, or \`pnpm-lock.yaml\`, every resolved package version in it, direct and transitive, is matched exactly. Without a lockfile, each \`package.json\` specifier's first X.Y.Z token stands in for the version, and the message says so; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped. The bundled snapshot (\`shared/vulnDb.ts\`) covers about 80 packages agent skills commonly use and is refreshed out-of-band with \`npm run refresh:vulndb\`, never during a scan. Its date is shown in the report header. npm dependencies only.\\n\\n**Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live check beyond the offline snapshot, or pass a full OSV export with \`--vuln-db\`."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-003--known-vulnerable-dependency",
               "defaultConfiguration": {
@@ -809,6 +810,34 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
                 "owasp": "LLM05: Supply Chain",
                 "severity": "medium",
                 "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "supply-chain"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-SUP-007",
+              "name": "Known-malicious package version",
+              "shortDescription": {
+                "text": "Known-malicious package version"
+              },
+              "fullDescription": {
+                "text": "A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start."
+              },
+              "help": {
+                "text": "A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start.\\n\\nHow it's detected: Lockfile-resolved versions (or exact \`package.json\` pins when there is no lockfile) are matched against \`shared/maliciousDb.ts\`: advisories OSV classifies as malware (MAL- ids, CWE-506, or a summary naming malware or malicious code) for packages with a history of compromise, plus any loaded with \`--vuln-db\`. A range specifier without a lockfile only matches a package that is malicious in every version. npm dependencies only.\\n\\nRemediation: Remove the package or move to a version published before or after the compromise, delete node_modules and reinstall from a clean lockfile, and rotate any credentials available to the machine that ran it: malicious install scripts typically steal tokens and keys.",
+                "markdown": "A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start.\\n\\n**How it's detected:** Lockfile-resolved versions (or exact \`package.json\` pins when there is no lockfile) are matched against \`shared/maliciousDb.ts\`: advisories OSV classifies as malware (MAL- ids, CWE-506, or a summary naming malware or malicious code) for packages with a history of compromise, plus any loaded with \`--vuln-db\`. A range specifier without a lockfile only matches a package that is malicious in every version. npm dependencies only.\\n\\n**Remediation:** Remove the package or move to a version published before or after the compromise, delete node_modules and reinstall from a clean lockfile, and rotate any credentials available to the machine that ran it: malicious install scripts typically steal tokens and keys."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-007--known-malicious-package-version",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "critical",
+                "security-severity": "9.5",
                 "tags": [
                   "security",
                   "supply-chain"
@@ -1046,11 +1075,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > c
                 "text": "Missing or weak auth on the gateway control API"
               },
               "fullDescription": {
-                "text": "The gateway control API with no auth configured, or a default/empty credential."
+                "text": "The gateway control API with no auth configured, or a weak credential."
               },
               "help": {
-                "text": "The gateway control API with no auth configured, or a default/empty credential.\\n\\nHow it's detected: \`gateway.auth\` is absent, or its \`token\` is empty or a common default value (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive).\\n\\nRemediation: Require a strong, randomly-generated token for the gateway control API and rotate any default value.",
-                "markdown": "The gateway control API with no auth configured, or a default/empty credential.\\n\\n**How it's detected:** \`gateway.auth\` is absent, or its \`token\` is empty or a common default value (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive).\\n\\n**Remediation:** Require a strong, randomly-generated token for the gateway control API and rotate any default value."
+                "text": "The gateway control API with no auth configured, or a weak credential.\\n\\nHow it's detected: \`gateway.auth\` is absent, or its literal \`token\` is empty, a common default (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive), shorter than 16 characters, or identical to another secret value in the config. An env-var reference (\`\${GW_TOKEN}\`) isn't judged. When \`gateway.host\` is a loopback address, the finding is medium instead of high: there's no network exposure, but local processes and web pages using browser-to-localhost or DNS rebinding can still reach it.\\n\\nRemediation: Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value.",
+                "markdown": "The gateway control API with no auth configured, or a weak credential.\\n\\n**How it's detected:** \`gateway.auth\` is absent, or its literal \`token\` is empty, a common default (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive), shorter than 16 characters, or identical to another secret value in the config. An env-var reference (\`\${GW_TOKEN}\`) isn't judged. When \`gateway.host\` is a loopback address, the finding is medium instead of high: there's no network exposure, but local processes and web pages using browser-to-localhost or DNS rebinding can still reach it.\\n\\n**Remediation:** Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-net-002--missing-or-weak-auth-on-the-gateway-control-api",
               "defaultConfiguration": {
@@ -1356,7 +1385,7 @@ HIGH (20)
     Remediation: Pin the skill to an explicit version or commit, prefer reviewed sources, and verify the author.
 
   [CHAP-SUP-003] Known-vulnerable dependency
-    Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
+    Skill 'plugin-loader' depends on lodash@^4.17.15 (no lockfile, so matched as 4.17.15; the installed version may differ), which has 6 known vulnerabilities (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg). Most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
     Location: <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15)
     OWASP: LLM05: Supply Chain
     Remediation: Upgrade lodash to 4.17.21 or later.
@@ -1386,10 +1415,10 @@ HIGH (20)
     Remediation: Disable auto-execution of links/commands found in messages; require explicit confirmation instead.
 
   [CHAP-NET-002] Missing or weak auth on the gateway control API
-    The gateway's control API has weak authentication: the auth token is empty or a common default value.
+    The gateway's control API has weak authentication: the auth token is empty.
     Location: <TARGET_ROOT>/config.yaml:19 (gateway.auth.token)
     OWASP: General
-    Remediation: Require a strong, randomly-generated token for the gateway control API and rotate any default value.
+    Remediation: Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value.
 
 MEDIUM (13)
 
@@ -1508,7 +1537,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 ::error file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'shell-runner' is not installed at a pinned version/commit (unpinned).
 ::error file=<TARGET_ROOT>/skills/web-fetcher/package.json,title=CHAP-SUP-001%3A Skill from an unverified source::Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned).
 ::warning file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-002%3A No integrity verification for skill dependencies::Skill 'plugin-loader' declares dependencies but has no lockfile, so installs aren't hash-verified or reproducible.
-::error file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-003%3A Known-vulnerable dependency::Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
+::error file=<TARGET_ROOT>/skills/plugin-loader/package.json,title=CHAP-SUP-003%3A Known-vulnerable dependency::Skill 'plugin-loader' depends on lodash@^4.17.15 (no lockfile, so matched as 4.17.15; the installed version may differ), which has 6 known vulnerabilities (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg). Most severe: "Command Injection in lodash" (high), fixed in 4.17.21.
 ::warning file=<TARGET_ROOT>/skills/shell-runner/package.json,title=CHAP-SUP-004%3A Dangerous install pattern::Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/setup.sh | bash) in package.json#scripts.postinstall.
 ::warning file=<TARGET_ROOT>/skills/shell-runner/install.sh,title=CHAP-SUP-004%3A Dangerous install pattern::Skill 'shell-runner' install script contains a dangerous pattern (curl -fsSL https://example.invalid/bootstrap.sh | bash, sudo, apt-get install) in <TARGET_ROOT>/skills/shell-runner/install.sh.
 ::error file=<TARGET_ROOT>/skills/plugin-loader/index.js,line=9,title=CHAP-SUP-005%3A Obfuscated or dynamically-evaluated code::Skill 'plugin-loader' runs dynamically constructed or dynamically loaded code (eval, Function, vm, or a computed require/import) — a common way to hide a malicious payload from static review. Seen at index.js:9 (eval).
@@ -1518,7 +1547,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 ::error file=<TARGET_ROOT>/config.yaml,line=32,title=CHAP-INJ-003%3A Actions triggerable by inbound messages without an allowlist::At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke.
 ::error file=<TARGET_ROOT>/config.yaml,line=31,title=CHAP-INJ-004%3A Auto-execution of links/commands from messages::Config auto-executes links/commands found in inbound messages with no confirmation step.
 ::error file=<TARGET_ROOT>/config.yaml,line=16,title=CHAP-NET-001%3A Gateway bound beyond localhost::The gateway is bound to '0.0.0.0', not localhost, making it reachable from other hosts on the network.
-::error file=<TARGET_ROOT>/config.yaml,line=19,title=CHAP-NET-002%3A Missing or weak auth on the gateway control API::The gateway's control API has weak authentication: the auth token is empty or a common default value.
+::error file=<TARGET_ROOT>/config.yaml,line=19,title=CHAP-NET-002%3A Missing or weak auth on the gateway control API::The gateway's control API has weak authentication: the auth token is empty.
 ::warning file=<TARGET_ROOT>/config.yaml,line=20,title=CHAP-NET-003%3A Plaintext transport on the gateway::The gateway is configured with TLS disabled, so traffic (including any auth token) travels in plaintext.
 ::warning file=<TARGET_ROOT>/config.yaml,line=27,title=CHAP-OBS-001%3A No audit log of agent actions::Logging is configured but the audit log of tool invocations/actions is disabled.
 ::warning file=<TARGET_ROOT>/logs/agent.log,title=CHAP-OBS-002%3A Sensitive data in plaintext logs::Logging config does not confirm secrets/message bodies are redacted before being written to logs.
@@ -1702,7 +1731,7 @@ Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
 </article>
 <article class="finding" style="border-left-color: #b91c1c">
   <h3><span class="check-id">CHAP-SUP-003</span> Known-vulnerable dependency</h3>
-  <p class="message">Skill &#39;plugin-loader&#39; depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone&#39;s offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: &quot;Command Injection in lodash&quot; (high), fixed in 4.17.21.</p>
+  <p class="message">Skill &#39;plugin-loader&#39; depends on lodash@^4.17.15 (no lockfile, so matched as 4.17.15; the installed version may differ), which has 6 known vulnerabilities (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg). Most severe: &quot;Command Injection in lodash&quot; (high), fixed in 4.17.21.</p>
   <p class="location"><strong>Location:</strong> <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15)</p>
   <p class="owasp"><strong>OWASP:</strong> LLM05: Supply Chain</p>
   <p class="remediation"><strong>Remediation:</strong> Upgrade lodash to 4.17.21 or later.</p>
@@ -1737,10 +1766,10 @@ Scanned at <TIMESTAMP> — chaperone v0.1.0</p>
 </article>
 <article class="finding" style="border-left-color: #b91c1c">
   <h3><span class="check-id">CHAP-NET-002</span> Missing or weak auth on the gateway control API</h3>
-  <p class="message">The gateway&#39;s control API has weak authentication: the auth token is empty or a common default value.</p>
+  <p class="message">The gateway&#39;s control API has weak authentication: the auth token is empty.</p>
   <p class="location"><strong>Location:</strong> <TARGET_ROOT>/config.yaml:19 (gateway.auth.token)</p>
   <p class="owasp"><strong>OWASP:</strong> General</p>
-  <p class="remediation"><strong>Remediation:</strong> Require a strong, randomly-generated token for the gateway control API and rotate any default value.</p>
+  <p class="remediation"><strong>Remediation:</strong> Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value.</p>
 </article>
 </section>
 <section class="severity-group severity-medium">
@@ -1872,7 +1901,8 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
       "info": 0
     },
     "score": 0,
-    "band": "F"
+    "band": "F",
+    "scoreVersion": 2
   },
   "findings": [
     {
@@ -2210,7 +2240,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
       "severity": "high",
       "category": "supply-chain",
       "owasp": "LLM05: Supply Chain",
-      "message": "Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: \\"Command Injection in lodash\\" (high), fixed in 4.17.21.",
+      "message": "Skill 'plugin-loader' depends on lodash@^4.17.15 (no lockfile, so matched as 4.17.15; the installed version may differ), which has 6 known vulnerabilities (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg). Most severe: \\"Command Injection in lodash\\" (high), fixed in 4.17.21.",
       "location": {
         "filePath": "<TARGET_ROOT>/skills/plugin-loader/package.json",
         "line": null,
@@ -2350,13 +2380,13 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
       "severity": "high",
       "category": "network",
       "owasp": "General",
-      "message": "The gateway's control API has weak authentication: the auth token is empty or a common default value.",
+      "message": "The gateway's control API has weak authentication: the auth token is empty.",
       "location": {
         "filePath": "<TARGET_ROOT>/config.yaml",
         "line": 19,
         "detail": "gateway.auth.token"
       },
-      "remediation": "Require a strong, randomly-generated token for the gateway control API and rotate any default value."
+      "remediation": "Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value."
     },
     {
       "checkId": "CHAP-NET-003",
@@ -2534,12 +2564,12 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
 | High | \`CHAP-SUP-001\` | Skill 'py-cache-cleaner' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/py-cache-cleaner/package.json (py-cache-cleaner) |
 | High | \`CHAP-SUP-001\` | Skill 'shell-runner' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/shell-runner/package.json (shell-runner) |
 | High | \`CHAP-SUP-001\` | Skill 'web-fetcher' is not installed at a pinned version/commit (unpinned). | <TARGET_ROOT>/skills/web-fetcher/package.json (web-fetcher) |
-| High | \`CHAP-SUP-003\` | Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: "Command Injection in lodash" (high), fixed in 4.17.21. | <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15) |
+| High | \`CHAP-SUP-003\` | Skill 'plugin-loader' depends on lodash@^4.17.15 (no lockfile, so matched as 4.17.15; the installed version may differ), which has 6 known vulnerabilities (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg). Most severe: "Command Injection in lodash" (high), fixed in 4.17.21. | <TARGET_ROOT>/skills/plugin-loader/package.json (lodash@^4.17.15) |
 | High | \`CHAP-INJ-001\` | At least one inbound message channel is active, but config has no trust boundary marking untrusted content before it reaches the model. | <TARGET_ROOT>/config.yaml:30 (trust.mark_untrusted_input) |
 | High | \`CHAP-INJ-002\` | Skill 'command-relay' traces a network/filesystem result directly into a shell-exec call's argument — a confirmed tool-output-to-shell-execution chain, not just a shape-match. Seen at index.js:9 (child_process.exec). | <TARGET_ROOT>/skills/command-relay/index.js:9 (command-relay) |
 | High | \`CHAP-INJ-003\` | At least one inbound message channel is active, but no channel/sender-to-tool allowlist restricts which tools an inbound message can invoke. | <TARGET_ROOT>/config.yaml:32 (trust.tool_allowlist) |
 | High | \`CHAP-INJ-004\` | Config auto-executes links/commands found in inbound messages with no confirmation step. | <TARGET_ROOT>/config.yaml:31 (trust.auto_execute_links) |
-| High | \`CHAP-NET-002\` | The gateway's control API has weak authentication: the auth token is empty or a common default value. | <TARGET_ROOT>/config.yaml:19 (gateway.auth.token) |
+| High | \`CHAP-NET-002\` | The gateway's control API has weak authentication: the auth token is empty. | <TARGET_ROOT>/config.yaml:19 (gateway.auth.token) |
 | Medium | \`CHAP-SEC-003\` | The config file is readable by group or other (mode 644), so other local users/processes can read any secrets it holds. | <TARGET_ROOT>/config.yaml (mode 644) |
 | Medium | \`CHAP-SEC-004\` | Secrets are likely to reach logs: log level 'debug' is verbose while literal secrets are configured; the log file is readable by group or other. | <TARGET_ROOT>/logs/agent.log (logging) |
 | Medium | \`CHAP-AGY-004\` | Skill 'command-relay' can call arbitrary external endpoints — no domain allowlist is declared. Seen at index.js:7 (fetch). | <TARGET_ROOT>/skills/command-relay/index.js:7 (command-relay) |
@@ -3110,11 +3140,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
                 "text": "Known-vulnerable dependency"
               },
               "fullDescription": {
-                "text": "A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced)."
+                "text": "A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with \`--vuln-db\`)."
               },
               "help": {
-                "text": "A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced).\\n\\nHow it's detected: Compares each skill's package.json dependency version specifiers against \`shared/vulnDb.ts\`, a curated, offline snapshot of real advisories for a small set of well-known npm packages, refreshed out-of-band via \`npm run refresh:vulndb\` (never during a scan — see \`scripts/refreshVulnDb.ts\`). A specifier's first X.Y.Z-shaped token stands in for the version, since no lockfile/node_modules resolution is available in a static config-only scan; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped rather than guessed at. Not exhaustive — only tracks the packages in the bundled snapshot, not the full OSV/npm-advisory database.\\n\\nRemediation: Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live, comprehensive check beyond this offline snapshot.",
-                "markdown": "A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced).\\n\\n**How it's detected:** Compares each skill's package.json dependency version specifiers against \`shared/vulnDb.ts\`, a curated, offline snapshot of real advisories for a small set of well-known npm packages, refreshed out-of-band via \`npm run refresh:vulndb\` (never during a scan — see \`scripts/refreshVulnDb.ts\`). A specifier's first X.Y.Z-shaped token stands in for the version, since no lockfile/node_modules resolution is available in a static config-only scan; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped rather than guessed at. Not exhaustive — only tracks the packages in the bundled snapshot, not the full OSV/npm-advisory database.\\n\\n**Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live, comprehensive check beyond this offline snapshot."
+                "text": "A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with \`--vuln-db\`).\\n\\nHow it's detected: When the skill has a \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`yarn.lock\`, or \`pnpm-lock.yaml\`, every resolved package version in it, direct and transitive, is matched exactly. Without a lockfile, each \`package.json\` specifier's first X.Y.Z token stands in for the version, and the message says so; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped. The bundled snapshot (\`shared/vulnDb.ts\`) covers about 80 packages agent skills commonly use and is refreshed out-of-band with \`npm run refresh:vulndb\`, never during a scan. Its date is shown in the report header. npm dependencies only.\\n\\nRemediation: Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live check beyond the offline snapshot, or pass a full OSV export with \`--vuln-db\`.",
+                "markdown": "A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with \`--vuln-db\`).\\n\\n**How it's detected:** When the skill has a \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`yarn.lock\`, or \`pnpm-lock.yaml\`, every resolved package version in it, direct and transitive, is matched exactly. Without a lockfile, each \`package.json\` specifier's first X.Y.Z token stands in for the version, and the message says so; a specifier with no such token (\`\\"latest\\"\`, \`\\"*\\"\`, a git URL) is skipped. The bundled snapshot (\`shared/vulnDb.ts\`) covers about 80 packages agent skills commonly use and is refreshed out-of-band with \`npm run refresh:vulndb\`, never during a scan. Its date is shown in the report header. npm dependencies only.\\n\\n**Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run \`npm audit\` for a live check beyond the offline snapshot, or pass a full OSV export with \`--vuln-db\`."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-003--known-vulnerable-dependency",
               "defaultConfiguration": {
@@ -3209,6 +3239,34 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
                 "owasp": "LLM05: Supply Chain",
                 "severity": "medium",
                 "security-severity": "5.5",
+                "tags": [
+                  "security",
+                  "supply-chain"
+                ]
+              }
+            },
+            {
+              "id": "CHAP-SUP-007",
+              "name": "Known-malicious package version",
+              "shortDescription": {
+                "text": "Known-malicious package version"
+              },
+              "fullDescription": {
+                "text": "A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start."
+              },
+              "help": {
+                "text": "A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start.\\n\\nHow it's detected: Lockfile-resolved versions (or exact \`package.json\` pins when there is no lockfile) are matched against \`shared/maliciousDb.ts\`: advisories OSV classifies as malware (MAL- ids, CWE-506, or a summary naming malware or malicious code) for packages with a history of compromise, plus any loaded with \`--vuln-db\`. A range specifier without a lockfile only matches a package that is malicious in every version. npm dependencies only.\\n\\nRemediation: Remove the package or move to a version published before or after the compromise, delete node_modules and reinstall from a clean lockfile, and rotate any credentials available to the machine that ran it: malicious install scripts typically steal tokens and keys.",
+                "markdown": "A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start.\\n\\n**How it's detected:** Lockfile-resolved versions (or exact \`package.json\` pins when there is no lockfile) are matched against \`shared/maliciousDb.ts\`: advisories OSV classifies as malware (MAL- ids, CWE-506, or a summary naming malware or malicious code) for packages with a history of compromise, plus any loaded with \`--vuln-db\`. A range specifier without a lockfile only matches a package that is malicious in every version. npm dependencies only.\\n\\n**Remediation:** Remove the package or move to a version published before or after the compromise, delete node_modules and reinstall from a clean lockfile, and rotate any credentials available to the machine that ran it: malicious install scripts typically steal tokens and keys."
+              },
+              "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-sup-007--known-malicious-package-version",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "supply-chain",
+                "owasp": "LLM05: Supply Chain",
+                "severity": "critical",
+                "security-severity": "9.5",
                 "tags": [
                   "security",
                   "supply-chain"
@@ -3446,11 +3504,11 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
                 "text": "Missing or weak auth on the gateway control API"
               },
               "fullDescription": {
-                "text": "The gateway control API with no auth configured, or a default/empty credential."
+                "text": "The gateway control API with no auth configured, or a weak credential."
               },
               "help": {
-                "text": "The gateway control API with no auth configured, or a default/empty credential.\\n\\nHow it's detected: \`gateway.auth\` is absent, or its \`token\` is empty or a common default value (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive).\\n\\nRemediation: Require a strong, randomly-generated token for the gateway control API and rotate any default value.",
-                "markdown": "The gateway control API with no auth configured, or a default/empty credential.\\n\\n**How it's detected:** \`gateway.auth\` is absent, or its \`token\` is empty or a common default value (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive).\\n\\n**Remediation:** Require a strong, randomly-generated token for the gateway control API and rotate any default value."
+                "text": "The gateway control API with no auth configured, or a weak credential.\\n\\nHow it's detected: \`gateway.auth\` is absent, or its literal \`token\` is empty, a common default (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive), shorter than 16 characters, or identical to another secret value in the config. An env-var reference (\`\${GW_TOKEN}\`) isn't judged. When \`gateway.host\` is a loopback address, the finding is medium instead of high: there's no network exposure, but local processes and web pages using browser-to-localhost or DNS rebinding can still reach it.\\n\\nRemediation: Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value.",
+                "markdown": "The gateway control API with no auth configured, or a weak credential.\\n\\n**How it's detected:** \`gateway.auth\` is absent, or its literal \`token\` is empty, a common default (\`changeme\`, \`admin\`, \`password\`, \`default\`, \`token\`, case-insensitive), shorter than 16 characters, or identical to another secret value in the config. An env-var reference (\`\${GW_TOKEN}\`) isn't judged. When \`gateway.host\` is a loopback address, the finding is medium instead of high: there's no network exposure, but local processes and web pages using browser-to-localhost or DNS rebinding can still reach it.\\n\\n**Remediation:** Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value."
               },
               "helpUri": "https://github.com/AlpayAltuntas/chaperone/blob/main/CHECKS.md#chap-net-002--missing-or-weak-auth-on-the-gateway-control-api",
               "defaultConfiguration": {
@@ -4279,7 +4337,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
           "ruleId": "CHAP-SUP-003",
           "level": "error",
           "message": {
-            "text": "Skill 'plugin-loader' depends on lodash@^4.17.15 (matched as 4.17.15), which hits 6 known vulnerabilities in Chaperone's offline snapshot (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) — most severe: \\"Command Injection in lodash\\" (high), fixed in 4.17.21."
+            "text": "Skill 'plugin-loader' depends on lodash@^4.17.15 (no lockfile, so matched as 4.17.15; the installed version may differ), which has 6 known vulnerabilities (GHSA-29mw-wpgm-hmr9, GHSA-35jh-r3h4-6jhm, GHSA-f23m-r3pf-42rh, GHSA-p6mc-m468-83gw, GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg). Most severe: \\"Command Injection in lodash\\" (high), fixed in 4.17.21."
           },
           "partialFingerprints": {
             "chaperoneFingerprint/v1": "798769c61ed04ad7afe3dec2953d571d8f8bf7e4630f86666e2bfc513fa18a8b"
@@ -4557,7 +4615,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
           "ruleId": "CHAP-NET-002",
           "level": "error",
           "message": {
-            "text": "The gateway's control API has weak authentication: the auth token is empty or a common default value."
+            "text": "The gateway's control API has weak authentication: the auth token is empty."
           },
           "partialFingerprints": {
             "chaperoneFingerprint/v1": "2dae26d9366f098090bea2e4cb44accc1a6f717b8d82027be9632199c3a52392"
@@ -4566,7 +4624,7 @@ exports[`reporter output — golden-file snapshots (improvement_plan.md 5.1) > v
             "severity": "high",
             "category": "network",
             "owasp": "General",
-            "remediation": "Require a strong, randomly-generated token for the gateway control API and rotate any default value."
+            "remediation": "Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value."
           },
           "locations": [
             {

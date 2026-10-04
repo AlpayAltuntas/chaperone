@@ -1,4 +1,4 @@
-import { computeScore } from '../engine/severity.js';
+import { computeScore, SCORE_VERSION } from '../engine/severity.js';
 import type { Finding, Severity } from '../model/types.js';
 import { ScanReportSchema, type ScanReport } from './schema.js';
 import type { ScanMetadata } from './types.js';
@@ -18,11 +18,18 @@ export function buildScanReport(
     tool: { name: 'chaperone', version: metadata.toolVersion },
     target: metadata.target,
     targetRootResolved: metadata.targetRootResolved,
+    ...(metadata.advisoryData !== undefined ? { advisoryData: metadata.advisoryData } : {}),
     ...(metadata.profile !== undefined
       ? { profile: { name: metadata.profile, detected: metadata.profileDetected === true } }
       : {}),
     timestamp: metadata.timestamp,
-    summary: { totalFindings: findings.length, bySeverity, score, band },
+    summary: {
+      totalFindings: findings.length,
+      bySeverity,
+      score,
+      band,
+      scoreVersion: SCORE_VERSION,
+    },
     findings: [...findings],
     inspected: [...metadata.inspected],
     skipped: [...metadata.skipped],

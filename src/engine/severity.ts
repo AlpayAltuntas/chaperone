@@ -17,7 +17,8 @@ export function severityMeetsThreshold(severity: Severity, threshold: Severity):
 }
 
 // Posture score formula (documented in CHECKS.md): start at 100, subtract a
-// fixed weight per finding by severity, floor at 0. `info` findings (e.g.
+// base weight per finding by severity (see computeScore for how repeats
+// within one check diminish), floor at 0. `info` findings (e.g.
 // an internal check-error record) never affect the score.
 export const SEVERITY_SCORE_WEIGHT: Record<Severity, number> = {
   critical: 25,
@@ -34,7 +35,18 @@ export interface PostureScore {
   band: PostureBand;
 }
 
+/** Bumped whenever the formula changes, so dashboards can tell scores apart (PROPOSED_FIXES.md 4.3). */
+export const SCORE_VERSION = 2;
+
 /**
+ * Posture score, version 2 (PROPOSED_FIXES.md 4.3). Findings are grouped
+ * by check: within a check, the most severe finding costs its full
+ * weight and each further one half the previous (w, w/2, w/4, ...),
+ * capped at twice the check's largest weight. One root cause repeated
+ * across ten skills no longer sinks the score on its own, and fixing a
+ * check's last instance still moves it. Version 1 subtracted a flat
+ * weight per finding, so four criticals already scored 0.
+ *
  * `weightOverrides` (improvement_plan.md 3.4, `.chaperonerc.json`'s
  * `scoreWeights`) replaces individual severity weights for this
  * computation only — `SEVERITY_SCORE_WEIGHT` itself, the default, is
@@ -48,8 +60,20 @@ export function computeScore(
     weightOverrides !== undefined
       ? { ...SEVERITY_SCORE_WEIGHT, ...weightOverrides }
       : SEVERITY_SCORE_WEIGHT;
-  const deduction = findings.reduce((sum, finding) => sum + weights[finding.severity], 0);
-  const score = Math.max(0, 100 - deduction);
+  const byCheck = new Map<string, number[]>();
+  for (const finding of findings) {
+    const list = byCheck.get(finding.checkId) ?? [];
+    list.push(weights[finding.severity]);
+    byCheck.set(finding.checkId, list);
+  }
+  let deduction = 0;
+  for (const checkWeights of byCheck.values()) {
+    const sorted = [...checkWeights].sort((a, b) => b - a);
+    const largest = sorted[0] ?? 0;
+    const diminished = sorted.reduce((sum, weight, i) => sum + weight / 2 ** i, 0);
+    deduction += Math.min(diminished, 2 * largest);
+  }
+  const score = Math.max(0, Math.round(100 - deduction));
   return { score, band: scoreBand(score) };
 }
 
