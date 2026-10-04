@@ -243,6 +243,7 @@ export function emptyModel(
       port: null,
       authConfigured: null,
       authTokenIsDefaultOrEmpty: null,
+      authTokenWeakness: null,
       tlsEnabled: null,
     },
     logging: {

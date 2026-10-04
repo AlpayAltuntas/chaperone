@@ -33,6 +33,13 @@ export interface ScanMetadata {
   /** The discovery profile used, and whether it was auto-detected (PROPOSED_FIXES.md 6.3). */
   profile?: string;
   profileDetected?: boolean;
+  /** The vulnerability/malware data CHAP-SUP-003/007 used, so its age is visible (PROPOSED_FIXES.md 3.5). */
+  advisoryData?: {
+    snapshotDate: string;
+    bundledAdvisories: number;
+    extraFile: string | null;
+    extraAdvisories: number;
+  };
 }
 
 export interface RuleDescription {

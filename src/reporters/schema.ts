@@ -21,12 +21,22 @@ export const ScanReportSchema = z.object({
   targetRootResolved: z.boolean(),
   // The discovery profile, and whether it was auto-detected (PROPOSED_FIXES.md 6.3).
   profile: z.object({ name: z.string(), detected: z.boolean() }).optional(),
+  advisoryData: z
+    .object({
+      snapshotDate: z.string(),
+      bundledAdvisories: z.number(),
+      extraFile: z.string().nullable(),
+      extraAdvisories: z.number(),
+    })
+    .optional(),
   timestamp: z.string(),
   summary: z.object({
     totalFindings: z.number(),
     bySeverity: z.record(SeveritySchema, z.number()),
     score: z.number(),
     band: z.enum(['A', 'B', 'C', 'D', 'F']),
+    // Optional so reports written before scoring v2 still load as baselines.
+    scoreVersion: z.number().optional(),
   }),
   findings: z.array(FindingSchema),
   inspected: z.array(InspectedEntrySchema),

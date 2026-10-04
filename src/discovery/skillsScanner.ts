@@ -18,6 +18,7 @@ import {
 import { errorMessage } from './errors.js';
 import { isRecord } from './jsonUtils.js';
 import { detectPythonCapabilities } from './pythonCapabilities.js';
+import { readLockfile } from './lockfiles.js';
 import { PYTHON_LOCKFILES, readPythonDependencies } from './pythonDependencies.js';
 
 const MANIFEST_FILENAMES = ['package.json', 'skill.json', 'skill.yaml', 'skill.yml'];
@@ -35,7 +36,7 @@ const JS_TS_SOURCE_EXTENSIONS = new Set([
   '.tsx',
 ]);
 const PYTHON_SOURCE_EXTENSIONS = new Set(['.py']);
-const LOCKFILE_NAMES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'];
+const LOCKFILE_NAMES = ['package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml'];
 const MAX_SOURCE_FILE_BYTES = 256 * 1024;
 // Files over MAX_SOURCE_FILE_BYTES get a pattern pre-pass instead of the
 // AST (PROPOSED_FIXES.md 3.3), reading at most this much of each.
@@ -164,6 +165,7 @@ function scanOneSkill(
   // npm wins when a skill has both; a Python skill's requirements.txt or
   // pyproject.toml is read otherwise (PROPOSED_FIXES.md 3.4).
   const python = packageJsonPath === null ? readPythonDependencies(dir) : null;
+  const npmLockfile = findFirstExisting(dir, LOCKFILE_NAMES);
   if (python !== null) {
     inspected.push({ path: python.manifestPath, kind: 'skill-manifest' });
   }
@@ -177,13 +179,15 @@ function scanOneSkill(
             : findFirstExisting(dir, PYTHON_LOCKFILES),
           names: Object.keys(python.versionsByName),
           versionsByName: python.versionsByName,
+          resolved: null,
         }
       : {
           ecosystem: packageJsonPath === null ? null : ('npm' as const),
           manifestPath: packageJsonPath,
-          lockfilePath: findFirstExisting(dir, LOCKFILE_NAMES),
+          lockfilePath: npmLockfile,
           names: Object.keys(declaredDependencies),
           versionsByName: declaredDependencies,
+          resolved: npmLockfile === null ? null : readLockfile(npmLockfile),
         };
   if (
     dependencies.lockfilePath !== null &&

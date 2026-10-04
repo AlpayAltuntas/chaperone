@@ -405,6 +405,7 @@ function analyzeServer(
       lockfilePath: null,
       names: [],
       versionsByName: {},
+      resolved: null,
     },
     installScripts: { scripts: installScripts },
     confirmationRequired: null,

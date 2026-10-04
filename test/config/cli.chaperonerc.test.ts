@@ -188,7 +188,7 @@ describe('cli scan — .chaperonerc.json (in-process, non-throwing paths only)',
       '--no-color',
     ]);
     const consolePrinted = logSpy.mock.calls[0]?.[0] as string;
-    expect(consolePrinted).toContain('51/100');
+    expect(consolePrinted).toContain('55/100');
     logSpy.mockClear();
 
     run([
@@ -202,7 +202,7 @@ describe('cli scan — .chaperonerc.json (in-process, non-throwing paths only)',
       'markdown',
     ]);
     const markdownPrinted = logSpy.mock.calls[0]?.[0] as string;
-    expect(markdownPrinted).toContain('51/100');
+    expect(markdownPrinted).toContain('55/100');
   });
 
   it('CHAPERONE_CONFIG env var is used when --config is not passed', () => {

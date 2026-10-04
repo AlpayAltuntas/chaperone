@@ -15,12 +15,13 @@ import { extractDockerSource } from './discovery/dockerSource.js';
 import { errorMessage } from './discovery/errors.js';
 import { DISCOVERY_PROFILES, discoverAgent, type DiscoveryProfile } from './discovery/index.js';
 import { detectProfile } from './discovery/profileDetection.js';
+import { advisoryDataInfo, loadVulnDbFile, resetVulnDb } from './checks/shared/advisoryDb.js';
 import { expandAllPattern } from './discovery/multiRoot.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
 import { loadPlugins, mergeChecks } from './engine/pluginLoader.js';
 import { SEVERITY_ORDER, severityMeetsThreshold } from './engine/severity.js';
 import type { Check } from './engine/types.js';
-import { FIXERS, findFixer, renderFixPlan } from './fix/index.js';
+import { applyFixPlan, FIXERS, renderFixPlan, type FixPlan } from './fix/index.js';
 import {
   CheckCategorySchema,
   type AgentModel,
@@ -52,6 +53,7 @@ interface ScanCommandOptions {
   summaryOnly?: boolean;
   config?: string;
   baseline?: string;
+  vulnDb?: string;
   /** Unset means auto-detect per target (PROPOSED_FIXES.md 6.3). */
   profile?: DiscoveryProfile;
   all?: string;
@@ -293,6 +295,7 @@ function scanOneTarget(
     checks: checks.filter((check) => checksRun.has(check.id)),
     profile,
     profileDetected,
+    advisoryData: advisoryDataInfo(),
     sourceRoot: model.git.gitRootPath ?? model.targetRoot,
   };
 
@@ -380,6 +383,12 @@ export function buildProgram(): Command {
     )
     .addOption(
       new Option(
+        '--vuln-db <file>',
+        'an OSV JSON export (array of records, or {"vulns": [...]}) to match dependencies against, in addition to the bundled offline snapshot — read locally, never fetched',
+      ).env('CHAPERONE_VULN_DB'),
+    )
+    .addOption(
+      new Option(
         '--baseline <file>',
         'a prior JSON report (chaperone scan --format json --output <file>) — report only findings new since then',
       ).env('CHAPERONE_BASELINE'),
@@ -452,6 +461,16 @@ export function buildProgram(): Command {
         }
 
         const knownIds = new Set(checks.map((check) => check.id));
+
+        // Extra advisory data for CHAP-SUP-003/007 (PROPOSED_FIXES.md 3.5).
+        resetVulnDb();
+        if (options.vulnDb !== undefined) {
+          try {
+            loadVulnDbFile(options.vulnDb);
+          } catch (err) {
+            command.error(`Could not load --vuln-db '${options.vulnDb}': ${errorMessage(err)}`);
+          }
+        }
 
         let baseline: ScanReport | undefined;
         if (options.baseline !== undefined) {
@@ -596,12 +615,12 @@ export function buildProgram(): Command {
   program
     .command('fix')
     .argument(
-      '<check-id>',
-      "a check ID with a working fixer (run with no path to see 'nothing to fix' or the available list)",
+      '[check-id]',
+      'a check ID with a working fixer (omit with --all to preview every available fix)',
     )
     .argument('[path]', 'agent root/config directory to fix (same resolution as `scan`)')
     .description(
-      "Guided remediation for one check's findings. Always prints the proposed change; only writes with --write, which itself requires --dry-run.",
+      "Guided remediation for one check's findings (or all of them with --all). Always prints the proposed change; only writes with --write, which itself requires --dry-run.",
     )
     .option(
       '--dry-run',
@@ -611,24 +630,37 @@ export function buildProgram(): Command {
       '--write',
       'apply the fix — requires --dry-run to also be passed, so the change is always shown immediately before anything is written',
     )
+    .option('--all', 'plan every available fixer against one scan')
+    .option(
+      '--write-env',
+      'CHAP-SEC-001: also move the literal secret values into a 0600 .env file in the install root (and .gitignore it), so nothing is lost',
+    )
     .action(
       (
-        checkId: string,
-        targetPath: string | undefined,
-        options: { dryRun?: boolean; write?: boolean },
+        checkIdArg: string | undefined,
+        pathArg: string | undefined,
+        options: { dryRun?: boolean; write?: boolean; all?: boolean; writeEnv?: boolean },
         command: Command,
       ) => {
         try {
-          const fixer = findFixer(checkId);
-          if (fixer === undefined) {
+          // With --all, a single positional argument is the path.
+          const checkId = options.all === true ? undefined : checkIdArg;
+          const targetPath = options.all === true ? (pathArg ?? checkIdArg) : pathArg;
+          const available = FIXERS.map((f) => f.checkId).join(', ');
+          if (checkId === undefined && options.all !== true) {
+            command.error(`Pass a check ID or --all. Fixers available for: ${available}.`);
+          }
+          const fixers =
+            checkId === undefined ? FIXERS : FIXERS.filter((f) => f.checkId === checkId);
+          if (fixers.length === 0) {
             command.error(
-              `No fixer available for '${checkId}'. Currently available: ${FIXERS.map((f) => f.checkId).join(', ')}.`,
+              `No fixer available for '${checkId ?? ''}'. Currently available: ${available}.`,
             );
           }
 
           if (options.write === true && options.dryRun !== true) {
             command.error(
-              `--write requires --dry-run to also be passed, so the proposed change is always shown immediately before anything is written. Run: chaperone fix ${checkId}${targetPath !== undefined ? ` ${targetPath}` : ''} --dry-run --write`,
+              `--write requires --dry-run to also be passed, so the proposed change is always shown immediately before anything is written. Run: chaperone fix ${checkId ?? '--all'}${targetPath !== undefined ? ` ${targetPath}` : ''} --dry-run --write`,
             );
           }
 
@@ -637,23 +669,29 @@ export function buildProgram(): Command {
           );
           if (!targetRootResolved) {
             command.error(
-              `Could not locate an installation to fix. Pass an explicit path: chaperone fix ${checkId} <path>`,
+              `Could not locate an installation to fix. Pass an explicit path: chaperone fix ${checkId ?? '--all'} <path>`,
             );
           }
 
-          const plan = fixer.plan(model);
-          if (plan === null) {
+          const fixOptions = options.writeEnv === true ? { writeEnv: true } : {};
+          const plans = fixers
+            .map((fixer) => fixer.plan(model, fixOptions))
+            .filter((plan): plan is FixPlan => plan !== null);
+          if (plans.length === 0) {
             console.log(
-              `Nothing to fix for ${checkId} in ${model.targetRoot} — no matching findings (run \`chaperone scan\` first to confirm what's there).`,
+              `Nothing to fix for ${checkId ?? 'any check with a fixer'} in ${model.targetRoot} — no matching findings (run \`chaperone scan\` first to confirm what's there).`,
             );
             return;
           }
 
-          console.log(renderFixPlan(plan));
+          console.log(plans.map(renderFixPlan).join('\n\n'));
 
           if (options.write === true) {
-            writeFileSync(plan.filePath, plan.newContent);
-            console.log(`\nWrote ${plan.filePath}.`);
+            for (const plan of plans) {
+              for (const line of applyFixPlan(plan)) {
+                console.log(line);
+              }
+            }
           } else {
             console.log(
               '\n(dry run — nothing written. Re-run with --dry-run --write once you have reviewed this.)',

@@ -24,6 +24,7 @@ const EMPTY_MODEL: AgentModel = {
     port: null,
     authConfigured: null,
     authTokenIsDefaultOrEmpty: null,
+    authTokenWeakness: null,
     tlsEnabled: null,
   },
   logging: {

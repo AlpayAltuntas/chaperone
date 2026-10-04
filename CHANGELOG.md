@@ -12,6 +12,56 @@ pipeline, even though it isn't a breaking API change in the usual sense.
 
 ## [Unreleased]
 
+Supply chain and remediation from `PROPOSED_FIXES.md` (the 0.5.0 batch).
+
+### May change CI results
+
+- `CHAP-SUP-003` reads lockfiles (`package-lock.json` v1–v3,
+  `npm-shrinkwrap.json`, `yarn.lock` v1, `pnpm-lock.yaml`) and matches
+  every resolved version, direct and transitive, instead of the
+  `package.json` specifier's floor. A transitive vulnerable package is
+  now reported, and a range whose floor is vulnerable but whose locked
+  version is patched no longer is. Without a lockfile, the old floor
+  match is used and the message says so.
+- The bundled vulnerability snapshot covers about 80 packages agent
+  skills commonly use (was 2), refreshed from OSV.dev on 2026-10-04.
+- New check `CHAP-SUP-007` (critical), "Known-malicious package
+  version": a dependency, direct or transitive, at a version OSV lists as
+  malware (the event-stream, ua-parser-js, chalk/debug, nx,
+  @solana/web3.js, and eslint-config-prettier compromises, among others).
+- `CHAP-NET-002` also flags a literal gateway token shorter than 16
+  characters or equal to another secret in the config, and is medium
+  (not high) when the gateway is bound to loopback.
+- **Posture score version 2:** repeats of the same check diminish (full
+  weight, then half, then a quarter, ...) and are capped at twice the
+  check's weight, so one problem repeated across many skills no longer
+  sinks the score on its own. Scores for the same findings will differ
+  from 0.4.x. The JSON report's `summary.scoreVersion` is `2`.
+
+### Added
+
+- `--vuln-db <file>` (`CHAPERONE_VULN_DB`): match against an OSV JSON
+  export as well as the bundled snapshot, read locally, never fetched.
+- Reports show the vulnerability data's snapshot date (console/markdown
+  header, `advisoryData` in JSON) so staleness is visible.
+- `chaperone fix` has seven new fixers (`CHAP-SEC-002`, `CHAP-SEC-003`,
+  `CHAP-SEC-006`, `CHAP-SEC-008`, `CHAP-OBS-004`, `CHAP-NET-001`,
+  `CHAP-INJ-004`), `--all` to preview every fix from one scan, and
+  `--write-env` for `CHAP-SEC-001` to move the literal values into a
+  `0600` `.env` (gitignored) instead of leaving you to store them.
+
+### Changed
+
+- `chaperone fix` edits JSON configs in place instead of re-serializing
+  them, so formatting and key order are kept. Each plan ends with notes:
+  the variable names to export, and a reminder to rotate credentials in
+  a git repository.
+- `npm run refresh:vulndb` also writes `src/checks/shared/maliciousDb.ts`,
+  and its OSV parsing moved to `src/checks/shared/osv.ts` for reuse by
+  `--vuln-db`.
+
+## [0.4.0] - Unreleased
+
 Real-world coverage from `PROPOSED_FIXES.md` (the 0.4.0 batch).
 
 ### May change CI results

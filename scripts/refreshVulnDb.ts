@@ -3,6 +3,9 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as prettier from 'prettier';
+import { maliciousEntriesFrom, vulnEntriesFrom, type OsvVuln } from '../src/checks/shared/osv.js';
+import type { MaliciousDbEntry } from '../src/checks/shared/maliciousDb.js';
+import type { VulnDbEntry } from '../src/checks/shared/vulnDb.js';
 import { isMainModule } from '../src/cli.js';
 
 // Out-of-band refresh for src/checks/shared/vulnDb.ts
@@ -29,86 +32,150 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(__dirname, '..');
 const OUTPUT_PATH = path.join(REPO_ROOT, 'src', 'checks', 'shared', 'vulnDb.ts');
 
+const MALICIOUS_OUTPUT_PATH = path.join(REPO_ROOT, 'src', 'checks', 'shared', 'maliciousDb.ts');
+
 // Add a package name here, re-run `npm run refresh:vulndb`, review the
-// diff. Kept small and deliberate.
-const TRACKED_PACKAGES: readonly string[] = ['lodash', 'minimist'];
+// diff. The packages agent skills most commonly depend on: HTTP clients,
+// servers, shells, parsers, and the usual utility libraries
+// (PROPOSED_FIXES.md 3.5).
+export const TRACKED_PACKAGES: readonly string[] = [
+  'lodash',
+  'minimist',
+  'axios',
+  'node-fetch',
+  'undici',
+  'got',
+  'follow-redirects',
+  'request',
+  'superagent',
+  'ws',
+  'socket.io',
+  'socket.io-parser',
+  'express',
+  'body-parser',
+  'cookie',
+  'qs',
+  'path-to-regexp',
+  'send',
+  'serve-static',
+  'koa',
+  'fastify',
+  'jsonwebtoken',
+  'jose',
+  'tar',
+  'tar-fs',
+  'adm-zip',
+  'semver',
+  'shelljs',
+  'execa',
+  'cross-spawn',
+  'simple-git',
+  'puppeteer',
+  'playwright',
+  'cheerio',
+  'jsdom',
+  'marked',
+  'markdown-it',
+  'sanitize-html',
+  'dompurify',
+  'handlebars',
+  'ejs',
+  'pug',
+  'mustache',
+  'xml2js',
+  'fast-xml-parser',
+  'js-yaml',
+  'yaml',
+  'json5',
+  'minimatch',
+  'glob',
+  'braces',
+  'micromatch',
+  'ip',
+  'tough-cookie',
+  'form-data',
+  'nanoid',
+  'uuid',
+  'moment',
+  'dayjs',
+  'validator',
+  'ajv',
+  'crypto-js',
+  'node-forge',
+  'elliptic',
+  'pbkdf2',
+  'dotenv',
+  'openai',
+  '@anthropic-ai/sdk',
+  'langchain',
+  '@modelcontextprotocol/sdk',
+  'vm2',
+  'sharp',
+  'multer',
+  'mongoose',
+  'sequelize',
+  'pg',
+  'mysql2',
+];
 
-interface OsvPackage {
-  name: string;
-  ecosystem: string;
-}
+// Packages that have shipped malicious versions (compromised maintainer
+// accounts, protestware, injected payloads). Queried for advisories OSV
+// classifies as malicious; every version listed in those advisories goes
+// into maliciousDb.ts for CHAP-SUP-007 (PROPOSED_FIXES.md 3.5). The full
+// OpenSSF malicious-packages feed is tens of thousands of entries, mostly
+// typosquats that are malicious in every version; `--vuln-db` accepts an
+// OSV export for that.
+export const MALWARE_WATCHLIST: readonly string[] = [
+  'event-stream',
+  'flatmap-stream',
+  'ua-parser-js',
+  'coa',
+  'rc',
+  'node-ipc',
+  'colors',
+  'faker',
+  'eslint-scope',
+  'eslint-config-eslint',
+  'getcookies',
+  'electron-native-notify',
+  'chalk',
+  'debug',
+  'ansi-styles',
+  'ansi-regex',
+  'strip-ansi',
+  'supports-color',
+  'wrap-ansi',
+  'color-convert',
+  'color-name',
+  'slice-ansi',
+  'is-arrayish',
+  'simple-swizzle',
+  'error-ex',
+  'has-ansi',
+  'chalk-template',
+  'backslash',
+  'nx',
+  '@nx/devkit',
+  '@nx/js',
+  '@nx/workspace',
+  '@ctrl/tinycolor',
+  '@solana/web3.js',
+  '@lottiefiles/lottie-player',
+  '@rspack/core',
+  '@rspack/cli',
+  'vant',
+  'rand-user-agent',
+  'is',
+  'eslint-config-prettier',
+  'eslint-plugin-prettier',
+  'synckit',
+  '@pkgr/core',
+  'napi-postinstall',
+  'got-fetch',
+  'web3-utils',
+];
 
-interface OsvRangeEvent {
-  introduced?: string;
-  fixed?: string;
-  last_affected?: string;
-}
-
-interface OsvRange {
-  type: string;
-  events: OsvRangeEvent[];
-}
-
-interface OsvAffected {
-  package?: OsvPackage;
-  ranges?: OsvRange[];
-}
-
-interface OsvVuln {
-  id: string;
-  summary?: string;
-  aliases?: string[];
-  database_specific?: { severity?: string };
-  affected?: OsvAffected[];
-}
-
-export interface VulnDbEntry {
-  packageName: string;
-  id: string;
-  aliases: readonly string[];
-  summary: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  introduced: string;
-  fixed: string;
-}
-
-function normalizeSeverity(osvSeverity: string | undefined): VulnDbEntry['severity'] | null {
-  switch ((osvSeverity ?? '').toUpperCase()) {
-    case 'CRITICAL':
-      return 'critical';
-    case 'HIGH':
-      return 'high';
-    case 'MODERATE':
-      return 'medium';
-    case 'LOW':
-      return 'low';
-    default:
-      return null;
-  }
-}
-
-/** Extracts this project's simplified {introduced, fixed} shape from one OSV `affected` entry for the exact tracked package, or null if it doesn't fit that shape. */
-function extractSimpleRange(
-  affected: OsvAffected,
-  packageName: string,
-): { introduced: string; fixed: string } | null {
-  if (affected.package?.ecosystem !== 'npm' || affected.package.name !== packageName) {
-    return null;
-  }
-  for (const range of affected.ranges ?? []) {
-    if (range.type !== 'SEMVER') {
-      continue;
-    }
-    const introducedEvent = range.events.find((e) => e.introduced !== undefined);
-    const fixedEvent = range.events.find((e) => e.fixed !== undefined);
-    if (introducedEvent?.introduced !== undefined && fixedEvent?.fixed !== undefined) {
-      return { introduced: introducedEvent.introduced, fixed: fixedEvent.fixed };
-    }
-  }
-  return null;
-}
-
-async function fetchAdvisoriesForPackage(packageName: string): Promise<VulnDbEntry[]> {
+async function queryOsv(packageName: string): Promise<OsvVuln[]> {
   const response = await fetch('https://api.osv.dev/v1/query', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -118,31 +185,7 @@ async function fetchAdvisoriesForPackage(packageName: string): Promise<VulnDbEnt
     throw new Error(`OSV query failed for '${packageName}': HTTP ${String(response.status)}`);
   }
   const data = (await response.json()) as { vulns?: OsvVuln[] };
-
-  const entries: VulnDbEntry[] = [];
-  for (const vuln of data.vulns ?? []) {
-    const severity = normalizeSeverity(vuln.database_specific?.severity);
-    if (severity === null) {
-      continue;
-    }
-    for (const affected of vuln.affected ?? []) {
-      const range = extractSimpleRange(affected, packageName);
-      if (range === null) {
-        continue;
-      }
-      entries.push({
-        packageName,
-        id: vuln.id,
-        aliases: vuln.aliases ?? [],
-        summary: vuln.summary ?? vuln.id,
-        severity,
-        introduced: range.introduced,
-        fixed: range.fixed,
-      });
-      break; // one entry per vuln per package is enough signal
-    }
-  }
-  return entries;
+  return data.vulns ?? [];
 }
 
 function renderVulnDbModule(entries: readonly VulnDbEntry[], generatedAt: string): string {
@@ -165,8 +208,7 @@ function renderVulnDbModule(entries: readonly VulnDbEntry[], generatedAt: string
 // (https://osv.dev), queried out-of-band, never during a scan
 // (improvement_plan.md 1.15/Phase 18).
 //
-// Generated: ${generatedAt}
-// Tracked packages: ${TRACKED_PACKAGES.join(', ')}
+// Tracked packages: ${String(TRACKED_PACKAGES.length)} (see TRACKED_PACKAGES in the script)
 
 export interface VulnDbEntry {
   packageName: string;
@@ -180,12 +222,15 @@ export interface VulnDbEntry {
   fixed: string;
 }
 
+/** When this snapshot was taken; shown in reports so staleness is visible (PROPOSED_FIXES.md 3.5). */
+export const VULN_DB_GENERATED_AT = ${JSON.stringify(generatedAt)};
+
 /**
- * A small, curated offline snapshot of known npm-package vulnerabilities
- * — CHAP-SUP-003 matches a skill's declared dependency versions against
- * this, entirely offline. Not the whole OSV database (many GB); a
- * deliberately scoped set of well-known packages, refreshed periodically
- * out-of-band. See DECISIONS.md, Phase 18.
+ * A curated offline snapshot of known npm-package vulnerabilities
+ * — CHAP-SUP-003 matches a skill's dependency versions against this,
+ * entirely offline. Not the whole OSV database (many GB); a scoped set
+ * of packages agent skills commonly use, refreshed periodically
+ * out-of-band. See DECISIONS.md, Phase 18 and PROPOSED_FIXES.md 3.5.
  */
 export const VULN_DB: readonly VulnDbEntry[] = [
 ${entryLiterals}
@@ -193,29 +238,77 @@ ${entryLiterals}
 `;
 }
 
+function renderMaliciousDbModule(
+  entries: readonly MaliciousDbEntry[],
+  generatedAt: string,
+): string {
+  const entryLiterals = entries
+    .map(
+      (e) => `  {
+    packageName: ${JSON.stringify(e.packageName)},
+    id: ${JSON.stringify(e.id)},
+    summary: ${JSON.stringify(e.summary)},
+    versions: ${JSON.stringify(e.versions)},
+    ranges: ${JSON.stringify(e.ranges)},
+  }`,
+    )
+    .join(',\n');
+  return `// GENERATED FILE — do not hand-edit. Run \`npm run refresh:vulndb\` to
+// regenerate (see scripts/refreshVulnDb.ts). Source: OSV.dev advisories
+// classified as malicious, for the packages in MALWARE_WATCHLIST and
+// TRACKED_PACKAGES. Generated: ${generatedAt}
+
+export interface MaliciousDbEntry {
+  packageName: string;
+  id: string;
+  summary: string;
+  /** Exact malicious versions, or ['*'] when every version is. */
+  versions: readonly string[];
+  /** Malicious ranges, \`[introduced, fixed)\`; \`fixed\` null when open-ended. */
+  ranges: ReadonlyArray<{ introduced: string; fixed: string | null }>;
+}
+
+/** Known-malicious package versions, matched exactly by CHAP-SUP-007 (PROPOSED_FIXES.md 3.5). */
+export const MALICIOUS_DB: readonly MaliciousDbEntry[] = [
+${entryLiterals}
+];
+`;
+}
+
+async function writeFormatted(outputPath: string, source: string): Promise<void> {
+  // prettier.format() doesn't read .prettierrc.json on its own —
+  // resolveConfig does that explicitly.
+  const prettierConfig = await prettier.resolveConfig(outputPath);
+  writeFileSync(
+    outputPath,
+    await prettier.format(source, { ...prettierConfig, filepath: outputPath }),
+  );
+}
+
 async function main(): Promise<void> {
-  const allEntries: VulnDbEntry[] = [];
-  for (const packageName of TRACKED_PACKAGES) {
-    const entries = await fetchAdvisoriesForPackage(packageName);
-    allEntries.push(...entries);
+  const vulnEntries: VulnDbEntry[] = [];
+  const maliciousEntries: MaliciousDbEntry[] = [];
+  const queried = [...new Set([...TRACKED_PACKAGES, ...MALWARE_WATCHLIST])];
+  for (const packageName of queried) {
+    const vulns = await queryOsv(packageName);
+    const malicious = maliciousEntriesFrom(vulns, packageName);
+    maliciousEntries.push(...malicious);
+    if (TRACKED_PACKAGES.includes(packageName)) {
+      vulnEntries.push(...vulnEntriesFrom(vulns, packageName));
+    }
     console.log(
-      `${packageName}: ${String(entries.length)} advisor${entries.length === 1 ? 'y' : 'ies'}`,
+      `${packageName}: ${String(vulns.length)} advisories (${String(malicious.length)} malicious)`,
     );
   }
 
   const generatedAt = new Date().toISOString();
-  // prettier.format() doesn't read .prettierrc.json on its own —
-  // resolveConfig does that explicitly (same reason CHECKS.md's
-  // generator never needed this: markdown has no quote-style setting
-  // for it to silently default away from).
-  const prettierConfig = await prettier.resolveConfig(OUTPUT_PATH);
-  const formatted = await prettier.format(renderVulnDbModule(allEntries, generatedAt), {
-    ...prettierConfig,
-    filepath: OUTPUT_PATH,
-  });
-  writeFileSync(OUTPUT_PATH, formatted);
+  await writeFormatted(OUTPUT_PATH, renderVulnDbModule(vulnEntries, generatedAt));
+  await writeFormatted(
+    MALICIOUS_OUTPUT_PATH,
+    renderMaliciousDbModule(maliciousEntries, generatedAt),
+  );
   console.log(
-    `Wrote ${path.relative(REPO_ROOT, OUTPUT_PATH)} — ${String(allEntries.length)} total advisories for ${String(TRACKED_PACKAGES.length)} packages.`,
+    `Wrote ${path.relative(REPO_ROOT, OUTPUT_PATH)} (${String(vulnEntries.length)} advisories) and ${path.relative(REPO_ROOT, MALICIOUS_OUTPUT_PATH)} (${String(maliciousEntries.length)} malicious advisories) from ${String(queried.length)} packages.`,
   );
 }
 

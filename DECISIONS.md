@@ -2486,3 +2486,63 @@ redis-store` quiet while catching `auth: xoxb-1234-…`. A
   data and `CHAP-SUP-006`'s popular-package list are npm's, so both
   skip PyPI dependencies rather than compare them against the wrong
   registry. Only `CHAP-SUP-002` applies to Python for now.
+
+## PROPOSED_FIXES.md, 0.5.0 batch — Supply chain and remediation
+
+### 3.5 — Lockfiles, known-malicious versions, `--vuln-db`
+
+- **The malicious list is a watchlist, not the whole feed.** OSV's npm
+  export is 217 MB, almost all typosquats that are malicious in every
+  version. The bundled list covers packages with a real compromise
+  history plus the tracked packages; `--vuln-db` takes a full export for
+  anyone who wants everything offline.
+- **"Malicious" means a MAL- id, CWE-506, or a summary naming malware or
+  malicious code/package/versions.** Matching the bare word "malicious"
+  pulled in "Malicious WebSocket frame crashes the parser" (undici) and
+  "malicious Content-Type" (fastify), which are ordinary DoS bugs.
+- **Malicious entries keep explicit versions and ranges.** OSV records
+  compromises both ways; `last_affected` is turned into exact versions
+  since the range is inclusive.
+- **Without a lockfile, `CHAP-SUP-007` only trusts exact pins.** A range
+  like `^5.6.0` could resolve to the compromised `5.6.1` or not; flagging
+  it would be a guess. A package malicious in every version matches any
+  specifier.
+- **The advisory store is process-wide.** Checks stay `run(model)`, so
+  plugins and the engine are untouched; the CLI loads `--vuln-db` once
+  and resets it before each scan.
+- **The OSV parsing lives in `src/checks/shared/osv.ts`**, shared by the
+  refresh script and `--vuln-db`, so both classify identically.
+
+### 3.8 — Weak gateway tokens
+
+- **16 characters is the floor for a literal token.** Under that, a
+  random token is brute-forceable against an API without rate limiting.
+  Env-var references aren't judged.
+- **A reused token is weak regardless of length**: compromising the other
+  secret compromises the gateway.
+- **Loopback downgrades to medium, not silence.** Browser-to-localhost
+  and DNS rebinding reach loopback services.
+
+### 4.3 — Scoring v2
+
+- **Per-check diminishing returns, capped at 2× the check's largest
+  weight.** Ten skills without a lockfile cost 30, not 150. Different
+  checks still add up fully, so a broad set of problems still reads F.
+- **`scoreVersion` is optional in the schema** so v1 reports keep loading
+  as baselines.
+
+### 5 — Remediation
+
+- **A plan is a list of actions** (write a file, append lines, chmod),
+  shown as masked field-level changes before anything happens. The same
+  `--dry-run --write` gate covers every fixer.
+- **Each fixer runs its own check** to decide what to fix, so it can't
+  propose a change for something the scan doesn't report.
+- **`--write-env` is the one place a real secret value is read for a
+  fix**, and it only goes into a 0600 `.env`; it is never printed. It is
+  opt-in because silently creating a secrets file is itself a risk.
+- **JSON is edited by byte offset**, using `YAML.parseDocument` positions
+  (JSON is YAML 1.2), instead of `JSON.stringify` re-serialization.
+- **`.gitignore` entries are anchored** (`/config.json`, `/memory/`) at
+  the repository root, so they can't accidentally ignore same-named
+  files elsewhere.

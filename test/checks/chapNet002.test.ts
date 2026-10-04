@@ -47,6 +47,7 @@ describe('CHAP-NET-002 — missing or weak auth on the gateway control API', () 
         port: null,
         authConfigured: null,
         authTokenIsDefaultOrEmpty: null,
+        authTokenWeakness: null,
         tlsEnabled: null,
       },
     };

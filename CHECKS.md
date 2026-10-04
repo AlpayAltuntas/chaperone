@@ -18,8 +18,14 @@ section holds more than one spelling, the snake_case one wins.
 
 ## Posture score
 
-Start at 100 and subtract a fixed weight for every finding, by severity,
-then floor at 0:
+Start at 100 and subtract a weight per finding, by severity, then round
+and floor at 0. Repeats of the same check diminish: within one check, the
+most severe finding costs its full weight, each further one half the
+previous (w, w/2, w/4, ...), and the check's total is capped at twice its
+largest weight. So one problem repeated across ten skills costs at most
+2× its weight, and the score keeps moving as you fix things. This is
+scoring version 2 (`summary.scoreVersion` in the JSON report); version
+1 subtracted the full weight for every finding.
 
 | Severity | Weight |
 | -------- | -----: |
@@ -219,9 +225,9 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** High
 - **OWASP:** LLM05 — Supply Chain
-- **Detects:** A skill dependency whose declared version matches a known vulnerability in a small, bundled, offline snapshot (OSV.dev-sourced).
-- **Heuristic:** Compares each skill's package.json dependency version specifiers against `shared/vulnDb.ts`, a curated, offline snapshot of real advisories for a small set of well-known npm packages, refreshed out-of-band via `npm run refresh:vulndb` (never during a scan — see `scripts/refreshVulnDb.ts`). A specifier's first X.Y.Z-shaped token stands in for the version, since no lockfile/node_modules resolution is available in a static config-only scan; a specifier with no such token (`"latest"`, `"*"`, a git URL) is skipped rather than guessed at. Not exhaustive — only tracks the packages in the bundled snapshot, not the full OSV/npm-advisory database.
-- **Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run `npm audit` for a live, comprehensive check beyond this offline snapshot.
+- **Detects:** A skill dependency, direct or transitive, whose version matches a known vulnerability in a bundled, offline OSV snapshot (or an OSV export passed with `--vuln-db`).
+- **Heuristic:** When the skill has a `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, or `pnpm-lock.yaml`, every resolved package version in it, direct and transitive, is matched exactly. Without a lockfile, each `package.json` specifier's first X.Y.Z token stands in for the version, and the message says so; a specifier with no such token (`"latest"`, `"*"`, a git URL) is skipped. The bundled snapshot (`shared/vulnDb.ts`) covers about 80 packages agent skills commonly use and is refreshed out-of-band with `npm run refresh:vulndb`, never during a scan. Its date is shown in the report header. npm dependencies only.
+- **Remediation:** Upgrade the dependency to a patched version (or remove it if unused). Run `npm audit` for a live check beyond the offline snapshot, or pass a full OSV export with `--vuln-db`.
 
 ### CHAP-SUP-004 — Dangerous install pattern
 
@@ -246,6 +252,14 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Detects:** A skill dependency whose name is suspiciously close (small edit distance) to a well-known popular package name (e.g. 'reqeust' vs 'request') — a common typosquatting technique.
 - **Heuristic:** The dependency name isn't itself a well-known package, is at least 4 characters, and has a Levenshtein (edit) distance of 1-2 from a well-known package name in a small bundled reference list (no live registry lookup — Chaperone makes no outbound network calls). Not exhaustive: a name not close to anything on that list is never flagged.
 - **Remediation:** Double check the exact spelling against the real package on the registry before installing, and remove the dependency if it was added by mistake.
+
+### CHAP-SUP-007 — Known-malicious package version
+
+- **Severity:** Critical
+- **OWASP:** LLM05 — Supply Chain
+- **Detects:** A skill dependency, direct or transitive, at a version OSV lists as malicious: a compromised maintainer account, protestware, or a package that was malware from the start.
+- **Heuristic:** Lockfile-resolved versions (or exact `package.json` pins when there is no lockfile) are matched against `shared/maliciousDb.ts`: advisories OSV classifies as malware (MAL- ids, CWE-506, or a summary naming malware or malicious code) for packages with a history of compromise, plus any loaded with `--vuln-db`. A range specifier without a lockfile only matches a package that is malicious in every version. npm dependencies only.
+- **Remediation:** Remove the package or move to a version published before or after the compromise, delete node_modules and reinstall from a clean lockfile, and rotate any credentials available to the machine that ran it: malicious install scripts typically steal tokens and keys.
 
 ### CHAP-SUP-008 — Project MCP servers approved without review
 
@@ -323,11 +337,11 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 ### CHAP-NET-002 — Missing or weak auth on the gateway control API
 
-- **Severity:** High
+- **Severity:** High (Medium when the gateway is bound to loopback)
 - **OWASP:** General
-- **Detects:** The gateway control API with no auth configured, or a default/empty credential.
-- **Heuristic:** `gateway.auth` is absent, or its `token` is empty or a common default value (`changeme`, `admin`, `password`, `default`, `token`, case-insensitive).
-- **Remediation:** Require a strong, randomly-generated token for the gateway control API and rotate any default value.
+- **Detects:** The gateway control API with no auth configured, or a weak credential.
+- **Heuristic:** `gateway.auth` is absent, or its literal `token` is empty, a common default (`changeme`, `admin`, `password`, `default`, `token`, case-insensitive), shorter than 16 characters, or identical to another secret value in the config. An env-var reference (`${GW_TOKEN}`) isn't judged. When `gateway.host` is a loopback address, the finding is medium instead of high: there's no network exposure, but local processes and web pages using browser-to-localhost or DNS rebinding can still reach it.
+- **Remediation:** Require a strong, randomly generated token (at least 16 characters, used nowhere else) for the gateway control API, and rotate any default or reused value.
 
 ### CHAP-NET-003 — Plaintext transport on the gateway
 

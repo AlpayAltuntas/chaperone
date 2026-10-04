@@ -4,7 +4,14 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { chapSec001Fixer } from '../../src/fix/chapSec001Fixer.js';
+import type { FixPlan } from '../../src/fix/types.js';
 import { discoverAgent } from '../../src/discovery/index.js';
+
+/** The new config text a plan writes (its first action). */
+function contentOf(plan: FixPlan): string {
+  const action = plan.actions[0];
+  return action?.kind === 'write-file' ? action.content : '';
+}
 
 describe('chapSec001Fixer', () => {
   let dir: string;
@@ -38,15 +45,15 @@ describe('chapSec001Fixer', () => {
     if (plan === null) {
       throw new Error('expected a fix plan');
     }
-    expect(plan.filePath).toBe(configPath);
+    expect(plan.actions[0]?.filePath).toBe(configPath);
     expect(plan.changes).toHaveLength(1);
     expect(plan.changes[0]?.keyPath).toBe('llm.api_key');
     expect(plan.changes[0]?.newValue).toBe('${LLM_API_KEY}');
     expect(typeof plan.changes[0]?.oldDisplayValue).toBe('string');
-    expect(plan.newContent).toContain('# a comment that must survive');
-    expect(plan.newContent).toContain('provider: anthropic');
-    expect(plan.newContent).toContain('api_key: ${LLM_API_KEY}');
-    expect(plan.newContent).not.toContain('sk-ant-real-secret-value-shhh');
+    expect(contentOf(plan)).toContain('# a comment that must survive');
+    expect(contentOf(plan)).toContain('provider: anthropic');
+    expect(contentOf(plan)).toContain('api_key: ${LLM_API_KEY}');
+    expect(contentOf(plan)).not.toContain('sk-ant-real-secret-value-shhh');
 
     // plan() never writes — the original file on disk is untouched.
     expect(readFileSync(configPath, 'utf8')).not.toContain('${LLM_API_KEY}');
@@ -62,7 +69,7 @@ describe('chapSec001Fixer', () => {
       throw new Error('expected a fix plan');
     }
 
-    const parsed = YAML.parse(plan.newContent) as { llm: { api_key: string } };
+    const parsed = YAML.parse(contentOf(plan)) as { llm: { api_key: string } };
     expect(parsed.llm.api_key).toBe('${LLM_API_KEY}');
   });
 
@@ -79,9 +86,9 @@ describe('chapSec001Fixer', () => {
       throw new Error('expected a fix plan');
     }
 
-    const parsed = JSON.parse(plan.newContent) as { llm: { api_key: string } };
+    const parsed = JSON.parse(contentOf(plan)) as { llm: { api_key: string } };
     expect(parsed.llm.api_key).toBe('${LLM_API_KEY}');
-    expect(plan.newContent).not.toContain('sk-real-secret-value');
+    expect(contentOf(plan)).not.toContain('sk-real-secret-value');
   });
 
   it('returns null when there is no config file at all', () => {

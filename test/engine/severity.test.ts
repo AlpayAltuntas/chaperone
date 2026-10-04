@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { computeScore, severityMeetsThreshold } from '../../src/engine/severity.js';
 import type { Finding } from '../../src/model/types.js';
 
-function makeFinding(severity: Finding['severity']): Finding {
+// A distinct check per finding unless one is given: scoring v2 discounts
+// repeats of the same check (PROPOSED_FIXES.md 4.3).
+let nextCheck = 0;
+function makeFinding(
+  severity: Finding['severity'],
+  checkId = `TEST-${String(nextCheck++)}`,
+): Finding {
   return {
-    checkId: 'TEST',
+    checkId,
     title: 'test',
     severity,
     category: 'secrets',
@@ -81,5 +87,27 @@ describe('computeScore', () => {
       makeFinding('high'),
     ];
     expect(computeScore(findings).band).toBe('F');
+  });
+});
+
+describe('computeScore — scoring v2: repeats of one check diminish', () => {
+  it('halves each further finding of the same check', () => {
+    // 15 + 7.5 = 22.5 -> 77.5 -> 78
+    expect(computeScore([makeFinding('high', 'X'), makeFinding('high', 'X')]).score).toBe(78);
+  });
+
+  it('caps one check at twice its largest weight', () => {
+    const tenSkills = Array.from({ length: 10 }, () => makeFinding('high', 'CHAP-SUP-002'));
+    expect(computeScore(tenSkills).score).toBe(100 - 30);
+  });
+
+  it('uses the largest weight first within a check', () => {
+    // 25 + 15/2 + 7/4 = 34.25 -> 65.75 -> 66
+    const mixed = [
+      makeFinding('medium', 'Y'),
+      makeFinding('critical', 'Y'),
+      makeFinding('high', 'Y'),
+    ];
+    expect(computeScore(mixed).score).toBe(66);
   });
 });

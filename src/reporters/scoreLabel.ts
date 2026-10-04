@@ -19,6 +19,18 @@ export function formatProfileLabel(metadata: ScanMetadata): string | null {
   return metadata.profile === 'default' ? null : metadata.profile;
 }
 
+/** "OSV snapshot 2026-10-04 (606 advisories) + 1200 from osv.json", or null when unknown. */
+export function formatAdvisoryLabel(metadata: ScanMetadata): string | null {
+  const data = metadata.advisoryData;
+  if (data === undefined) {
+    return null;
+  }
+  const base = `OSV snapshot ${data.snapshotDate.slice(0, 10)} (${String(data.bundledAdvisories)} advisories)`;
+  return data.extraFile === null
+    ? base
+    : `${base} + ${String(data.extraAdvisories)} from ${data.extraFile}`;
+}
+
 export function formatScoreLabel(
   findings: readonly Finding[],
   metadata: ScanMetadata,

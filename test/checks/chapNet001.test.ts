@@ -29,6 +29,7 @@ const BASE_MODEL: AgentModel = {
     port: 18789,
     authConfigured: true,
     authTokenIsDefaultOrEmpty: false,
+    authTokenWeakness: null,
     tlsEnabled: true,
   },
   logging: {
@@ -77,6 +78,7 @@ describe('CHAP-NET-001 — gateway bound beyond localhost', () => {
         port: null,
         authConfigured: null,
         authTokenIsDefaultOrEmpty: null,
+        authTokenWeakness: null,
         tlsEnabled: null,
       },
     };

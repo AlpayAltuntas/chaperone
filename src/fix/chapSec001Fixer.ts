@@ -1,84 +1,104 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import YAML from 'yaml';
 import { parseKeyPathSegments } from '../discovery/configParser.js';
+import { setConfigValues } from './configEdit.js';
 import { suggestEnvVarName } from './envVarName.js';
-import type { FixChange, FixPlan, Fixer } from './types.js';
+import { gitignoreAction } from './gitignore.js';
+import type { FixAction, FixChange, FixPlan, Fixer } from './types.js';
 
 /**
- * CHAP-SEC-001's fixer (improvement_plan.md 3.14/Phase 22's DoD example
- * check) — replaces every literal (non-env-reference) secret value
- * `model.config.secretFields` already found with a `${SUGGESTED_NAME}`
- * env-var reference, preserving the config file's own formatting via
- * `YAML.Document#setIn` (a round-trip-preserving edit, not a
- * parse-and-regenerate-from-scratch one) for YAML, or a plain
- * `JSON.parse`/`stringify` round-trip for JSON (which has no comments to
- * preserve anyway).
+ * CHAP-SEC-001's fixer — replaces every literal secret value
+ * `model.config.secretFields` found with a `${SUGGESTED_NAME}` env-var
+ * reference. YAML keeps its comments and layout; JSON is edited in place,
+ * so key order and indentation survive (PROPOSED_FIXES.md 5).
  *
- * Never reads or re-derives the real secret value for anything — the
- * proposed change only ever needs the field's *keyPath* (to locate and
- * overwrite it) and its already-masked `displayValue` (to show what's
- * changing), both already sitting on the AgentModel. `plan()` re-reads
- * the config file's raw text once, purely to get a fresh parse to edit
- * — the same file `discoverAgent` already read, never written to.
+ * Without `--write-env`, the real values are never read, only the
+ * fields' key paths and masked display values from the model. With it,
+ * the fixer reads each real value once from the config and writes it to
+ * `.env` in the install root (created 0600, and added to the repository's
+ * `.gitignore` when there is one), so confirming the fix can't lose a key
+ * that isn't stored anywhere else. Real values are never printed.
  */
 export const chapSec001Fixer: Fixer = {
   checkId: 'CHAP-SEC-001',
-  plan(model): FixPlan | null {
+  plan(model, options = {}): FixPlan | null {
     const { path: filePath, format } = model.config;
     if (filePath === null || format === null) {
       return null;
     }
-
     const literalFields = model.config.secretFields.filter((field) => !field.looksLikeEnvReference);
     if (literalFields.length === 0) {
       return null;
     }
 
     const raw = readFileSync(filePath, 'utf8');
-    const changes: FixChange[] = [];
+    const changes: FixChange[] = literalFields.map((field) => ({
+      keyPath: field.keyPath,
+      oldDisplayValue: field.displayValue,
+      newValue: `\${${suggestEnvVarName(field.keyPath)}}`,
+    }));
+    const actions: FixAction[] = [
+      {
+        kind: 'write-file',
+        filePath,
+        content: setConfigValues(
+          raw,
+          format,
+          changes.map((change) => ({ keyPath: change.keyPath, value: change.newValue })),
+        ),
+      },
+    ];
+    const names = literalFields.map((field) => suggestEnvVarName(field.keyPath));
 
-    if (format === 'yaml') {
-      const doc = YAML.parseDocument(raw);
-      for (const field of literalFields) {
-        const newValue = `\${${suggestEnvVarName(field.keyPath)}}`;
-        doc.setIn(parseKeyPathSegments(field.keyPath), newValue);
-        changes.push({ keyPath: field.keyPath, oldDisplayValue: field.displayValue, newValue });
+    if (options.writeEnv === true) {
+      const parsed: unknown = format === 'json' ? JSON.parse(raw) : YAML.parse(raw);
+      const envPath = path.join(model.targetRoot, '.env');
+      const lines = literalFields.flatMap((field) => {
+        const value = valueAt(parsed, field.keyPath);
+        return typeof value === 'string'
+          ? [`${suggestEnvVarName(field.keyPath)}=${quoteEnv(value)}`]
+          : [];
+      });
+      actions.push({ kind: 'append-lines', filePath: envPath, lines, mode: 0o600 });
+      changes.push({
+        keyPath: envPath,
+        oldDisplayValue: '(values from the config)',
+        newValue: `${String(lines.length)} variable${lines.length === 1 ? '' : 's'}, file mode 600`,
+      });
+      const ignore = gitignoreAction(model, envPath, false);
+      if (ignore !== null) {
+        actions.push(ignore.action);
+        changes.push(ignore.change);
       }
-      return { checkId: 'CHAP-SEC-001', filePath, changes, newContent: doc.toString() };
     }
 
-    // JSON: no comments/formatting to preserve, so a plain parse/set/
-    // re-stringify round-trip is fine — the same reasoning
-    // configParser.ts's own maskConfig already applies.
-    const parsed: unknown = JSON.parse(raw);
-    for (const field of literalFields) {
-      const newValue = `\${${suggestEnvVarName(field.keyPath)}}`;
-      setInPlainObject(parsed, parseKeyPathSegments(field.keyPath), newValue);
-      changes.push({ keyPath: field.keyPath, oldDisplayValue: field.displayValue, newValue });
+    const notes = [
+      options.writeEnv === true
+        ? `The values were moved to .env; make sure the agent loads it, or export: ${names.join(', ')}.`
+        : `Before applying, store each value somewhere the agent can read it and export: ${names.join(', ')}. (--write-env moves them into a 0600 .env file for you.)`,
+    ];
+    if (model.git.hasAncestorGitDir) {
+      notes.push(
+        'This config is inside a git repository: if it was ever committed with these values, rotate the credentials. Removing them now does not remove them from history.',
+      );
     }
-    return {
-      checkId: 'CHAP-SEC-001',
-      filePath,
-      changes,
-      newContent: `${JSON.stringify(parsed, null, 2)}\n`,
-    };
+    return { checkId: 'CHAP-SEC-001', changes, actions, notes };
   },
 };
 
-function setInPlainObject(
-  root: unknown,
-  segments: readonly (string | number)[],
-  value: unknown,
-): void {
+function valueAt(root: unknown, keyPath: string): unknown {
   let cursor: unknown = root;
-  for (let i = 0; i < segments.length - 1; i++) {
+  for (const segment of parseKeyPathSegments(keyPath)) {
     if (typeof cursor !== 'object' || cursor === null) {
-      return;
+      return undefined;
     }
-    cursor = (cursor as Record<string | number, unknown>)[segments[i] as string | number];
+    cursor = (cursor as Record<string | number, unknown>)[segment];
   }
-  const lastSegment = segments[segments.length - 1];
-  if (typeof cursor === 'object' && cursor !== null && lastSegment !== undefined) {
-    (cursor as Record<string | number, unknown>)[lastSegment] = value;
-  }
+  return cursor;
+}
+
+/** Double-quotes a .env value when it holds anything a dotenv parser would treat specially. */
+function quoteEnv(value: string): string {
+  return /^[\w./:@+-]*$/.test(value) ? value : JSON.stringify(value);
 }

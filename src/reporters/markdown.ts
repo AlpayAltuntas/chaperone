@@ -1,7 +1,7 @@
 import { compareSeverity } from '../engine/severity.js';
 import type { Finding, FindingLocation, Severity } from '../model/types.js';
 import type { ScanMetadata } from './types.js';
-import { formatProfileLabel, formatScoreLabel } from './scoreLabel.js';
+import { formatAdvisoryLabel, formatProfileLabel, formatScoreLabel } from './scoreLabel.js';
 
 const SEVERITY_LABEL: Record<Severity, string> = {
   critical: 'Critical',
@@ -32,6 +32,10 @@ export function formatMarkdownReport(
   const profileLabel = formatProfileLabel(metadata);
   if (profileLabel !== null) {
     lines.push(`**Profile:** ${profileLabel}`);
+  }
+  const advisoryLabel = formatAdvisoryLabel(metadata);
+  if (advisoryLabel !== null) {
+    lines.push(`**Vulnerability data:** ${advisoryLabel}`);
   }
   lines.push(`**Scanned at:** ${metadata.timestamp} — chaperone v${metadata.toolVersion}`, '');
 

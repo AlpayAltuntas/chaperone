@@ -117,7 +117,7 @@ describe('formatConsoleReport', () => {
     );
 
     // 100 - 25 (critical) - 3 (low) = 72 -> band C.
-    expect(output).toContain('posture score 72/100 (C)');
+    expect(output).toContain('posture score 74/100 (C)');
   });
 
   it('a clean scan scores 100/A', () => {
