@@ -1,8 +1,7 @@
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
-import Ajv from 'ajv';
+import AjvDraft04 from 'ajv-draft-04';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ALL_CHECKS } from '../../src/checks/index.js';
 import { discoverAgent } from '../../src/discovery/index.js';
@@ -13,12 +12,14 @@ import type { ScanMetadata } from '../../src/reporters/types.js';
 
 // PROPOSED_FIXES.md 4.1: validate real output against the official SARIF
 // 2.1.0 schema, vendored under test/fixtures so the test needs no network.
-const require = createRequire(import.meta.url);
+// The schema is JSON Schema draft-04, which ajv 8 only supports through
+// the ajv-draft-04 build.
 const schema = JSON.parse(
   readFileSync(path.join('test', 'fixtures', 'sarif-schema-2.1.0.json'), 'utf8'),
 ) as object;
-const ajv = new Ajv({ schemaId: 'id', allErrors: true });
-ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json') as object);
+// A CommonJS module: under NodeNext the default import is the module, and
+// the class is its `default` (the same object at runtime).
+const ajv = new AjvDraft04.default({ allErrors: true, strict: false });
 const validate = ajv.compile(schema);
 
 interface SarifShape {

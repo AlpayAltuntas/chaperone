@@ -18,6 +18,16 @@ updates:
       # until the Node floor moved from 20 to 22, PROPOSED_FIXES.md 7.1.)
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # vitest 5 silently breaks mutation testing: @stryker-mutator/vitest-runner
+      # 10.0.0 (latest as of 2026-10-04) runs but kills almost no mutants
+      # under vitest 5 (overall score 69.9% -> 11.5%, gitignoreMatch.ts
+      # 81% -> 0%), and the mutation job is configured never to fail on
+      # score, so CI stays green. Remove once a Stryker vitest runner
+      # supports vitest 5 (check: npm run mutation scores match vitest 4).
+      - dependency-name: 'vitest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/coverage-v8'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: 'github-actions'
     directory: '/'
