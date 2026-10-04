@@ -1,0 +1,15 @@
+// DUMMY fixture: an OpenClaw config in its real JSON5 format
+// (docs.openclaw.ai, checked 2026-10-04). Every credential is fake.
+{
+  gateway: {
+    port: 18789,
+    bind: "lan", // listens on 0.0.0.0
+    auth: {
+      mode: "password",
+      password: "hunter2", /* short and literal */
+    },
+  },
+  agents: {
+    defaults: { workspace: "~/.openclaw/workspace" },
+  },
+}

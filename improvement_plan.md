@@ -1,5 +1,11 @@
 # Chaperone — Improvement Plan
 
+> **Historical record.** Every phase in this plan (1–24) shipped in
+> 0.2.0/0.2.1. Current work is tracked in
+> [`PROPOSED_FIXES.md`](PROPOSED_FIXES.md); this document is kept for the
+> reasoning behind earlier decisions, which `DECISIONS.md` and code
+> comments still reference by section number.
+
 A working backlog of weak points and opportunities, written after shipping
 v1 (22 checks, 3 reporters, published as `@alpay_altuntas/chaperone` on
 npm) and then revisited with a closer, line-by-line pass over every

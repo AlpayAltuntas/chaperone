@@ -12,6 +12,43 @@ pipeline, even though it isn't a breaking API change in the usual sense.
 
 ## [Unreleased]
 
+The ongoing hygiene items from `PROPOSED_FIXES.md`.
+
+### May change CI results
+
+- **Node.js 22.12 or later is required** (was 22), so plugins can be ES
+  modules: Node 22.12 is the first 22.x where `require()` loads ESM.
+- `CHAP-SEC-007` is skipped when the `CI` environment variable is set,
+  with a note in the report's Skipped section; `--only CHAP-SEC-007`
+  still runs it.
+- OpenClaw's real config file, `openclaw.json` (JSON5), is now
+  discovered, and its `gateway.bind` (`loopback`/`lan`/`custom` +
+  `customBindHost`), `gateway.auth.mode` (`none` counts as no auth), and
+  `gateway.auth.password` are read by `CHAP-NET-001`/`002`.
+
+### Added
+
+- `chaperone init` writes a starter `.chaperonerc.json` with each option
+  explained, and refuses to overwrite an existing one.
+- Plugins can be ES modules (`.mjs`, or `.js` in a `"type": "module"`
+  package). A plugin using top-level `await` gets a specific error.
+- CI runs the test suite on Node 24 (Ubuntu) and on macOS. A Windows
+  job runs too, non-blocking until the permission tests are ported.
+
+### Changed
+
+- Every finding is validated against the schema, and a check may only
+  report its own ID; a violation becomes the "internal error" finding,
+  so a plugin can no longer crash a reporter or impersonate a built-in
+  check. Checks receive a deep-frozen copy of the model.
+- JSON5 comments and trailing commas are understood when reading a JSON
+  config, and `chaperone fix` preserves them.
+- Mutation testing also covers `astCapabilities.ts` and
+  `secretValuePatterns.ts`.
+- `improvement_plan.md` is marked as a historical record.
+
+## [0.5.0] - Unreleased
+
 Supply chain and remediation from `PROPOSED_FIXES.md` (the 0.5.0 batch).
 
 ### May change CI results

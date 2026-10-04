@@ -2,7 +2,13 @@ import { existsSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const CONFIG_FILENAMES: readonly string[] = ['config.yaml', 'config.yml', 'config.json'];
+// `openclaw.json` is OpenClaw's real config file (JSON5, PROPOSED_FIXES.md 6.2).
+export const CONFIG_FILENAMES: readonly string[] = [
+  'config.yaml',
+  'config.yml',
+  'config.json',
+  'openclaw.json',
+];
 
 // Illustrative install-root conventions for Clawdbot/Moltbot/OpenClaw-style
 // agents, probed only when the user omits an explicit target path. No

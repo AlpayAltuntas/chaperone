@@ -29,6 +29,12 @@ also has an **Impact** and **Effort** tag (Low/Med/High).
 | 0.4.0 — Real-world coverage        | 3.9, 6.1, 6.3, 3.4                                | ✅ Done on branch `real-world-coverage-0.4.0`                                                           |
 | 0.5.0 — Supply chain + remediation | 3.5, 5, 4.3, 3.8                                  | ✅ Done on branch `supply-chain-remediation-0.5.0`                                                      |
 
+Hygiene (4.4, 6.2, 7.2, 7.3, 7.4.x) is done on branch `hygiene`, with one
+follow-up: the Windows CI job is non-blocking until the permission tests
+assert the Windows behavior (see DECISIONS.md, 7.2). For 6.2, the
+OpenClaw gateway keys are adapted; its channel and `tools.exec` policies
+aren't modeled yet.
+
 The two halves carried over from 0.2.2 (the Python half of 2.4 and the
 per-call scoping redesign in 2.6) shipped with 0.3.0.
 

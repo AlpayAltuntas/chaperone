@@ -124,7 +124,8 @@ function discoverAtRoot(
   const { data, secretFields: maskedSecretFields } = maskConfig(rawParsed);
   // Line numbers for every key (improvement_plan.md 1.17), YAML and JSON
   // alike (PROPOSED_FIXES.md 4.2).
-  const keyLines = configSource !== null ? buildKeyLineIndex(configSource) : {};
+  const keyLines =
+    configSource !== null && format !== null ? buildKeyLineIndex(configSource, format) : {};
   const secretFields = maskedSecretFields.map((field) => ({
     ...field,
     line: keyLines[field.keyPath] ?? null,

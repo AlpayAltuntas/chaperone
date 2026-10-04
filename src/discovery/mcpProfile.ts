@@ -236,7 +236,7 @@ export function discoverMcpAgent(options: DiscoveryOptions): DiscoveryResult {
   // Reused verbatim from the default profile (configParser.ts): walks
   // ANY JSON-shaped tree for secret-looking keys and values — an MCP
   // server's `env`/`headers`/`args` are just more tree to it.
-  const keyLines = buildKeyLineIndex(source);
+  const keyLines = buildKeyLineIndex(source, 'json');
   const masked = maskConfig(rawParsed);
   const secretFields = masked.secretFields.map((field) => ({
     ...field,

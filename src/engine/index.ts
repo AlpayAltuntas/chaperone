@@ -1,6 +1,6 @@
 import { errorMessage } from '../discovery/errors.js';
 import type { DiscoveryProfile } from '../discovery/index.js';
-import type { AgentModel, Finding } from '../model/types.js';
+import { FindingSchema, type AgentModel, type Finding } from '../model/types.js';
 import type { Check } from './types.js';
 
 export interface RunChecksOptions {
@@ -37,6 +37,9 @@ export function runChecks(
   const checksSkipped: string[] = [];
   const checksNotApplicable: string[] = [];
   const internalErrors: Array<{ checkId: string; message: string }> = [];
+  // Every check, built-in or plugin, sees the same read-only copy: one
+  // check can't change what another sees (PROPOSED_FIXES.md 4.4).
+  const frozenModel = deepFreeze(structuredClone(model));
 
   for (const check of checks) {
     if ((only !== null && !only.has(check.id)) || (skip !== null && skip.has(check.id))) {
@@ -53,7 +56,8 @@ export function runChecks(
     }
 
     try {
-      findings.push(...check.run(model));
+      const produced: unknown = check.run(frozenModel);
+      findings.push(...validateFindings(check, produced));
       checksRun.push(check.id);
     } catch (err) {
       const message = errorMessage(err);
@@ -73,4 +77,43 @@ export function runChecks(
   }
 
   return { findings, checksRun, checksSkipped, checksNotApplicable, internalErrors };
+}
+
+/**
+ * A check's output must be an array of schema-valid findings carrying the
+ * check's own ID (PROPOSED_FIXES.md 4.4). A malformed finding could crash
+ * a reporter, and a plugin reporting under another check's ID could
+ * impersonate a built-in check. A violation is thrown, so it becomes the
+ * same "internal error" finding as a check that throws.
+ */
+function validateFindings(check: Check, produced: unknown): Finding[] {
+  if (!Array.isArray(produced)) {
+    throw new Error('run() must return an array of findings');
+  }
+  return produced.map((candidate, index) => {
+    const parsed = FindingSchema.safeParse(candidate);
+    if (!parsed.success) {
+      throw new Error(
+        `finding ${String(index)} is malformed: ${parsed.error.issues
+          .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+          .join('; ')}`,
+      );
+    }
+    if (parsed.data.checkId !== check.id) {
+      throw new Error(
+        `finding ${String(index)} has checkId '${parsed.data.checkId}', but a check may only report its own ID ('${check.id}')`,
+      );
+    }
+    return parsed.data;
+  });
+}
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+  }
+  return value;
 }

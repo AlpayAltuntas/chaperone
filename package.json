@@ -8,7 +8,7 @@
     "email": "alpaycanaltuntas@gmail.com"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "bin": {
     "chaperone": "dist/cli.js"

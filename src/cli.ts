@@ -15,6 +15,7 @@ import { extractDockerSource } from './discovery/dockerSource.js';
 import { errorMessage } from './discovery/errors.js';
 import { DISCOVERY_PROFILES, discoverAgent, type DiscoveryProfile } from './discovery/index.js';
 import { detectProfile } from './discovery/profileDetection.js';
+import { writeStarterConfig } from './config/initConfig.js';
 import { advisoryDataInfo, loadVulnDbFile, resetVulnDb } from './checks/shared/advisoryDb.js';
 import { expandAllPattern } from './discovery/multiRoot.js';
 import { runChecks, type RunChecksResult } from './engine/index.js';
@@ -54,11 +55,21 @@ interface ScanCommandOptions {
   config?: string;
   baseline?: string;
   vulnDb?: string;
+  /** Set by the scan action when CHAP-SEC-007 was skipped because CI is set (PROPOSED_FIXES.md 7.4.5). */
+  ciSkippedEnvCheck?: boolean;
   /** Unset means auto-detect per target (PROPOSED_FIXES.md 6.3). */
   profile?: DiscoveryProfile;
   all?: string;
   docker?: string;
   plugin?: string[];
+}
+
+const ENV_CHECK_ID = 'CHAP-SEC-007';
+
+/** `CI` set to anything but an explicit false value, as GitHub Actions, GitLab, CircleCI, and others do. */
+export function isCiEnvironment(env: NodeJS.ProcessEnv): boolean {
+  const value = env['CI'];
+  return value !== undefined && value !== '' && !['false', '0'].includes(value.toLowerCase());
 }
 
 function parseFormat(value: string): ReportFormat {
@@ -246,16 +257,25 @@ function scanOneTarget(
   const rawFindings = suite?.findings ?? [];
   // Surfaced like any other skipped input so a profile-scoped check is
   // never silently missing from a report (PROPOSED_FIXES.md 2.8).
-  const skipped =
-    suite !== null && suite.checksNotApplicable.length > 0
+  const skipped = [
+    ...model.skipped,
+    ...(suite !== null && suite.checksNotApplicable.length > 0
       ? [
-          ...model.skipped,
           {
             path: `(profile: ${profile})`,
             reason: `checks not applicable to this profile: ${suite.checksNotApplicable.join(', ')}`,
           },
         ]
-      : model.skipped;
+      : []),
+    ...(suite !== null && options.ciSkippedEnvCheck === true
+      ? [
+          {
+            path: '(CI)',
+            reason: `${ENV_CHECK_ID} skipped: CI is set, so Chaperone's environment is the runner's, not the agent's. Pass --only ${ENV_CHECK_ID} to run it anyway.`,
+          },
+        ]
+      : []),
+  ];
 
   // severityOverrides/ignore are a real reclassification the user has
   // consciously made, so — unlike the purely cosmetic display filters
@@ -489,6 +509,15 @@ export function buildProgram(): Command {
           options.skip = [...(options.skip ?? []), ...disabledChecks];
         }
 
+        // CHAP-SEC-007 compares config references with Chaperone's own
+        // environment, which in CI is the runner's, not the agent's
+        // (PROPOSED_FIXES.md 7.4.5). Skipped there unless asked for by
+        // name with --only.
+        if (isCiEnvironment(process.env) && !(options.only ?? []).includes(ENV_CHECK_ID)) {
+          options.skip = [...(options.skip ?? []), ENV_CHECK_ID];
+          options.ciSkippedEnvCheck = true;
+        }
+
         for (const id of [...(options.only ?? []), ...(options.skip ?? [])]) {
           if (!knownIds.has(id)) {
             command.error(
@@ -580,6 +609,18 @@ export function buildProgram(): Command {
       } catch (err) {
         console.error(`chaperone: unexpected error: ${errorMessage(err)}`);
         process.exitCode = 2;
+      }
+    });
+
+  program
+    .command('init')
+    .argument('[dir]', 'directory to write .chaperonerc.json into (default: current directory)')
+    .description('Write a starter .chaperonerc.json with every option explained (never overwrites)')
+    .action((dir: string | undefined, _options: unknown, command: Command) => {
+      try {
+        console.log(`Wrote ${writeStarterConfig(dir ?? process.cwd())}.`);
+      } catch (err) {
+        command.error(errorMessage(err));
       }
     });
 
