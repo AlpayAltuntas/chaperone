@@ -110,10 +110,10 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 ### CHAP-AGY-001 — Unrestricted shell execution
 
-- **Severity:** Critical
+- **Severity:** Critical (High when the skill declares `confirmationRequired: true`)
 - **OWASP:** LLM08 — Excessive Agency
 - **Detects:** Skills/plugins that can run arbitrary shell commands.
-- **Heuristic:** A skill's source contains a shell/exec/spawn capability (`child_process`, `exec`/`execSync`, `spawn`/`spawnSync`). v1 does not yet detect a command allowlist or confirmation gate (see DECISIONS.md), so any detected shell capability is treated as unrestricted.
+- **Heuristic:** A skill's source contains a shell/exec/spawn capability (`child_process`, `exec`/`execSync`, `spawn`/`spawnSync`). A command allowlist isn't detected, so any detected shell capability is treated as unrestricted. If the skill's manifest declares `confirmationRequired: true`, the finding is downgraded to High: the gate is self-declared and can't be verified statically.
 - **Remediation:** Constrain the skill to an explicit command allowlist, require confirmation for shell actions, or sandbox its execution.
 
 ### CHAP-AGY-002 — Unrestricted filesystem access
@@ -155,7 +155,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Medium
 - **OWASP:** LLM05 — Supply Chain
 - **Detects:** Skill dependencies installed with no lockfile.
-- **Heuristic:** The skill has a `package.json` but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it.
+- **Heuristic:** The skill has a `package.json` that declares at least one runtime `dependencies` entry, but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.
 - **Remediation:** Commit a lockfile alongside the manifest and enable integrity checks.
 
 ### CHAP-SUP-003 — Known-vulnerable dependency
@@ -196,6 +196,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** High
 - **OWASP:** LLM01 — Prompt Injection
+- **Profiles:** `default` only
 - **Detects:** An active inbound message channel with no trust boundary separating untrusted content before it reaches the model.
 - **Heuristic:** At least one `channels.*.enabled` is `true` in config, and `trust.mark_untrusted_input` is not `true`.
 - **Remediation:** Mark untrusted inbound content explicitly, keep it separated from system instructions in the prompt, and filter it before forwarding to the model.
@@ -212,6 +213,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** High
 - **OWASP:** LLM01 — Prompt Injection / LLM08 — Excessive Agency
+- **Profiles:** `default` only
 - **Detects:** Any inbound message being able to invoke any tool.
 - **Heuristic:** At least one channel is active and `trust.tool_allowlist` is empty or absent (same manifest-convention caveat as CHAP-AGY-003/004).
 - **Remediation:** Restrict which tools each channel/sender can invoke with an explicit allowlist.
@@ -220,6 +222,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** High
 - **OWASP:** LLM01 — Prompt Injection
+- **Profiles:** `default` only
 - **Detects:** Config that auto-opens links or auto-runs commands found in inbound messages.
 - **Heuristic:** `trust.auto_execute_links` is `true`.
 - **Remediation:** Disable auto-execution of links/commands found in messages; require explicit confirmation instead.
@@ -228,6 +231,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** Medium
 - **OWASP:** LLM01 — Prompt Injection
+- **Profiles:** `default` only
 - **Detects:** A non-empty global tool allowlist applied uniformly to a mix of public and private inbound channels, with no channel-specific restriction narrowing what a public (untrusted) channel can invoke.
 - **Heuristic:** At least two channels are enabled, the global `trust.tool_allowlist` is non-empty, at least one enabled channel is public (`channels.<name>.public` — missing defaults to `true`/untrusted, same conservative-default posture as CHAP-INJ-001) with no channel-specific `channels.<name>.tool_allowlist` override, and at least one enabled channel is private (`public: false`). Same manifest-convention caveat as CHAP-AGY-003/004 — no real schema exists for these example agents.
 - **Remediation:** Declare a channel-specific tool_allowlist for each public/untrusted channel, narrower than what private/admin-only channels are permitted to invoke.
@@ -239,7 +243,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 - **Severity:** Critical
 - **OWASP:** LLM06 / general
 - **Detects:** The gateway daemon listening on an interface other than localhost (e.g. `0.0.0.0`), making it reachable from other hosts.
-- **Heuristic:** `gateway.host` in config is present and is not `127.0.0.1`, `localhost`, or `::1`.
+- **Heuristic:** `gateway.host` in config is present and is not a loopback address (`localhost`, anything in `127.0.0.0/8`, `::1`, or IPv4-mapped `::ffff:127.x.x.x`). A trailing `:port` and `[...]` IPv6 brackets are stripped before classifying.
 - **Remediation:** Bind the gateway to `127.0.0.1`/`localhost`; put anything that must be reachable remotely behind a tunnel with authentication.
 
 ### CHAP-NET-002 — Missing or weak auth on the gateway control API
@@ -264,6 +268,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** Medium
 - **OWASP:** LLM08-adjacent
+- **Profiles:** `default` only
 - **Detects:** Tool invocations/actions that aren't logged.
 - **Heuristic:** `logging.audit.enabled` is not `true` (covers both an explicitly disabled audit log and no logging config at all).
 - **Remediation:** Enable an append-only audit log of every tool invocation/action the agent takes.
@@ -272,6 +277,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** Medium
 - **OWASP:** LLM06 — Sensitive Information Disclosure
+- **Profiles:** `default` only
 - **Detects:** Log config that doesn't confirm secrets/message bodies are redacted.
 - **Heuristic:** Logging is configured and `logging.redact_secrets` is not `true`.
 - **Remediation:** Redact secrets and sensitive message content before logging, and restrict access to the log file.
@@ -280,6 +286,7 @@ genuinely hardened install's score or trip `--fail-on high` on its own
 
 - **Severity:** Low
 - **OWASP:** General
+- **Profiles:** `default` only
 - **Detects:** No documented quick way to stop the agent and revoke its access.
 - **Heuristic:** None of `KILL_SWITCH.md`, `STOP.md`, `kill-switch.sh`, or `revoke.sh` exists at the install root — a documented, invented naming convention (no real spec exists for this); an install documenting a kill switch any other way won't be detected in v1.
 - **Remediation:** Document a kill switch (how to stop the agent) and a script or checklist to revoke/rotate its credentials.

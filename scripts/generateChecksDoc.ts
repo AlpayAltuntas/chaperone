@@ -112,6 +112,9 @@ function renderCheck(check: Check): string {
     '',
     `- **Severity:** ${severityLabel}`,
     `- **OWASP:** ${formatOwaspForDisplay(check.owasp)}`,
+    ...(check.appliesToProfiles !== undefined
+      ? [`- **Profiles:** ${check.appliesToProfiles.map((p) => `\`${p}\``).join(', ')} only`]
+      : []),
     `- **Detects:** ${check.detects}`,
     `- **Heuristic:** ${check.heuristic}`,
     `- **Remediation:** ${check.remediation}`,

@@ -10,6 +10,7 @@ export const chapObs002UnredactedLogs: Check = {
   title: TITLE,
   severity: 'medium',
   category: 'observability',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects: "Log config that doesn't confirm secrets/message bodies are redacted.",
   heuristic: 'Logging is configured and `logging.redact_secrets` is not `true`.',

@@ -12,6 +12,45 @@ pipeline, even though it isn't a breaking API change in the usual sense.
 
 ## [Unreleased]
 
+False-positive fixes from `PROPOSED_FIXES.md` (the 0.2.2 batch). Every
+change here can only remove a finding or lower its severity, never add
+one, so no existing `--fail-on` pipeline can go from passing to failing.
+
+### Fixed
+
+- `CHAP-NET-001` no longer reports a critical finding for loopback
+  addresses written with a port or brackets (`127.0.0.1:8080`,
+  `localhost:18789`, `[::1]`, `[::1]:8080`), IPv4-mapped loopback
+  (`::ffff:127.0.0.1`), or `localhost.`. Classification now uses
+  `node:net` (`isIP`/`BlockList`) after normalizing those forms.
+- `CHAP-SUP-002` no longer fires on skills whose `package.json` declares
+  no `dependencies`, since there is nothing to install. The sample
+  vulnerable fixture goes from 44 to 39 findings as a result.
+- `CHAP-AGY-003` no longer treats bare `.send()`/`.delete()`/`.remove()`
+  member calls (Express `res.send`, `Map#delete`, `Set#delete`,
+  `socket.send`, `classList.remove`) as destructive actions. More specific
+  names (`client.sendEmail`, `deleteFile`), non-generic verbs
+  (`wallet.transfer`), and bare calls are still detected.
+- `CHAP-AGY-002` recognizes ESM skills scoped to their own directory via
+  `import.meta.dirname`, `import.meta.url` + `fileURLToPath`, or a
+  variable derived from either, instead of flagging them as unscoped.
+- `CHAP-AGY-001` downgrades from critical to high when the skill's
+  manifest declares `confirmationRequired: true`, and no longer says no
+  gate was found. It's still reported because a self-declared gate
+  can't be verified statically.
+- `--baseline` matching is now portable: findings are compared on check
+  ID, file path relative to the scan target, and detail. A baseline
+  captured at one path matches the same install at another path (before
+  this, moving an install made every finding "new"), and message
+  rewording in a later release no longer resurfaces findings. Existing
+  0.2.x baseline files keep working unchanged.
+- `--profile mcp` no longer runs the seven checks that read keys only
+  the default config format has (`CHAP-OBS-001/002/003`,
+  `CHAP-INJ-001/003/004/005`), which previously reported a missing audit
+  log and kill switch on every MCP scan. Those checks are listed in the
+  report's "Skipped" section, and `CHECKS.md`/`chaperone explain` show
+  their profile scope.
+
 ## [0.2.1] - 2026-09-20
 
 Packaging-metadata-only release — no CLI behavior change.

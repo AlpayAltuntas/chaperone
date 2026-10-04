@@ -13,13 +13,15 @@ export const chapSup002NoIntegrityVerification: Check = {
   owasp: OWASP,
   detects: 'Skill dependencies installed with no lockfile.',
   heuristic:
-    'The skill has a `package.json` but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it.',
+    'The skill has a `package.json` that declares at least one runtime `dependencies` entry, but no `package-lock.json`/`yarn.lock`/`pnpm-lock.yaml` alongside it. A manifest with no dependencies has nothing to install, so it is not flagged.',
   remediation: 'Commit a lockfile alongside the manifest and enable integrity checks.',
   run(model) {
     return model.skills
       .filter(
         (skill) =>
-          skill.dependencies.manifestPath !== null && skill.dependencies.lockfilePath === null,
+          skill.dependencies.manifestPath !== null &&
+          skill.dependencies.names.length > 0 &&
+          skill.dependencies.lockfilePath === null,
       )
       .map((skill) => ({
         checkId: ID,

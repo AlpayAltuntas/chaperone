@@ -133,7 +133,7 @@ example.
 
 Running against a deliberately-insecure sample install
 (`test/fixtures/vulnerable-agent` in this repo) looks like this (trimmed —
-the real run reports 44 findings across all 29 checks):
+the real run reports 39 findings across all 29 checks):
 
 ```
 Chaperone scan report
@@ -166,9 +166,9 @@ HIGH (20)
 
   ... 19 more high-severity findings ...
 
-MEDIUM (18)  LOW (1)  ...
+MEDIUM (13)  LOW (1)  ...
 
-Summary: 44 findings (5 critical, 20 high, 18 medium, 1 low, 0 info) — posture score 0/100 (F)
+Summary: 39 findings (5 critical, 20 high, 13 medium, 1 low, 0 info) — posture score 0/100 (F)
 Inspected 18 paths, skipped 0.
 ```
 
@@ -274,11 +274,14 @@ chaperone scan ~/clawd --baseline baseline.json
 
 A baseline file is just a saved JSON report (`--format json --output
 <file>`) — the schema already supports this for free, no separate
-baseline format. "Same finding" is matched on check ID, file path,
-location detail, and message, deliberately **not** line number — an
-unrelated edit shifting lines elsewhere in the file shouldn't make an
-unchanged finding look new. As findings actually get fixed, re-capture
-the baseline to keep it current.
+baseline format. "Same finding" is matched on check ID, the file path
+_relative to the scanned target_, and location detail. Deliberately left
+out: the line number (an unrelated edit shifting lines shouldn't make an
+unchanged finding look new), the message text (rewording in a later
+Chaperone release shouldn't either), and the absolute path, so a baseline
+captured on your laptop still matches the same install checked out
+somewhere else in CI. As findings actually get fixed, re-capture the
+baseline to keep it current.
 
 ### Discovery profiles (`--profile`)
 

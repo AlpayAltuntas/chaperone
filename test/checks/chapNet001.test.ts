@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
   chapNet001GatewayExposed,
@@ -130,14 +131,69 @@ describe('isLoopbackAddress', () => {
     '::1',
     '0:0:0:0:0:0:0:1',
     '0000:0000:0000:0000:0000:0000:0000:0001',
+    // PROPOSED_FIXES.md 2.2 — each of these was a critical false positive.
+    '127.0.0.1:8080',
+    'localhost:18789',
+    'LOCALHOST:80',
+    '[::1]',
+    '[::1]:8080',
+    '::ffff:127.0.0.1',
+    '[::ffff:127.0.0.1]:80',
+    'localhost.',
+    ' 127.0.0.1 ',
   ])('%s is loopback', (host) => {
     expect(isLoopbackAddress(host)).toBe(true);
   });
 
-  it.each(['0.0.0.0', '192.168.1.1', '10.0.0.5', '::', '::0', 'fe80::1', 'example.com'])(
-    '%s is not loopback',
-    (host) => {
-      expect(isLoopbackAddress(host)).toBe(false);
-    },
-  );
+  it.each([
+    '0.0.0.0',
+    '192.168.1.1',
+    '10.0.0.5',
+    '::',
+    '::0',
+    'fe80::1',
+    'example.com',
+    '0.0.0.0:8080',
+    '192.168.1.1:22',
+    '[::]',
+    '[::]:8080',
+    '::ffff:10.0.0.1',
+    '127.0.0.1.example.com',
+    'localhost.example.com',
+    '',
+  ])('%s is not loopback', (host) => {
+    expect(isLoopbackAddress(host)).toBe(false);
+  });
+});
+
+describe('isLoopbackAddress — properties', () => {
+  const octet = fc.integer({ min: 0, max: 255 });
+  const port = fc.option(fc.integer({ min: 1, max: 65535 }), { nil: undefined });
+
+  it('treats every 127.0.0.0/8 address as loopback, with or without a port', () => {
+    fc.assert(
+      fc.property(octet, octet, octet, port, (b, c, d, p) => {
+        const address = `127.${String(b)}.${String(c)}.${String(d)}`;
+        const host = p === undefined ? address : `${address}:${String(p)}`;
+        expect(isLoopbackAddress(host)).toBe(true);
+      }),
+    );
+  });
+
+  it('treats every IPv4 address outside 127.0.0.0/8 as non-loopback, with or without a port', () => {
+    fc.assert(
+      fc.property(
+        octet.filter((a) => a !== 127),
+        octet,
+        octet,
+        octet,
+        port,
+        (a, b, c, d, p) => {
+          const address = `${String(a)}.${String(b)}.${String(c)}.${String(d)}`;
+          const host = p === undefined ? address : `${address}:${String(p)}`;
+          expect(isLoopbackAddress(host)).toBe(false);
+        },
+      ),
+    );
+  });
 });

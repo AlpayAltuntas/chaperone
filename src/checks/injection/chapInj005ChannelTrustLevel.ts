@@ -20,6 +20,7 @@ export const chapInj005ChannelTrustLevel: Check = {
   title: TITLE,
   severity: 'medium',
   category: 'injection',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects:
     'A non-empty global tool allowlist applied uniformly to a mix of public and private inbound channels, with no channel-specific restriction narrowing what a public (untrusted) channel can invoke.',

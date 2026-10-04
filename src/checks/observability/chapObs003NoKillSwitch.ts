@@ -10,6 +10,7 @@ export const chapObs003NoKillSwitch: Check = {
   title: TITLE,
   severity: 'low',
   category: 'observability',
+  appliesToProfiles: ['default'],
   owasp: OWASP,
   detects: 'No documented quick way to stop the agent and revoke its access.',
   heuristic:

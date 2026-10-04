@@ -95,7 +95,9 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-AGY-003': 2,
       'CHAP-AGY-004': 3,
       'CHAP-SUP-001': 6,
-      'CHAP-SUP-002': 6,
+      // 1, not 6: only plugin-loader declares dependencies — the other five
+      // skills have nothing to install (PROPOSED_FIXES.md 2.5).
+      'CHAP-SUP-002': 1,
       'CHAP-SUP-003': 1,
       'CHAP-SUP-004': 2,
       'CHAP-SUP-005': 1,
@@ -112,9 +114,9 @@ describe('full check catalog — vulnerable-agent (chmod 644: readable)', () => 
       'CHAP-OBS-003': 1,
       'CHAP-OBS-004': 1,
     });
-    expect(findings).toHaveLength(44);
-    // 5*25 (critical) + 20*15 (high) + 18*7 (medium) + 1*3 (low) + 0*0
-    // (info) = 554 -> floored at 0. CHAP-SUP-003 (Phase 18) now matches
+    expect(findings).toHaveLength(39);
+    // 5*25 (critical) + 20*15 (high) + 13*7 (medium) + 1*3 (low) + 0*0
+    // (info) = 519 -> floored at 0. CHAP-SUP-003 (Phase 18) now matches
     // plugin-loader's lodash@^4.17.15 against the offline vulnerability
     // snapshot at real `high` severity, instead of firing `info` on
     // every skill with a manifest.
