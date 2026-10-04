@@ -175,6 +175,8 @@ describe('cli scan — .chaperonerc.json (in-process, non-throwing paths only)',
   });
 
   it('--config scoreWeights changes the score in console and markdown output too', () => {
+    // The expected score includes CHAP-SEC-007, which is skipped when CI is set.
+    vi.stubEnv('CI', '');
     const configPath = path.join(dir, 'rc.json');
     writeFileSync(configPath, JSON.stringify({ scoreWeights: { medium: 20 } }));
 
@@ -203,6 +205,7 @@ describe('cli scan — .chaperonerc.json (in-process, non-throwing paths only)',
     ]);
     const markdownPrinted = logSpy.mock.calls[0]?.[0] as string;
     expect(markdownPrinted).toContain('55/100');
+    vi.unstubAllEnvs();
   });
 
   it('CHAPERONE_CONFIG env var is used when --config is not passed', () => {

@@ -102,7 +102,7 @@ export function discoverClaudeCodeAgent(options: DiscoveryOptions): DiscoveryRes
     try {
       const source = readFileSync(file.path, 'utf8');
       const masked = maskConfig(JSON.parse(source) as unknown);
-      const keyLines = buildKeyLineIndex(source);
+      const keyLines = buildKeyLineIndex(source, 'json');
       settings.push({
         path: file.path,
         scope: file.scope,

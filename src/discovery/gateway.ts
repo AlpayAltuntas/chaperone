@@ -19,17 +19,17 @@ const EMPTY_GATEWAY: GatewayModel = {
 // that doesn't rate-limit (PROPOSED_FIXES.md 3.8).
 const MIN_TOKEN_LENGTH = 16;
 
-/** Every literal string under a secret-shaped key, except at `skipPath`. */
-function otherSecretValues(node: unknown, skipPath: string, prefix = ''): string[] {
+/** Every literal string under a secret-shaped key, except at the gateway credential paths. */
+function otherSecretValues(node: unknown, skipPaths: readonly string[], prefix = ''): string[] {
   if (Array.isArray(node)) {
-    return node.flatMap((item, i) => otherSecretValues(item, skipPath, `${prefix}[${String(i)}]`));
+    return node.flatMap((item, i) => otherSecretValues(item, skipPaths, `${prefix}[${String(i)}]`));
   }
   if (!isRecord(node)) {
     return [];
   }
   return Object.entries(node).flatMap(([key, value]) => {
     const keyPath = prefix ? `${prefix}.${key}` : key;
-    if (keyPath === skipPath) {
+    if (skipPaths.includes(keyPath)) {
       return [];
     }
     if (typeof value === 'string') {
@@ -37,7 +37,7 @@ function otherSecretValues(node: unknown, skipPath: string, prefix = ''): string
         ? [value]
         : [];
     }
-    return otherSecretValues(value, skipPath, keyPath);
+    return otherSecretValues(value, skipPaths, keyPath);
   });
 }
 
@@ -55,10 +55,32 @@ function tokenWeakness(
   if (WEAK_TOKENS.has(trimmed.toLowerCase())) {
     return 'default';
   }
-  if (otherSecretValues(rawConfig, 'gateway.auth.token').includes(token)) {
+  if (
+    otherSecretValues(rawConfig, ['gateway.auth.token', 'gateway.auth.password']).includes(token)
+  ) {
     return 'reused';
   }
   return trimmed.length < MIN_TOKEN_LENGTH ? 'short' : null;
+}
+
+/**
+ * OpenClaw's `gateway.bind` mode as a host (PROPOSED_FIXES.md 6.2, keys
+ * checked against docs.openclaw.ai on 2026-10-04): `loopback` is
+ * 127.0.0.1, `lan` is 0.0.0.0, `custom` is `customBindHost`. `tailnet`
+ * and `auto` depend on the machine, so they're unknown (null), which
+ * CHAP-NET-001 reports as "verify the default" rather than guessing.
+ */
+function bindModeHost(gateway: Record<string, unknown>): string | null {
+  switch (gateway['bind']) {
+    case 'loopback':
+      return '127.0.0.1';
+    case 'lan':
+      return '0.0.0.0';
+    case 'custom':
+      return typeof gateway['customBindHost'] === 'string' ? gateway['customBindHost'] : null;
+    default:
+      return null;
+  }
 }
 
 /**
@@ -77,12 +99,20 @@ export function extractGatewayModel(rawConfig: unknown): GatewayModel {
     return EMPTY_GATEWAY;
   }
 
-  const bindHost = typeof gateway['host'] === 'string' ? gateway['host'] : null;
+  const bindHost = typeof gateway['host'] === 'string' ? gateway['host'] : bindModeHost(gateway);
   const port = typeof gateway['port'] === 'number' ? gateway['port'] : null;
 
   const auth = gateway['auth'];
-  const authConfigured = isRecord(auth);
-  const token = isRecord(auth) && typeof auth['token'] === 'string' ? auth['token'] : null;
+  // OpenClaw's `auth.mode: "none"` is auth explicitly turned off; its
+  // `password` mode uses `auth.password` as the shared secret
+  // (PROPOSED_FIXES.md 6.2).
+  const authConfigured = isRecord(auth) && auth['mode'] !== 'none';
+  const token =
+    isRecord(auth) && typeof auth['token'] === 'string'
+      ? auth['token']
+      : isRecord(auth) && auth['mode'] === 'password' && typeof auth['password'] === 'string'
+        ? auth['password']
+        : null;
   const authTokenIsDefaultOrEmpty =
     token === null ? null : WEAK_TOKENS.has(token.trim().toLowerCase());
 

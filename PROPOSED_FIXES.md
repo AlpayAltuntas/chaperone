@@ -1,5 +1,9 @@
 # Chaperone — Proposed Fixes (post-0.2.1)
 
+> **Complete.** Every batch below shipped in **0.6.0** (2026-10-04),
+> except the Windows CI follow-up noted under Progress. Kept as the
+> record of why each change was made; `DECISIONS.md` has the details.
+
 A fresh backlog written on 2026-10-03, after every item in
 `improvement_plan.md` (Phases 1-24) shipped in 0.2.0/0.2.1. That document
 is now a historical record. This one starts from the current code.
@@ -28,6 +32,12 @@ also has an **Impact** and **Effort** tag (Low/Med/High).
 | 0.3.0 — Detection accuracy         | 2.1, 2.3, 3.1, 3.2, 3.3, 3.6, 3.7, 4.1, 4.2, 7.1  | ✅ Done on branch `detection-accuracy-0.3.0` (also the Python half of 2.4 and the per-call half of 2.6) |
 | 0.4.0 — Real-world coverage        | 3.9, 6.1, 6.3, 3.4                                | ✅ Done on branch `real-world-coverage-0.4.0`                                                           |
 | 0.5.0 — Supply chain + remediation | 3.5, 5, 4.3, 3.8                                  | ✅ Done on branch `supply-chain-remediation-0.5.0`                                                      |
+
+Hygiene (4.4, 6.2, 7.2, 7.3, 7.4.x) is done on branch `hygiene`, with one
+follow-up: the Windows CI job is non-blocking until the permission tests
+assert the Windows behavior (see DECISIONS.md, 7.2). For 6.2, the
+OpenClaw gateway keys are adapted; its channel and `tools.exec` policies
+aren't modeled yet.
 
 The two halves carried over from 0.2.2 (the Python half of 2.4 and the
 per-call scoping redesign in 2.6) shipped with 0.3.0.

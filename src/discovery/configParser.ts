@@ -105,11 +105,17 @@ export function extractEnvVarName(value: string): string | null {
  * are still taken from `JSON.parse`, only positions come from here.
  * Returns an empty index for unparseable input, never throws.
  */
-export function buildKeyLineIndex(source: string): Record<string, number> {
+export function buildKeyLineIndex(
+  source: string,
+  format: 'yaml' | 'json' = 'yaml',
+): Record<string, number> {
   const lineCounter = new YAML.LineCounter();
   let doc: ReturnType<typeof YAML.parseDocument>;
   try {
-    doc = YAML.parseDocument(source, { lineCounter, uniqueKeys: false });
+    doc = YAML.parseDocument(format === 'json' ? blankJson5(source) : source, {
+      lineCounter,
+      uniqueKeys: false,
+    });
   } catch {
     return {};
   }
@@ -184,9 +190,69 @@ export function maskSecretValue(value: string): string {
   return `${value.slice(0, 3)}…${value.slice(-4)}`;
 }
 
-/** Parses raw config source text (YAML or JSON) into an untyped value tree. Secrets are NOT masked yet. */
+/** Parses raw config source text (YAML, or JSON/JSON5) into an untyped value tree. Secrets are NOT masked yet. */
 export function parseConfigSource(source: string, format: 'yaml' | 'json'): unknown {
-  return format === 'json' ? (JSON.parse(source) as unknown) : (YAML.parse(source) as unknown);
+  if (format === 'yaml') {
+    return YAML.parse(source) as unknown;
+  }
+  try {
+    return JSON.parse(source) as unknown;
+  } catch {
+    // JSON5 (OpenClaw's openclaw.json): comments and trailing commas
+    // blanked, then YAML 1.2's flow syntax handles unquoted keys and
+    // single-quoted strings (PROPOSED_FIXES.md 6.2).
+    return YAML.parse(blankJson5(source)) as unknown;
+  }
+}
+
+/**
+ * Replaces JSON5 comments and trailing commas with spaces (newlines kept),
+ * so the result has the same length and line structure as the input and
+ * parses as YAML flow syntax. Offsets found in the result are valid in
+ * the original, which is what lets fixers edit a JSON5 file in place.
+ * Plain JSON passes through unchanged.
+ */
+export function blankJson5(source: string): string {
+  const out = source.split('');
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === '"' || ch === "'") {
+      i++;
+      while (i < source.length && source[i] !== ch) {
+        i += source[i] === '\\' ? 2 : 1;
+      }
+      i++;
+      continue;
+    }
+    if (ch === '/' && source[i + 1] === '/') {
+      while (i < source.length && source[i] !== '\n') {
+        out[i++] = ' ';
+      }
+      continue;
+    }
+    if (ch === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      for (; i < stop; i++) {
+        if (source[i] !== '\n') {
+          out[i] = ' ';
+        }
+      }
+      continue;
+    }
+    if (ch === ',') {
+      let j = i + 1;
+      while (j < source.length && /\s/.test(out[j] ?? '')) {
+        j++;
+      }
+      if (out[j] === '}' || out[j] === ']') {
+        out[i] = ' ';
+      }
+    }
+    i++;
+  }
+  return out.join('');
 }
 
 export interface MaskConfigResult {

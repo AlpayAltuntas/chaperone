@@ -30,7 +30,14 @@ const config = {
   htmlReporter: {
     fileName: 'reports/mutation/index.html',
   },
-  mutate: ['src/discovery/configParser.ts', 'src/checks/shared/gitignoreMatch.ts'],
+  // astCapabilities.ts and secretValuePatterns.ts added in PROPOSED_FIXES.md
+  // 7.4.4: the two detection modules most likely to regress silently.
+  mutate: [
+    'src/discovery/configParser.ts',
+    'src/checks/shared/gitignoreMatch.ts',
+    'src/discovery/astCapabilities.ts',
+    'src/discovery/secretValuePatterns.ts',
+  ],
   coverageAnalysis: 'perTest',
   thresholds: {
     high: 90,

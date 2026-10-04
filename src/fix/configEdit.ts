@@ -1,5 +1,5 @@
 import YAML from 'yaml';
-import { parseKeyPathSegments } from '../discovery/configParser.js';
+import { blankJson5, parseKeyPathSegments } from '../discovery/configParser.js';
 
 /**
  * Sets values in a YAML or JSON config's source text and returns the new
@@ -15,7 +15,10 @@ export function setConfigValues(
   format: 'yaml' | 'json',
   edits: ReadonlyArray<{ keyPath: string; value: string | boolean }>,
 ): string {
-  const doc = YAML.parseDocument(source, { keepSourceTokens: true });
+  // For JSON/JSON5, positions come from the blanked copy (same offsets).
+  const doc = YAML.parseDocument(format === 'json' ? blankJson5(source) : source, {
+    keepSourceTokens: true,
+  });
   if (format === 'yaml') {
     for (const { keyPath, value } of edits) {
       doc.setIn(parseKeyPathSegments(keyPath), value);

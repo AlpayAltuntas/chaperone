@@ -60,6 +60,38 @@ jobs:
           path: coverage/
           retention-days: 14
 
+  # The test suite on more platforms and Node versions (PROPOSED_FIXES.md
+  # 7.2): permission checks, path handling (expandHome, pathToFileURL), and
+  # --docker are platform-sensitive. build-lint-test above already covers
+  # Node 22 on Linux.
+  test-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 24
+          - os: macos-latest
+            node: 22
+          - os: windows-latest
+            node: 22
+            # Non-blocking for now: many tests assert POSIX permission
+            # findings (CHAP-SEC-003/006/008, CHAP-OBS-004), which by design
+            # report as unknown on Windows. Porting those tests to assert
+            # the Windows behavior is tracked in PROPOSED_FIXES.md 7.2.
+            experimental: true
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
   # Mutation testing (improvement_plan.md 5.4) — a non-blocking "tests
   # for the test suite" signal, deliberately: a separate job, not a step
   # in build-lint-test, and not listed in this repo's required status
@@ -76,9 +108,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          # StrykerJS 10 itself requires Node >=22 (stricter than this
-          # project's own >=20 requirement) — CI-tooling-only, doesn't
-          # change what chaperone the package requires to run.
           node-version: 22
           cache: npm
       - run: npm ci

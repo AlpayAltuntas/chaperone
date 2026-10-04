@@ -2546,3 +2546,71 @@ redis-store` quiet while catching `auth: xoxb-1234-…`. A
 - **`.gitignore` entries are anchored** (`/config.json`, `/memory/`) at
   the repository root, so they can't accidentally ignore same-named
   files elsewhere.
+
+## PROPOSED_FIXES.md, hygiene items
+
+### 4.4 — Plugin robustness
+
+- **ESM via `require(esm)`, not `await import()`.** Node 22.12 loads ES
+  modules through `require()`, so raising the floor from 22 to 22.12 keeps
+  the scan synchronous. The only ESM a plugin can't use is top-level
+  `await`, which gets its own error message.
+- **Findings are validated for every check, built-in or plugin.** It
+  costs little and turns a broken check into the existing internal-error
+  finding instead of a reporter crash.
+- **The model is cloned and deep-frozen once per run**, so one check
+  can't change what another sees. A check that tries to mutate it
+  throws and becomes an internal error.
+
+### 7.2 — CI matrix
+
+- **Node 24 on Ubuntu and Node 22 on macOS are blocking; Windows is
+  not, yet.** Many tests assert POSIX permission findings, which by
+  design report as unknown on Windows (0.3.0, 3.6). Making them assert
+  the Windows behavior needs a Windows machine to verify; the job runs
+  so the failures are visible, and stays non-blocking until that's done.
+
+### 7.3 — Runtime dependency weight
+
+- **Kept `typescript` as the parser.** Measured on 2026-10-04 (macOS,
+  Node 23): 23 MB on disk, about 90 ms to import, about 0.21 s for a full
+  CLI run and 0.25 s for a scan of the vulnerable fixture. A lighter
+  parser would save part of the 90 ms and the disk space, but the
+  0.3.0/0.4.0 work (aliases, JSX/TSX, evidence positions) relies on the
+  TypeScript AST, and TS/TSX support in the alternatives is less mature.
+  Not worth the risk for the gain.
+
+### 7.4.x — Smaller items
+
+- **`chaperone init` writes explanations as `"//"` keys**, since JSON has
+  no comments and the config schema ignores unknown keys. It opens the
+  file with the `wx` flag so even a race can't overwrite one.
+- **`CHAP-SEC-007` is skipped when `CI` is set** (unless it's named with
+  `--only`), with a Skipped entry saying why. `CI=false`/`0` counts as
+  not set.
+
+### 6.2 — OpenClaw's real config schema
+
+- **Research** (docs.openclaw.ai, 2026-10-04): the config is
+  `~/.openclaw/openclaw.json` (JSON5, path overridable with
+  `OPENCLAW_CONFIG_PATH`). `gateway.bind` is `auto`/`loopback`
+  (default)/`lan`/`tailnet`/`custom` (with `customBindHost`);
+  `gateway.auth.mode` is `none`/`token`/`password`/`trusted-proxy`, with
+  `token`/`password` credentials and an auth rate limiter;
+  `gateway.tls.enabled`; default port 18789. The gateway refuses to start
+  without auth on a non-loopback bind. Other sections: `channels` (with
+  `allowFrom`/`dmPolicy`/`groupPolicy`), `tools` (`tools.exec.ask`,
+  `tools.exec.security`, web search/fetch), `agents` (sandbox settings),
+  `plugins`, `browser`, `session`, `messages`, `workspace`.
+- **An adapter, not a rename.** The gateway keys map directly onto the
+  existing gateway model, so `openclaw.json` is read and its gateway is
+  checked for real. `tailnet` and `auto` binds are unknown rather than
+  guessed. The default profile keeps its name; renaming it would break
+  every `--profile default` user for no detection gain.
+- **Not modeled yet:** OpenClaw's channel policies and `tools.exec`
+  settings have a different shape from the default profile's `trust.*`
+  keys. Mapping them properly is the next step for this profile.
+- **JSON5 is parsed without a dependency**: comments and trailing commas
+  are blanked in place (same offsets), and YAML 1.2's flow syntax handles
+  unquoted keys and single quotes. Because offsets survive, fixers edit
+  `openclaw.json` in place and keep its comments.

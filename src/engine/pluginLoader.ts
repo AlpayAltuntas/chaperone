@@ -15,16 +15,12 @@ import type { Check } from './types.js';
 // `plugins` array are both entirely opt-in — nothing is ever loaded
 // without the user naming it explicitly.
 //
-// Loaded via Node's synchronous `require()` (via createRequire), not a
-// dynamic `import()` — deliberately, so `chaperone scan`'s CLI action
-// stays fully synchronous (loadPlugins runs before any check runs, no
-// different in kind from loading `.chaperonerc.json` itself). This means
-// a plugin module must be loadable as CommonJS: a `.cjs` file works
-// regardless of context; a `.js` file works only where the nearest
-// package.json says `"type": "commonjs"` (or has no `type` field at
-// all). A genuine ESM-only plugin isn't supported in this v1 — a
-// documented scope decision, not an oversight; see DECISIONS.md, Phase
-// 21.
+// Loaded via Node's synchronous `require()` (via createRequire), so
+// `chaperone scan` stays synchronous. Since the Node floor is 22.12
+// (PROPOSED_FIXES.md 4.4), `require()` also loads ES modules, so a `.mjs`
+// plugin, or a `.js` one in a `"type": "module"` package, works too. The
+// one ESM shape it can't load is a module with top-level `await`
+// (ERR_REQUIRE_ASYNC_MODULE), which gets its own error message.
 
 const require = createRequire(import.meta.url);
 
@@ -69,6 +65,13 @@ export function loadPlugin(pluginPath: string): LoadedPlugin {
   try {
     moduleExports = require(resolved) as unknown;
   } catch (err) {
+    const code = (err as { code?: unknown } | null)?.code;
+    if (code === 'ERR_REQUIRE_ASYNC_MODULE') {
+      throw new Error(
+        `could not load plugin '${pluginPath}': it uses top-level await, which a synchronously loaded plugin can't. Move the await into run() or a function it calls.`,
+        { cause: err },
+      );
+    }
     throw new Error(
       `could not load plugin '${pluginPath}': ${err instanceof Error ? err.message : String(err)}`,
       {

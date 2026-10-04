@@ -44,7 +44,7 @@ npm run build
 node dist/cli.js scan ~/clawd   # or: npm link, then use `chaperone` directly
 ```
 
-Requires Node.js ≥ 22.
+Requires Node.js ≥ 22.12.
 
 ## Quickstart
 
@@ -140,7 +140,7 @@ Chaperone scan report
 Target: ~/clawd
 Profile: default (detected)
 Vulnerability data: OSV snapshot 2026-10-04 (606 advisories)
-Scanned at 2026-10-04T08:22:57.906Z — chaperone v0.5.0
+Scanned at 2026-10-04T08:22:57.906Z — chaperone v0.6.0
 
 CRITICAL (5)
 
@@ -296,9 +296,12 @@ baseline to keep it current.
 
 ### Discovery profiles (`--profile`)
 
-Chaperone's default profile targets a fictional, documented
-Clawdbot/Moltbot/OpenClaw-style config shape (see [Known
-limitations](#known-limitations)). `--profile mcp` (or `CHAPERONE_PROFILE=mcp`)
+Chaperone's default profile reads a documented Clawdbot/Moltbot/OpenClaw-style
+config (`config.yaml`/`.yml`/`.json`), plus OpenClaw's own `openclaw.json`
+(JSON5): its `gateway.bind`, `gateway.auth.mode`/`token`/`password`, and
+`gateway.tls` keys follow OpenClaw's documented schema. Other sections
+of that format (channel policies, `tools.exec`) aren't modeled yet (see
+[Known limitations](#known-limitations)). `--profile mcp` (or `CHAPERONE_PROFILE=mcp`)
 switches discovery to a **real** config shape instead — the [MCP (Model
 Context Protocol)](https://modelcontextprotocol.io) server config used by
 Claude Desktop, Claude Code, Cursor, VS Code, and other MCP clients:
@@ -503,6 +506,12 @@ somewhere the agent can read before applying it. The plan also reminds
 you to rotate credentials when the config is in a git repository, since
 removing a value doesn't remove it from history.
 
+### Starter config (`chaperone init`)
+
+```bash
+chaperone init        # writes ./.chaperonerc.json with every option explained; never overwrites
+```
+
 ### Checking for updates (`chaperone check-update`)
 
 **Opt-in only — never run automatically, by `scan` or anything else.**
@@ -634,17 +643,23 @@ those tools, not instead of them.
 Chaperone is a static, offline, v1 linter — not a substitute for a real
 audit. Worth knowing before you trust its output:
 
-- **No canonical config/manifest schema exists** for the fictional example
-  agents this targets (Clawdbot/Moltbot/OpenClaw-style). The config and
-  skill-manifest shape Chaperone expects is a documented, plausible
-  convention, not a verified standard — see `DECISIONS.md`.
-- **`CHAP-SUP-003`'s offline vulnerability snapshot is small and
-  curated, not comprehensive.** It only tracks a handful of well-known
-  npm packages (see `src/checks/shared/vulnDb.ts`), refreshed
-  periodically out-of-band via `npm run refresh:vulndb` — never fetched
-  live during a scan (see [Security & ethics](#security--ethics)). A
-  vulnerable dependency outside that list is invisible to it; run `npm
-audit` for real, comprehensive coverage.
+- **The default profile's schema is only partly a real one.** For
+  OpenClaw's `openclaw.json`, the gateway keys follow its documentation;
+  the `trust.*`, `logging.*`, and skill-manifest conventions the other
+  default-profile checks read are Chaperone's own documented convention,
+  not OpenClaw's (`channels.*.dmPolicy`, `tools.exec.*`). See
+  `DECISIONS.md`.
+- **The bundled vulnerability and malware data is curated, not
+  comprehensive.** `CHAP-SUP-003`/`007` track about 80 commonly used npm
+  packages and a watchlist of compromised ones (see
+  `src/checks/shared/vulnDb.ts` and `maliciousDb.ts`), refreshed
+  out-of-band via `npm run refresh:vulndb`, never fetched during a scan
+  (see [Security & ethics](#security--ethics)). The report header shows
+  the snapshot date. Pass a full OSV export with `--vuln-db`, or run
+  `npm audit`, for complete coverage.
+- **`CHAP-SEC-007` is skipped when `CI` is set**, since Chaperone's
+  environment there is the runner's, not the agent's. `--only
+CHAP-SEC-007` runs it anyway.
 - **A few heuristics are static proxies, not confirmed findings** — most
   notably `CHAP-INJ-002` ("tool output treated as trusted"), which flags
   the _shape_ of a risky pattern (a skill that both ingests external data

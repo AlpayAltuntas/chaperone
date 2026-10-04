@@ -1,6 +1,6 @@
 {
   "name": "@alpay_altuntas/chaperone",
-  "version": "0.2.1",
+  "version": "0.6.0",
   "description": "Security scanner that audits self-hosted personal AI agents for OWASP-LLM-mapped security weaknesses.",
   "type": "module",
   "author": {
@@ -8,7 +8,7 @@
     "email": "alpaycanaltuntas@gmail.com"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "bin": {
     "chaperone": "dist/cli.js"
