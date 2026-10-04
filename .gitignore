@@ -7,3 +7,7 @@ reports/
 !test/fixtures/**/*.log
 .DS_Store
 .env
+
+# Test fixtures that look like local settings files are real fixtures, even
+# when a global gitignore excludes the name (e.g. **/.claude/settings.local.json).
+!test/fixtures/**/.claude/settings.local.json
