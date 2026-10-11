@@ -10,6 +10,17 @@ severity changing, is treated as a semver **minor** bump at minimum —
 either can change `--fail-on` exit-code behavior for an existing CI
 pipeline, even though it isn't a breaking API change in the usual sense.
 
+## [Unreleased]
+
+### Maintenance
+
+- The bundled OSV advisory data is refreshed automatically: a monthly
+  workflow (`.github/workflows/refresh-vulndb.yml`) runs
+  `npm run refresh:vulndb` and opens a PR summarizing what changed (new
+  and removed known-malicious entries, advisory counts per package), with
+  a warning on any new entry that marks every version of a package
+  malicious. Data PRs are reviewed by a person and never auto-merged.
+
 ## [0.6.0] - 2026-10-04
 
 Everything in `PROPOSED_FIXES.md`, released together. The work was done
