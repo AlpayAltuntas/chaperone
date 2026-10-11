@@ -1,0 +1,114 @@
+name: Refresh advisory data
+
+# Monthly refresh of the bundled OSV snapshot (src/checks/shared/vulnDb.ts
+# and maliciousDb.ts). CHAP-SUP-003/007 are only as current as this data.
+# Opens or updates one PR from the `data/refresh-vulndb` branch; it never
+# merges anything. A person reviews every data PR, because a misclassified
+# "malicious" advisory would flag every user of a legitimate package.
+#
+# The PR is opened with the DATA_REFRESH_TOKEN secret (a fine-grained token
+# scoped to this repository: Contents and Pull requests, read and write).
+# PRs opened with the default GITHUB_TOKEN don't trigger other workflows,
+# so without the secret the PR arrives with no CI run. The workflow falls
+# back to GITHUB_TOKEN and says so in the PR body.
+on:
+  schedule:
+    - cron: '0 6 1 * *' # 06:00 UTC on the 1st of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write # push the data branch (GITHUB_TOKEN fallback)
+  pull-requests: write # open or update the PR (GITHUB_TOKEN fallback)
+
+concurrency:
+  group: refresh-vulndb
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BRANCH: data/refresh-vulndb
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Snapshot the current data
+        run: npx tsx scripts/vulnDbDelta.ts --snapshot "$RUNNER_TEMP/before.json"
+
+      - name: Refresh from OSV.dev
+        run: npm run refresh:vulndb
+
+      - name: Check whether the advisory data changed
+        id: changed
+        run: |
+          set +e
+          npx tsx scripts/vulnDbDelta.ts --changed "$RUNNER_TEMP/before.json"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$status" -eq 3 ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No advisory changes since the last snapshot." >> "$GITHUB_STEP_SUMMARY"
+          else
+            exit "$status"
+          fi
+
+      - name: Make sure only the generated data files changed
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          unexpected="$(git status --porcelain | grep -v -E ' src/checks/shared/(vulnDb|maliciousDb)\.ts$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::The refresh changed files other than the generated data:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Write the PR summary
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          USING_FALLBACK_TOKEN: ${{ secrets.DATA_REFRESH_TOKEN == '' }}
+        run: |
+          npx tsx scripts/vulnDbDelta.ts --compare "$RUNNER_TEMP/before.json" > "$RUNNER_TEMP/body.md"
+          if [ "$USING_FALLBACK_TOKEN" = "true" ]; then
+            {
+              echo ""
+              echo "> [!NOTE]"
+              echo "> Opened with the default GITHUB_TOKEN, so CI did not run on this PR."
+              echo "> Close and reopen it to trigger CI, or add the DATA_REFRESH_TOKEN secret."
+            } >> "$RUNNER_TEMP/body.md"
+          fi
+          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # The write token is scoped to this step only: npm ci and the refresh
+      # run third-party code (dependency install scripts), which must never
+      # see a token that can push to the repository.
+      - name: Push the data branch and open or update the PR
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DATA_REFRESH_TOKEN || github.token }}
+        run: |
+          set -e
+          git config user.name "chaperone-data-refresh[bot]"
+          git config user.email "chaperone-data-refresh@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add src/checks/shared/vulnDb.ts src/checks/shared/maliciousDb.ts
+          git commit -m "Refresh advisory data from OSV.dev ($(date -u +%Y-%m-%d))"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
+          title="Refresh advisory data ($(date -u +%Y-%m))"
+          existing="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+            echo "Updated PR #$existing" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi

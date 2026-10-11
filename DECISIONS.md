@@ -2614,3 +2614,27 @@ redis-store` quiet while catching `auth: xoxb-1234-…`. A
   are blanked in place (same offsets), and YAML 1.2's flow syntax handles
   unquoted keys and single quotes. Because offsets survive, fixers edit
   `openclaw.json` in place and keep its comments.
+
+## Scheduled advisory data refresh (roadmap R6.1)
+
+- **One PR from a fixed branch, `data/refresh-vulndb`, force-pushed each
+  run.** A month without merging updates the same PR instead of stacking
+  new ones.
+- **No PR when only the timestamp changed.** The refresh rewrites
+  `VULN_DB_GENERATED_AT` on every run, so `scripts/vulnDbDelta.ts
+--changed` compares the advisory data itself.
+- **The PR body is generated, with a review checklist**, and flags any new
+  malicious entry covering every version of a package. That is the
+  failure mode that would hurt users most: in 0.5.0, a loose classifier
+  briefly marked undici and fastify DoS advisories as malware.
+- **The write token reaches only the push step.** `npm ci` and the refresh
+  run dependency install scripts, which must never see a token that can
+  push. Checkout uses `persist-credentials: false` for the same reason.
+- **`DATA_REFRESH_TOKEN` instead of `GITHUB_TOKEN`.** PRs opened with
+  `GITHUB_TOKEN` don't trigger other workflows, so the data PR would
+  arrive without CI. The secret is a fine-grained token scoped to this
+  repository (Contents and Pull requests, read and write). Without it,
+  the workflow falls back to `GITHUB_TOKEN` and says so in the PR body.
+- **No third-party action for opening PRs**: `git` and the preinstalled
+  `gh` CLI do it, which keeps the dependency surface small.
+- **Never auto-merged.** A person reviews every data change.
