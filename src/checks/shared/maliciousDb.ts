@@ -1,7 +1,7 @@
 // GENERATED FILE — do not hand-edit. Run `npm run refresh:vulndb` to
 // regenerate (see scripts/refreshVulnDb.ts). Source: OSV.dev advisories
 // classified as malicious, for the packages in MALWARE_WATCHLIST and
-// TRACKED_PACKAGES. Generated: 2026-10-04T08:07:32.830Z
+// TRACKED_PACKAGES. Generated: 2026-10-11T13:07:43.429Z
 
 export interface MaliciousDbEntry {
   packageName: string;
