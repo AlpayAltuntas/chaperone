@@ -18,7 +18,7 @@ export interface VulnDbEntry {
 }
 
 /** When this snapshot was taken; shown in reports so staleness is visible (PROPOSED_FIXES.md 3.5). */
-export const VULN_DB_GENERATED_AT = '2026-10-04T08:07:32.830Z';
+export const VULN_DB_GENERATED_AT = '2026-10-11T13:07:43.429Z';
 
 /**
  * A curated offline snapshot of known npm-package vulnerabilities
@@ -2227,6 +2227,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'simple-git',
+    id: 'GHSA-858h-whjf-mvg5',
+    aliases: ['CVE-2026-102827'],
+    summary:
+      'simple-git: unsafe-operations plugin bypass via git long-option abbreviation (--receive-p/--exe) -> command execution (residual of CVE-2026-28291)',
+    severity: 'high',
+    introduced: '0',
+    fixed: '4.0.0',
+  },
+  {
+    packageName: 'simple-git',
     id: 'GHSA-9p95-fxvg-qgq2',
     aliases: ['CVE-2022-25912'],
     summary:
@@ -2243,6 +2253,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.16.0',
+  },
+  {
+    packageName: 'simple-git',
+    id: 'GHSA-g4wm-2vf7-vfgr',
+    aliases: ['CVE-2026-102826'],
+    summary: 'simple-git allows command execution through unblocked Git configuration includes',
+    severity: 'high',
+    introduced: '0',
+    fixed: '4.0.0',
   },
   {
     packageName: 'simple-git',
@@ -2271,6 +2290,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '3.15.0',
     fixed: '3.32.3',
+  },
+  {
+    packageName: 'simple-git',
+    id: 'GHSA-x6jw-m9v5-85vh',
+    aliases: ['CVE-2026-102828'],
+    summary: 'simple-git unsafe-operation guard does not block trailer command configuration',
+    severity: 'critical',
+    introduced: '3.15.0',
+    fixed: '4.0.1',
   },
   {
     packageName: 'puppeteer',
@@ -2605,6 +2633,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'dompurify',
+    id: 'GHSA-6688-9rhm-gjv2',
+    aliases: [],
+    summary:
+      'DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes',
+    severity: 'low',
+    introduced: '0',
+    fixed: '3.4.16',
+  },
+  {
+    packageName: 'dompurify',
     id: 'GHSA-76mc-f452-cxcm',
     aliases: ['CVE-2026-65902'],
     summary:
@@ -2924,6 +2962,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'handlebars',
+    id: 'GHSA-8r5x-fm3f-whwj',
+    aliases: ['CVE-2026-106446'],
+    summary:
+      'Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)',
+    severity: 'critical',
+    introduced: '4.0.0',
+    fixed: '4.7.10',
+  },
+  {
+    packageName: 'handlebars',
     id: 'GHSA-9cx6-37pm-9jff',
     aliases: ['CVE-2026-33939'],
     summary:
@@ -2967,6 +3015,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '0',
     fixed: '3.0.8',
+  },
+  {
+    packageName: 'handlebars',
+    id: 'GHSA-p8wg-vrv2-v86f',
+    aliases: ['CVE-2026-106445'],
+    summary: 'Handlebars: JavaScript Injection via Own Property Check Bypass',
+    severity: 'critical',
+    introduced: '4.0.0',
+    fixed: '4.7.10',
   },
   {
     packageName: 'handlebars',
@@ -3014,6 +3071,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '4.0.0',
     fixed: '4.7.9',
+  },
+  {
+    packageName: 'handlebars',
+    id: 'GHSA-xw65-4hp5-5hc7',
+    aliases: ['CVE-2026-106444'],
+    summary:
+      'Handlebars: JavaScript Injection via Unsafe Inline Embedding of Precompiled Templates',
+    severity: 'medium',
+    introduced: '4.0.0',
+    fixed: '4.7.10',
   },
   {
     packageName: 'ejs',
@@ -3933,6 +4000,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'pbkdf2',
+    id: 'GHSA-477h-4r7f-fvrx',
+    aliases: ['CVE-2026-102414'],
+    summary: 'pbkdf2 rehashes long passwords on every iteration, enabling denial of service',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '3.1.7',
+  },
+  {
+    packageName: 'pbkdf2',
     id: 'GHSA-h7cp-r72f-jxh6',
     aliases: ['CVE-2025-6545'],
     summary:
@@ -4000,6 +4076,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-6qxp-vccf-f47h',
+    aliases: ['CVE-2026-104850'],
+    summary:
+      'MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server',
+    severity: 'high',
+    introduced: '1.12.0',
+    fixed: '1.31.0',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
     id: 'GHSA-8r9q-7v3j-jr4g',
     aliases: ['CVE-2026-0621'],
     summary: "Anthropic's MCP TypeScript SDK has a ReDoS vulnerability",
@@ -4046,6 +4132,26 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-2v2p-6j97-cjg9',
+    aliases: ['CVE-2026-100722'],
+    summary:
+      'vm2: Host Promise rejection from an exposed constructor can terminate the vm2 host process',
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.12.2',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-3vgf-8m4q-q4qr',
+    aliases: ['CVE-2026-92953'],
+    summary:
+      'vm2: Default VM can mutate host TypedArray and ArrayBuffer intrinsics after the host-prototype pollution fix',
+    severity: 'critical',
+    introduced: '3.11.0',
+    fixed: '3.11.8',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-46pr-c5wc-xffx',
     aliases: ['CVE-2026-92939'],
     summary: 'vm2 crypto builtin loads attacker native code through setEngine',
@@ -4064,6 +4170,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-489w-w794-jq94',
+    aliases: ['CVE-2026-100723'],
+    summary: 'vm2: NodeVM zlib Buffers expose pooled host memory across the VM boundary',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '3.12.2',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-4w2j-2rg4-5mjw',
     aliases: ['CVE-2022-25893'],
     summary: 'vm2 vulnerable to Arbitrary Code Execution',
@@ -4079,6 +4194,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.11.0',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-5h3f-q97h-ccvc',
+    aliases: ['CVE-2026-100721'],
+    summary: 'vm2: NodeVM custom resolution bypasses external path boundaries',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.12.2',
   },
   {
     packageName: 'vm2',
@@ -4181,6 +4305,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-88hf-g992-jg85',
+    aliases: ['CVE-2026-92955'],
+    summary: 'vm2: Sandbox Escape (NodeVM)',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.8',
   },
   {
     packageName: 'vm2',
@@ -4315,12 +4448,42 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-f8gf-w286-fmq2',
+    aliases: ['CVE-2026-92959'],
+    summary:
+      'vm2: `allowAsync: false` can be bypassed through Promise thenable assimilation in VM and NodeVM',
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.11.8',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-fcqc-726x-5wfc',
+    aliases: ['CVE-2026-92947'],
+    summary:
+      "vm2: Sandboxed code can read and write host-realm memory via Node's shared Buffer pool",
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-ffh4-j6h5-pg66',
     aliases: ['CVE-2026-26956'],
     summary: 'VM2 Has a WASM Sandbox Escape',
     severity: 'critical',
     introduced: '0',
     fixed: '3.10.5',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-gjq8-xm47-88rc',
+    aliases: ['CVE-2026-92954'],
+    summary:
+      "vm2: Host-returned Promise rejection can bypass vm2's unhandled-rejection hardening and terminate the host process",
+    severity: 'critical',
+    introduced: '3.10.0',
+    fixed: '3.11.8',
   },
   {
     packageName: 'vm2',
@@ -4358,6 +4521,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '0',
     fixed: '3.11.0',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-j3hm-6rg5-mchv',
+    aliases: ['CVE-2026-92946'],
+    summary:
+      'vm2: NodeVM `require.external` without an explicit `require.root` grants unrestricted host filesystem access and full RCE',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.7',
   },
   {
     packageName: 'vm2',
@@ -4447,6 +4620,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-pq68-rvw4-xp4r',
+    aliases: ['CVE-2026-93605'],
+    summary: 'vm2 contains a sandbox escape vulnerability',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.12.1',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-q3fm-4wcw-g57x',
     aliases: ['CVE-2026-92962'],
     summary: 'vm2 setup-sandbox.js violates Defense Invariant #11 in stack-trace formatter',
@@ -4481,6 +4663,26 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.10.5',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-r273-hxvj-fxhp',
+    aliases: ['CVE-2026-92933'],
+    summary:
+      'vm2: util.getCallSites() bypasses GHSA-v27g-jcqj-v8rw host-frame redaction, leaks host call stack',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '3.11.8',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-r4fx-v8hh-22mv',
+    aliases: ['CVE-2026-92942'],
+    summary:
+      'vm2: timeout Option Bypass via FinalizationRegistry Cleanup Callback (Unbounded Host Event-Loop Block)',
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.11.7',
   },
   {
     packageName: 'vm2',
@@ -4575,12 +4777,40 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-wjwh-qqvp-g4p4',
+    aliases: ['CVE-2026-92956'],
+    summary: 'vm2 sandbox escape via WebAssembly.compileStreaming Promise species bypass',
+    severity: 'critical',
+    introduced: '3.10.1',
+    fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-wp5r-2gw5-m7q7',
     aliases: ['CVE-2026-44003'],
     summary: "vm2's Transformer Fast-Path Bypass Exposes Internal State Variable",
     severity: 'medium',
     introduced: '0',
     fixed: '3.11.0',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-x6m4-chr9-cg97',
+    aliases: ['CVE-2026-92936'],
+    summary: 'vm2 leaks absolute host filesystem paths to sandbox code via error stack formatting',
+    severity: 'medium',
+    introduced: '3.11.0',
+    fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-x965-fc75-jpqh',
+    aliases: ['CVE-2026-92934'],
+    summary:
+      'vm2 sandbox escape to host RCE via revisited host-wrapped AggregateError bypassing Error sanitization cycle short-circuit',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.8',
   },
   {
     packageName: 'vm2',
@@ -4627,6 +4857,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '0',
     fixed: '0.35.4',
+  },
+  {
+    packageName: 'sharp',
+    id: 'GHSA-wq5f-xc86-pv6w',
+    aliases: [],
+    summary: 'sharp : Vulnerability in librsvg dependency CVE-2026-96889',
+    severity: 'high',
+    introduced: '0',
+    fixed: '0.35.5',
   },
   {
     packageName: 'multer',
