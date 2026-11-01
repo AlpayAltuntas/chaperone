@@ -18,7 +18,7 @@ export interface VulnDbEntry {
 }
 
 /** When this snapshot was taken; shown in reports so staleness is visible (PROPOSED_FIXES.md 3.5). */
-export const VULN_DB_GENERATED_AT = '2026-10-04T08:07:32.830Z';
+export const VULN_DB_GENERATED_AT = '2026-11-01T12:59:18.774Z';
 
 /**
  * A curated offline snapshot of known npm-package vulnerabilities
@@ -40,7 +40,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'lodash',
     id: 'GHSA-35jh-r3h4-6jhm',
-    aliases: ['CVE-2021-23337', 'CVE-2026-4800', 'GHSA-r5fr-rjxr-66jc'],
+    aliases: ['CVE-2021-23337'],
     summary: 'Command Injection in lodash',
     severity: 'high',
     introduced: '0',
@@ -58,7 +58,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'lodash',
     id: 'GHSA-f23m-r3pf-42rh',
-    aliases: ['CVE-2025-13465', 'CVE-2026-2950', 'GHSA-xxjr-mmjv-4gpg'],
+    aliases: ['CVE-2026-2950'],
     summary:
       'lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`',
     severity: 'medium',
@@ -95,7 +95,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'lodash',
     id: 'GHSA-r5fr-rjxr-66jc',
-    aliases: ['CVE-2021-23337', 'CVE-2026-4800', 'GHSA-35jh-r3h4-6jhm'],
+    aliases: ['CVE-2026-4800'],
     summary: 'lodash vulnerable to Code Injection via `_.template` imports key names',
     severity: 'high',
     introduced: '4.0.0',
@@ -113,7 +113,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'lodash',
     id: 'GHSA-xxjr-mmjv-4gpg',
-    aliases: ['CVE-2025-13465', 'CVE-2026-2950', 'GHSA-f23m-r3pf-42rh'],
+    aliases: ['CVE-2025-13465'],
     summary: 'Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions',
     severity: 'medium',
     introduced: '4.0.0',
@@ -701,6 +701,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'undici',
+    id: 'GHSA-2m5v-pch6-74hx',
+    aliases: ['CVE-2026-109383'],
+    summary:
+      'undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent',
+    severity: 'high',
+    introduced: '4.0.0',
+    fixed: '6.29.1',
+  },
+  {
+    packageName: 'undici',
     id: 'GHSA-2mjp-6q6p-2qxm',
     aliases: ['CVE-2026-1525'],
     summary: 'Undici has an HTTP Request/Response Smuggling issue',
@@ -795,6 +805,36 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'undici',
+    id: 'GHSA-4qv8-2p9j-2685',
+    aliases: ['CVE-2026-109924'],
+    summary:
+      'undici vulnerable to Denial of Service via unbounded memory in the EventSource parser',
+    severity: 'medium',
+    introduced: '6.5.0',
+    fixed: '6.29.1',
+  },
+  {
+    packageName: 'undici',
+    id: 'GHSA-4w7w-5xrc-9h26',
+    aliases: ['CVE-2026-109829'],
+    summary:
+      'undici vulnerable to cache poisoning and cross-user disclosure via cross-origin redirects',
+    severity: 'high',
+    introduced: '7.0.0',
+    fixed: '7.30.1',
+  },
+  {
+    packageName: 'undici',
+    id: 'GHSA-55wc-3pg8-jfw6',
+    aliases: ['CVE-2026-87029'],
+    summary:
+      'undici vulnerable to Denial of Service via unhandled exception in the decompress interceptor',
+    severity: 'medium',
+    introduced: '7.15.0',
+    fixed: '7.30.1',
+  },
+  {
+    packageName: 'undici',
     id: 'GHSA-5r9g-qh6m-jxff',
     aliases: ['BIT-node-2023-23936', 'BIT-node-min-2023-23936', 'CVE-2023-23936'],
     summary: 'CRLF Injection in Nodejs ‘undici’ via host',
@@ -840,6 +880,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'undici',
+    id: 'GHSA-9fm3-97px-rjf6',
+    aliases: ['CVE-2026-109932'],
+    summary:
+      'undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering',
+    severity: 'medium',
+    introduced: '5.15.0',
+    fixed: '6.29.1',
+  },
+  {
+    packageName: 'undici',
     id: 'GHSA-9qxr-qj54-h672',
     aliases: ['CVE-2024-30261'],
     summary:
@@ -874,6 +924,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '6.0.0',
     fixed: '6.24.0',
+  },
+  {
+    packageName: 'undici',
+    id: 'GHSA-f72v-6w45-q472',
+    aliases: ['CVE-2026-109841'],
+    summary: 'undici vulnerable to Subresource Integrity bypass via non-lowercase algorithm tokens',
+    severity: 'medium',
+    introduced: '7.15.0',
+    fixed: '7.30.1',
   },
   {
     packageName: 'undici',
@@ -1001,6 +1060,25 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'undici',
+    id: 'GHSA-qq8j-7v2v-3rwp',
+    aliases: ['CVE-2026-109855'],
+    summary: 'undici WebSocket client vulnerable to Denial of Service via failed HTTP/2 handshake',
+    severity: 'high',
+    introduced: '8.11.0',
+    fixed: '8.11.2',
+  },
+  {
+    packageName: 'undici',
+    id: 'GHSA-qrxm-fqhp-jwvm',
+    aliases: ['CVE-2026-87018'],
+    summary:
+      'undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation',
+    severity: 'high',
+    introduced: '4.2.1',
+    fixed: '6.29.1',
+  },
+  {
+    packageName: 'undici',
     id: 'GHSA-r53p-7pc4-xj5r',
     aliases: ['CVE-2026-18540'],
     summary: 'undici vulnerable to downstream response splitting via retry interceptor',
@@ -1114,6 +1192,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     fixed: '5.26.2',
   },
   {
+    packageName: 'undici',
+    id: 'GHSA-xjj6-f33q-929c',
+    aliases: ['CVE-2026-109869'],
+    summary:
+      'undici vulnerable to Denial of Service via unhandled error on excessive content-encodings',
+    severity: 'high',
+    introduced: '6.23.0',
+    fixed: '6.29.1',
+  },
+  {
     packageName: 'got',
     id: 'GHSA-pfrx-2q88-qq97',
     aliases: ['CVE-2022-33987'],
@@ -1130,6 +1218,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '0',
     fixed: '1.14.7',
+  },
+  {
+    packageName: 'follow-redirects',
+    id: 'GHSA-8r9p-f939-6h3c',
+    aliases: ['CVE-2026-111755'],
+    summary: 'follow-redirects sensitiveHeaders regex escaping can expose credential headers',
+    severity: 'high',
+    introduced: '1.16.0',
+    fixed: '1.16.1',
   },
   {
     packageName: 'follow-redirects',
@@ -1151,12 +1248,31 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'follow-redirects',
+    id: 'GHSA-mrwp-f3q8-3g9p',
+    aliases: ['CVE-2026-116689'],
+    summary:
+      'follow-redirects: Cross-realm sensitiveHeaders arrays are discarded and custom credentials can follow redirects',
+    severity: 'high',
+    introduced: '1.16.0',
+    fixed: '1.16.2',
+  },
+  {
+    packageName: 'follow-redirects',
     id: 'GHSA-pw2r-vq6v-hr8c',
     aliases: ['CVE-2022-0536'],
     summary: 'Exposure of Sensitive Information to an Unauthorized Actor in follow-redirects',
     severity: 'medium',
     introduced: '0',
     fixed: '1.14.8',
+  },
+  {
+    packageName: 'follow-redirects',
+    id: 'GHSA-q3jh-wrc6-jgq8',
+    aliases: ['CVE-2026-111756'],
+    summary: 'follow-redirects array-form headers bypass cross-origin credential stripping',
+    severity: 'high',
+    introduced: '1.16.0',
+    fixed: '1.16.1',
   },
   {
     packageName: 'follow-redirects',
@@ -1368,6 +1484,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'body-parser',
+    id: 'GHSA-27r3-jxmh-p828',
+    aliases: ['CVE-2026-111181'],
+    summary:
+      'body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body',
+    severity: 'high',
+    introduced: '2.0.0',
+    fixed: '2.4.0',
+  },
+  {
+    packageName: 'body-parser',
     id: 'GHSA-qwcr-r2fm-qrc7',
     aliases: ['CVE-2024-45590'],
     summary: 'body-parser vulnerable to denial of service when url encoding is enabled',
@@ -1411,6 +1537,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'medium',
     introduced: '2.2.5',
     fixed: '6.16.0',
+  },
+  {
+    packageName: 'qs',
+    id: 'GHSA-6pq8-jhm2-2vcw',
+    aliases: ['CVE-2026-110816'],
+    summary:
+      "qs : qs.stringify with arrayFormat 'comma' throws an uncaught TypeError on array elements carrying a non-callable own toString (DoS)",
+    severity: 'medium',
+    introduced: '6.7.0',
+    fixed: '6.16.1',
   },
   {
     packageName: 'qs',
@@ -1631,6 +1767,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '5.3.2',
     fixed: '5.8.5',
+  },
+  {
+    packageName: 'fastify',
+    id: 'GHSA-389g-gv7q-r4x8',
+    aliases: ['CVE-2026-107832'],
+    summary: 'fastify is vulnerable to header validation bypass via case-sensitive propertyNames',
+    severity: 'low',
+    introduced: '5.12.2',
+    fixed: '5.12.6',
   },
   {
     packageName: 'fastify',
@@ -2106,7 +2251,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'adm-zip',
     id: 'GHSA-8238-w5pm-2374',
-    aliases: [],
+    aliases: ['CVE-2026-114102'],
     summary:
       'adm-zip: Unhandled error event in async DEFLATE decompression crashes Node.js process (DoS)',
     severity: 'high',
@@ -2116,7 +2261,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'adm-zip',
     id: 'GHSA-c6fg-446q-cg94',
-    aliases: [],
+    aliases: ['CVE-2026-114103'],
     summary:
       'adm-zip: getDataAsync() bypasses the maxOutputLength size guard enforced by the synchronous getData() path',
     severity: 'medium',
@@ -2136,7 +2281,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'adm-zip',
     id: 'GHSA-p634-w6r4-rjp2',
-    aliases: [],
+    aliases: ['CVE-2026-114104'],
     summary:
       'adm-zip: Duplicate ZIP entry names: getEntry() and extractAllTo() resolve to different content',
     severity: 'medium',
@@ -2227,6 +2372,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'simple-git',
+    id: 'GHSA-858h-whjf-mvg5',
+    aliases: ['CVE-2026-102827'],
+    summary:
+      'simple-git: unsafe-operations plugin bypass via git long-option abbreviation (--receive-p/--exe) -> command execution (residual of CVE-2026-28291)',
+    severity: 'high',
+    introduced: '0',
+    fixed: '4.0.0',
+  },
+  {
+    packageName: 'simple-git',
     id: 'GHSA-9p95-fxvg-qgq2',
     aliases: ['CVE-2022-25912'],
     summary:
@@ -2243,6 +2398,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.16.0',
+  },
+  {
+    packageName: 'simple-git',
+    id: 'GHSA-g4wm-2vf7-vfgr',
+    aliases: ['CVE-2026-102826'],
+    summary: 'simple-git allows command execution through unblocked Git configuration includes',
+    severity: 'high',
+    introduced: '0',
+    fixed: '4.0.0',
   },
   {
     packageName: 'simple-git',
@@ -2271,6 +2435,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '3.15.0',
     fixed: '3.32.3',
+  },
+  {
+    packageName: 'simple-git',
+    id: 'GHSA-x6jw-m9v5-85vh',
+    aliases: ['CVE-2026-102828'],
+    summary: 'simple-git unsafe-operation guard does not block trailer command configuration',
+    severity: 'critical',
+    introduced: '3.15.0',
+    fixed: '4.0.1',
   },
   {
     packageName: 'puppeteer',
@@ -2449,12 +2622,51 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'markdown-it',
+    id: 'GHSA-gfr2-rv44-r23c',
+    aliases: ['CVE-2026-111758'],
+    summary:
+      'markdown-it: Quadratic-time rendering of a single multi-line link reference definition with default options (regression since 14.0)',
+    severity: 'high',
+    introduced: '14.1.0',
+    fixed: '14.3.3',
+  },
+  {
+    packageName: 'markdown-it',
     id: 'GHSA-j5p7-jf4q-742q',
     aliases: ['CVE-2015-10005'],
     summary: 'markdown-it vulnerable to Inefficient Regular Expression Complexity',
     severity: 'high',
     introduced: '0',
     fixed: '3.0.0',
+  },
+  {
+    packageName: 'markdown-it',
+    id: 'GHSA-r7fv-28h4-cvq7',
+    aliases: ['CVE-2026-111759'],
+    summary: 'markdown-it: Quadratic complexity in smartquotes with unmatched closing quotes',
+    severity: 'high',
+    introduced: '15.0.0',
+    fixed: '15.0.2',
+  },
+  {
+    packageName: 'markdown-it',
+    id: 'GHSA-vfgh-jcmw-g37q',
+    aliases: ['CVE-2026-111766'],
+    summary:
+      'markdown-it: Quadratic-time denial of service in inline HTML parsing with html enabled',
+    severity: 'low',
+    introduced: '0',
+    fixed: '14.3.3',
+  },
+  {
+    packageName: 'sanitize-html',
+    id: 'GHSA-374f-7chj-9948',
+    aliases: ['CVE-2026-113657'],
+    summary:
+      'ApostropheCMS sanitize-html: SMIL animation namespace-prefix bypass allows javascript: URI injection (XSS)',
+    severity: 'low',
+    introduced: '2.17.7',
+    fixed: '2.18.0',
   },
   {
     packageName: 'sanitize-html',
@@ -2476,12 +2688,32 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'sanitize-html',
+    id: 'GHSA-c9rx-x947-fp3h',
+    aliases: ['CVE-2026-113650'],
+    summary:
+      'ApostropheCMS sanitize-html: unbounded recursion when re-sanitizing the fallback of a discarded iframe (stack overflow, nestingLimit not enforced)',
+    severity: 'medium',
+    introduced: '2.18.0',
+    fixed: '2.18.1',
+  },
+  {
+    packageName: 'sanitize-html',
     id: 'GHSA-cgfm-xwp7-2cvr',
     aliases: ['CVE-2022-25887'],
     summary: 'Sanitize-html Vulnerable To REDoS Attacks',
     severity: 'high',
     introduced: '0',
     fixed: '2.7.1',
+  },
+  {
+    packageName: 'sanitize-html',
+    id: 'GHSA-cv27-6wvh-8x7j',
+    aliases: ['CVE-2026-113661'],
+    summary:
+      'ApostropheCMS: Incomplete CVE-2026-53606: `meta http-equiv=refresh` `content` still ships `javascript:` / `data:` URLs',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '2.18.0',
   },
   {
     packageName: 'sanitize-html',
@@ -2568,6 +2800,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'sanitize-html',
+    id: 'GHSA-x3q4-9hxx-gx8m',
+    aliases: ['CVE-2026-113654'],
+    summary:
+      'ApostropheCMS sanitize-html: nonTextTags discard region ends early on an implied close, letting <noscript> content render',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '2.18.0',
+  },
+  {
+    packageName: 'sanitize-html',
     id: 'GHSA-xc6g-ggrc-qq4r',
     aliases: ['CVE-2017-16016'],
     summary: 'Cross-Site Scripting in sanitize-html',
@@ -2602,6 +2844,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'medium',
     introduced: '0',
     fixed: '2.0.17',
+  },
+  {
+    packageName: 'dompurify',
+    id: 'GHSA-6688-9rhm-gjv2',
+    aliases: ['CVE-2026-109345'],
+    summary:
+      'DOMPurify: IN_PLACE returns a force-removed rawtext root whose text carries attacker markup — pure HTML reparse executes',
+    severity: 'low',
+    introduced: '0',
+    fixed: '3.4.16',
   },
   {
     packageName: 'dompurify',
@@ -2640,6 +2892,26 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'low',
     introduced: '0',
     fixed: '3.4.12',
+  },
+  {
+    packageName: 'dompurify',
+    id: 'GHSA-c6gr-qvv4-5v3f',
+    aliases: ['CVE-2026-116802'],
+    summary:
+      'DOMPurify: SMIL attributeName=href guard is skipped when PARSER_MEDIA_TYPE is application/xhtml+xml',
+    severity: 'low',
+    introduced: '0',
+    fixed: '3.4.17',
+  },
+  {
+    packageName: 'dompurify',
+    id: 'GHSA-cg2g-xh64-v4q7',
+    aliases: ['CVE-2026-116804'],
+    summary:
+      'DOMPurify SAFE_FOR_TEMPLATES bypass: split template expressions survive in attached shadow root content on DOM output modes',
+    severity: 'critical',
+    introduced: '3.4.4',
+    fixed: '3.4.17',
   },
   {
     packageName: 'dompurify',
@@ -2755,6 +3027,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'dompurify',
+    id: 'GHSA-mrv2-3pqr-j5jr',
+    aliases: ['CVE-2026-116803'],
+    summary:
+      "DOMPurify IN_PLACE: hook that removes a parent or sibling leaves the detached subtree's event handlers armed (incomplete fix for GHSA-p98j-92pf-mc4p)",
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.4.17',
+  },
+  {
+    packageName: 'dompurify',
     id: 'GHSA-p3vf-v8qc-cwcr',
     aliases: ['CVE-2024-48910'],
     summary: 'DOMPurify vulnerable to tampering by prototype polution',
@@ -2765,7 +3047,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'dompurify',
     id: 'GHSA-p98j-92pf-mc4p',
-    aliases: [],
+    aliases: ['CVE-2026-109344'],
     summary:
       'DOMPurify: IN_PLACE: node-removing afterSanitize hook leaves detached subtree event handlers armed, causing DOM XSS',
     severity: 'low',
@@ -2924,6 +3206,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'handlebars',
+    id: 'GHSA-8r5x-fm3f-whwj',
+    aliases: ['CVE-2026-106446'],
+    summary:
+      'Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)',
+    severity: 'critical',
+    introduced: '4.0.0',
+    fixed: '4.7.10',
+  },
+  {
+    packageName: 'handlebars',
     id: 'GHSA-9cx6-37pm-9jff',
     aliases: ['CVE-2026-33939'],
     summary:
@@ -2967,6 +3259,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '0',
     fixed: '3.0.8',
+  },
+  {
+    packageName: 'handlebars',
+    id: 'GHSA-p8wg-vrv2-v86f',
+    aliases: ['CVE-2026-106445'],
+    summary: 'Handlebars: JavaScript Injection via Own Property Check Bypass',
+    severity: 'critical',
+    introduced: '3.0.0',
+    fixed: '4.7.10',
   },
   {
     packageName: 'handlebars',
@@ -3014,6 +3315,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '4.0.0',
     fixed: '4.7.9',
+  },
+  {
+    packageName: 'handlebars',
+    id: 'GHSA-xw65-4hp5-5hc7',
+    aliases: ['CVE-2026-106444'],
+    summary:
+      'Handlebars: JavaScript Injection via Unsafe Inline Embedding of Precompiled Templates',
+    severity: 'medium',
+    introduced: '4.0.0',
+    fixed: '4.7.10',
   },
   {
     packageName: 'ejs',
@@ -3385,12 +3696,30 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'minimatch',
+    id: 'GHSA-g3hv-75wg-m249',
+    aliases: ['CVE-2026-118764'],
+    summary: 'minimatch has potential denial of service via globparts amplification',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '11.0.1',
+  },
+  {
+    packageName: 'minimatch',
     id: 'GHSA-hxm2-r34f-qmc5',
     aliases: ['CVE-2016-10540'],
     summary: 'Regular Expression Denial of Service in minimatch',
     severity: 'high',
     introduced: '0',
     fixed: '3.0.2',
+  },
+  {
+    packageName: 'glob',
+    id: 'GHSA-3g3m-2fjr-6pw4',
+    aliases: ['CVE-2026-118773'],
+    summary: 'Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal',
+    severity: 'medium',
+    introduced: '9.0.0',
+    fixed: '14.0.2',
   },
   {
     packageName: 'glob',
@@ -3741,12 +4070,49 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'node-forge',
+    id: 'GHSA-4487-j8r4-4g2f',
+    aliases: ['CVE-2026-118780'],
+    summary:
+      'Forge: verifyCertificateChain() removes trusted CA certificates with the same subject from the CA store',
+    severity: 'low',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-4642-5mcj-2rqw',
+    aliases: ['CVE-2026-118775'],
+    summary: 'Forge: ASN.1 OID first arc truncation in asn1.oidToDer',
+    severity: 'low',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-525v-9gp9-w22h',
+    aliases: ['CVE-2026-118778'],
+    summary: 'Forge: TLS client crash when the server sends no certificate',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
     id: 'GHSA-554w-wpv2-vw27',
     aliases: ['CVE-2025-66031'],
     summary: 'node-forge has ASN.1 Unbounded Recursion',
     severity: 'high',
     introduced: '0',
     fixed: '1.3.2',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-5cwg-6vw7-rj6p',
+    aliases: ['CVE-2026-119186'],
+    summary: 'Forge: AES-GCM authentication bypass via unvalidated tagLength option',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '1.4.1',
   },
   {
     packageName: 'node-forge',
@@ -3779,6 +4145,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'node-forge',
+    id: 'GHSA-5x38-2vff-x55p',
+    aliases: ['CVE-2026-119190'],
+    summary:
+      'Forge: X.509 basicConstraints bypass in verifyCertificateChain() via deprecated extension OIDs 2.5.29.10 and 2.5.29.13',
+    severity: 'high',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
     id: 'GHSA-65ch-62r8-g69g',
     aliases: ['CVE-2025-66030'],
     summary: 'node-forge is vulnerable to ASN.1 OID Integer Truncation',
@@ -3788,12 +4164,40 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'node-forge',
+    id: 'GHSA-6wvx-3r32-xmcg',
+    aliases: ['CVE-2026-118777'],
+    summary: 'Forge: Prototype Pollution in forge.http cookie handling via a malicious Set-Cookie',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-7wch-p9px-956x',
+    aliases: ['CVE-2026-118779'],
+    summary: 'Forge: Regular expression denial of service in PEM decoding (pem.decode)',
+    severity: 'high',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
     id: 'GHSA-8fr3-hfg3-gpgp',
     aliases: ['CVE-2022-0122'],
     summary: 'Open Redirect in node-forge',
     severity: 'medium',
     introduced: '0',
     fixed: '1.0.0',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-8hrf-8g6f-7xwp',
+    aliases: ['CVE-2026-119188'],
+    summary:
+      'Forge: Denial of service in TLS record processing via a record interleaved with a fragmented handshake message',
+    severity: 'high',
+    introduced: '0',
+    fixed: '1.4.1',
   },
   {
     packageName: 'node-forge',
@@ -3821,6 +4225,34 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'low',
     introduced: '0',
     fixed: '1.0.0',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-h6cr-wjv9-3cpp',
+    aliases: ['CVE-2026-118781'],
+    summary:
+      'Forge: Denial of Service via infinite loop in BigInteger.modInverse() with negative input (incomplete fix of CVE-2026-33891)',
+    severity: 'low',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-hqq3-7jhf-c5jx',
+    aliases: ['CVE-2026-119187'],
+    summary: 'Forge: Denial of service in TLS record processing via call stack exhaustion',
+    severity: 'high',
+    introduced: '0',
+    fixed: '1.4.1',
+  },
+  {
+    packageName: 'node-forge',
+    id: 'GHSA-jc66-7q78-782g',
+    aliases: ['CVE-2026-118782'],
+    summary: 'Forge: PKCS#12 MAC forgery and constant-key PBE via zero iteration count',
+    severity: 'high',
+    introduced: '0',
+    fixed: '1.4.1',
   },
   {
     packageName: 'node-forge',
@@ -3933,6 +4365,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'pbkdf2',
+    id: 'GHSA-477h-4r7f-fvrx',
+    aliases: ['CVE-2026-102414'],
+    summary: 'pbkdf2 rehashes long passwords on every iteration, enabling denial of service',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '3.1.7',
+  },
+  {
+    packageName: 'pbkdf2',
     id: 'GHSA-h7cp-r72f-jxh6',
     aliases: ['CVE-2025-6545'],
     summary:
@@ -3990,6 +4431,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-22jm-h49p-29qw',
+    aliases: ['CVE-2026-111767'],
+    summary:
+      'MCP TypeScript SDK: Experimental tasks were not tied to the session that created them',
+    severity: 'high',
+    introduced: '1.24.0',
+    fixed: '1.32.0',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
     id: 'GHSA-345p-7cg4-v4c7',
     aliases: ['CVE-2026-25536'],
     summary:
@@ -4000,12 +4451,62 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-46jr-4wx8-v453',
+    aliases: ['CVE-2026-111768'],
+    summary:
+      'MCP TypeScript SDK: One HTTP request within the default size limit could exhaust server memory during validation',
+    severity: 'high',
+    introduced: '1.3.0',
+    fixed: '1.32.0',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-6prh-2h8m-c8cw',
+    aliases: ['CVE-2026-111769'],
+    summary:
+      'MCP TypeScript client SDK: HTTP client transports and OAuth requests followed cross-origin redirects and re-sent custom headers and request bodies',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '1.32.0',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-6qxp-vccf-f47h',
+    aliases: ['CVE-2026-104850'],
+    summary:
+      'MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server',
+    severity: 'high',
+    introduced: '1.12.0',
+    fixed: '1.31.0',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
     id: 'GHSA-8r9q-7v3j-jr4g',
     aliases: ['CVE-2026-0621'],
     summary: "Anthropic's MCP TypeScript SDK has a ReDoS vulnerability",
     severity: 'high',
     introduced: '1.3.0',
     fixed: '1.25.2',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-f897-62hf-6gxq',
+    aliases: [],
+    summary:
+      'MCP TypeScript SDK: HTTP server transports and handlers did not limit request body size or JSON-RPC batch length',
+    severity: 'high',
+    introduced: '1.10.0',
+    fixed: '1.30.1',
+  },
+  {
+    packageName: '@modelcontextprotocol/sdk',
+    id: 'GHSA-rvq5-wwqv-78pq',
+    aliases: ['CVE-2026-111771'],
+    summary:
+      'MCP TypeScript SDK: Server bearer authentication accepted tokens issued for another service',
+    severity: 'medium',
+    introduced: '1.6.0',
+    fixed: '1.32.0',
   },
   {
     packageName: '@modelcontextprotocol/sdk',
@@ -4046,6 +4547,26 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-2v2p-6j97-cjg9',
+    aliases: ['CVE-2026-100722'],
+    summary:
+      'vm2: Host Promise rejection from an exposed constructor can terminate the vm2 host process',
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.12.2',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-3vgf-8m4q-q4qr',
+    aliases: ['CVE-2026-92953'],
+    summary:
+      'vm2: Default VM can mutate host TypedArray and ArrayBuffer intrinsics after the host-prototype pollution fix',
+    severity: 'critical',
+    introduced: '3.11.0',
+    fixed: '3.11.8',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-46pr-c5wc-xffx',
     aliases: ['CVE-2026-92939'],
     summary: 'vm2 crypto builtin loads attacker native code through setEngine',
@@ -4064,6 +4585,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-489w-w794-jq94',
+    aliases: ['CVE-2026-100723'],
+    summary: 'vm2: NodeVM zlib Buffers expose pooled host memory across the VM boundary',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '3.12.2',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-4w2j-2rg4-5mjw',
     aliases: ['CVE-2022-25893'],
     summary: 'vm2 vulnerable to Arbitrary Code Execution',
@@ -4079,6 +4609,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.11.0',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-5h3f-q97h-ccvc',
+    aliases: ['CVE-2026-100721'],
+    summary: 'vm2: NodeVM custom resolution bypasses external path boundaries',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.12.2',
   },
   {
     packageName: 'vm2',
@@ -4181,6 +4720,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-88hf-g992-jg85',
+    aliases: ['CVE-2026-92955'],
+    summary: 'vm2: Sandbox Escape (NodeVM)',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.8',
   },
   {
     packageName: 'vm2',
@@ -4315,12 +4863,42 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-f8gf-w286-fmq2',
+    aliases: ['CVE-2026-92959'],
+    summary:
+      'vm2: `allowAsync: false` can be bypassed through Promise thenable assimilation in VM and NodeVM',
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.11.8',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-fcqc-726x-5wfc',
+    aliases: ['CVE-2026-92947'],
+    summary:
+      "vm2: Sandboxed code can read and write host-realm memory via Node's shared Buffer pool",
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-ffh4-j6h5-pg66',
     aliases: ['CVE-2026-26956'],
     summary: 'VM2 Has a WASM Sandbox Escape',
     severity: 'critical',
     introduced: '0',
     fixed: '3.10.5',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-gjq8-xm47-88rc',
+    aliases: ['CVE-2026-92954'],
+    summary:
+      "vm2: Host-returned Promise rejection can bypass vm2's unhandled-rejection hardening and terminate the host process",
+    severity: 'critical',
+    introduced: '3.10.0',
+    fixed: '3.11.8',
   },
   {
     packageName: 'vm2',
@@ -4358,6 +4936,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '0',
     fixed: '3.11.0',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-j3hm-6rg5-mchv',
+    aliases: ['CVE-2026-92946'],
+    summary:
+      'vm2: NodeVM `require.external` without an explicit `require.root` grants unrestricted host filesystem access and full RCE',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.7',
   },
   {
     packageName: 'vm2',
@@ -4447,6 +5035,15 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-pq68-rvw4-xp4r',
+    aliases: ['CVE-2026-93605'],
+    summary: 'vm2 contains a sandbox escape vulnerability',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.12.1',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-q3fm-4wcw-g57x',
     aliases: ['CVE-2026-92962'],
     summary: 'vm2 setup-sandbox.js violates Defense Invariant #11 in stack-trace formatter',
@@ -4481,6 +5078,26 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'critical',
     introduced: '0',
     fixed: '3.10.5',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-r273-hxvj-fxhp',
+    aliases: ['CVE-2026-92933'],
+    summary:
+      'vm2: util.getCallSites() bypasses GHSA-v27g-jcqj-v8rw host-frame redaction, leaks host call stack',
+    severity: 'medium',
+    introduced: '0',
+    fixed: '3.11.8',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-r4fx-v8hh-22mv',
+    aliases: ['CVE-2026-92942'],
+    summary:
+      'vm2: timeout Option Bypass via FinalizationRegistry Cleanup Callback (Unbounded Host Event-Loop Block)',
+    severity: 'high',
+    introduced: '0',
+    fixed: '3.11.7',
   },
   {
     packageName: 'vm2',
@@ -4575,12 +5192,40 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   },
   {
     packageName: 'vm2',
+    id: 'GHSA-wjwh-qqvp-g4p4',
+    aliases: ['CVE-2026-92956'],
+    summary: 'vm2 sandbox escape via WebAssembly.compileStreaming Promise species bypass',
+    severity: 'critical',
+    introduced: '3.10.1',
+    fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
     id: 'GHSA-wp5r-2gw5-m7q7',
     aliases: ['CVE-2026-44003'],
     summary: "vm2's Transformer Fast-Path Bypass Exposes Internal State Variable",
     severity: 'medium',
     introduced: '0',
     fixed: '3.11.0',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-x6m4-chr9-cg97',
+    aliases: ['CVE-2026-92936'],
+    summary: 'vm2 leaks absolute host filesystem paths to sandbox code via error stack formatting',
+    severity: 'medium',
+    introduced: '3.11.0',
+    fixed: '3.11.7',
+  },
+  {
+    packageName: 'vm2',
+    id: 'GHSA-x965-fc75-jpqh',
+    aliases: ['CVE-2026-92934'],
+    summary:
+      'vm2 sandbox escape to host RCE via revisited host-wrapped AggregateError bypassing Error sanitization cycle short-circuit',
+    severity: 'critical',
+    introduced: '0',
+    fixed: '3.11.8',
   },
   {
     packageName: 'vm2',
@@ -4603,7 +5248,7 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'sharp',
     id: 'GHSA-f88m-g3jw-g9cj',
-    aliases: [],
+    aliases: ['CVE-2026-114113'],
     summary:
       'sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591',
     severity: 'high',
@@ -4622,11 +5267,20 @@ export const VULN_DB: readonly VulnDbEntry[] = [
   {
     packageName: 'sharp',
     id: 'GHSA-rgj7-g3m4-5g8c',
-    aliases: [],
+    aliases: ['CVE-2026-114112'],
     summary: 'sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545',
     severity: 'high',
     introduced: '0',
     fixed: '0.35.4',
+  },
+  {
+    packageName: 'sharp',
+    id: 'GHSA-wq5f-xc86-pv6w',
+    aliases: ['CVE-2026-114111'],
+    summary: 'sharp : Vulnerability in librsvg dependency CVE-2026-96889',
+    severity: 'high',
+    introduced: '0',
+    fixed: '0.35.5',
   },
   {
     packageName: 'multer',
@@ -4709,6 +5363,16 @@ export const VULN_DB: readonly VulnDbEntry[] = [
     severity: 'high',
     introduced: '1.4.4-lts.1',
     fixed: '2.0.1',
+  },
+  {
+    packageName: 'multer',
+    id: 'GHSA-q7qp-rjg7-q26m',
+    aliases: ['CVE-2026-113872'],
+    summary:
+      'multer vulnerable to Denial of Service via a pending asynchronous fileFilter after request teardown',
+    severity: 'high',
+    introduced: '2.0.0',
+    fixed: '2.5.0',
   },
   {
     packageName: 'multer',
